@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Bitácora
@@ -22,6 +22,15 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-11 · Día 1 · AccesIA como raíz del repositorio
+
+- Quién: el frente B.
+- Qué: AccesIA quedó como raíz de su propio repositorio. Antes, el repositorio git estaba en la carpeta de arriba (`Inteligencia artificial/`) y el primer commit incluía otro proyecto de la materia (entrenamiento distribuido con TensorFlow). En GitHub, `main` se reemplazó con un push forzado y ahora solo tiene AccesIA.
+- Cómo: lo detectó Claude Code al revisar las referencias cruzadas, porque GitHub solo corre los workflows de `.github/workflows/` en la raíz del repositorio. Propuso tres opciones y se eligió reescribir el mismo repositorio de GitHub, que era privado, solo tenía `main` y no tenía otros colaboradores. Pasos: respaldo con `git bundle` en `Universidad/respaldo-git-inteligencia-artificial-2026-11-11.bundle`; `git subtree split --prefix=AccesIA` de `main` y de `b/contratos-v1-1`; repositorio nuevo dentro de `AccesIA/`; `git push --force-with-lease` de `main` y push de `b/contratos-v1-1`.
+- Pruebas: las ramas nuevas tienen el mismo árbol que `AccesIA/` en las viejas, con los mismos autores y fechas. En GitHub, `main` tiene la raíz de AccesIA y nada del otro proyecto, y el árbol de `b/contratos-v1-1` es igual al local.
+- Cambios de contrato o de specs: ninguno. Los commits cambiaron de identificador: `4c3cca5` pasó a `cd480c4` y `915b0c2` a `8075dc0`.
+- Pendiente: renombrar a `.git-viejo` el `.git` de la carpeta de arriba (falló porque VS Code estaba abierto). El proyecto de TensorFlow queda sin git; si lo quieren versionado, va en otro repositorio.
 
 ## 2026-11-11 · Día 1 · Tarea 00 · Contratos 1.1
 

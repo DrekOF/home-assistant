@@ -1,0 +1,279 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Paso a paso: inscripción y cada llegada",
+    "locale": "es",
+    "quality_profile": "showcase",
+    "output": ".archify/workflow-paso-a-paso-20261111-144000/paso-a-paso.html",
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "Web o cámara"
+        },
+        "backend": {
+          "label": "Procesamiento"
+        },
+        "database": {
+          "label": "Registro en la base"
+        },
+        "security": {
+          "label": "Decisión de acceso"
+        },
+        "external": {
+          "label": "Persona"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "persona",
+      "label": "Persona y administrador"
+    },
+    {
+      "id": "camara",
+      "label": "Cámara ESP32-S3"
+    },
+    {
+      "id": "servidor",
+      "label": "Servidor"
+    },
+    {
+      "id": "ha",
+      "label": "Home Assistant"
+    },
+    {
+      "id": "rechazo",
+      "label": "Si no puede entrar",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "fase-inscripcion",
+      "label": "1 · Inscripción (una vez)",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "fase-llegada",
+      "label": "2 · Cada llegada",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "fase-resultado",
+      "label": "3 · Resultado",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "registrar",
+    "muestras",
+    "guardar",
+    "llega",
+    "detecta",
+    "compara",
+    "regla",
+    "asistencia",
+    "abre"
+  ],
+  "nodes": [
+    {
+      "id": "registrar",
+      "lane": "persona",
+      "col": 0,
+      "type": "frontend",
+      "label": "1. Registrar a Ana",
+      "sublabel": "web + consentimiento"
+    },
+    {
+      "id": "muestras",
+      "lane": "camara",
+      "col": 0,
+      "type": "frontend",
+      "label": "2. Tomar 5 muestras",
+      "sublabel": "modo inscripción"
+    },
+    {
+      "id": "guardar",
+      "lane": "servidor",
+      "col": 1,
+      "type": "database",
+      "label": "3. Guardar 5 huellas",
+      "sublabel": "PostgreSQL"
+    },
+    {
+      "id": "llega",
+      "lane": "persona",
+      "col": 2,
+      "type": "external",
+      "label": "4. Ana llega",
+      "sublabel": "frente a la cámara"
+    },
+    {
+      "id": "detecta",
+      "lane": "camara",
+      "col": 2,
+      "type": "frontend",
+      "label": "5. Detectar la cara",
+      "sublabel": "TinyML"
+    },
+    {
+      "id": "compara",
+      "lane": "servidor",
+      "col": 3,
+      "type": "backend",
+      "label": "6. Sacar huella y comparar",
+      "sublabel": "¿se parece a alguien?"
+    },
+    {
+      "id": "regla",
+      "lane": "servidor",
+      "col": 4,
+      "type": "security",
+      "label": "7. Aplicar la regla",
+      "sublabel": "activa y con consentimiento"
+    },
+    {
+      "id": "asistencia",
+      "lane": "servidor",
+      "col": 5,
+      "type": "database",
+      "label": "8. Anotar la llegada",
+      "sublabel": "a tiempo o tarde"
+    },
+    {
+      "id": "abre",
+      "lane": "ha",
+      "col": 5,
+      "type": "backend",
+      "label": "9. Abrir la puerta",
+      "sublabel": "3 s y «Ana entró»"
+    },
+    {
+      "id": "no-entra",
+      "lane": "rechazo",
+      "col": 4,
+      "type": "security",
+      "label": "No entra",
+      "sublabel": "desconocido o sin permiso"
+    },
+    {
+      "id": "aviso",
+      "lane": "rechazo",
+      "col": 5,
+      "type": "backend",
+      "label": "Avisar al celular",
+      "sublabel": "Home Assistant"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-modo",
+      "from": "registrar",
+      "to": "muestras",
+      "label": "modo inscripción",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "e-recortes",
+      "from": "muestras",
+      "to": "guardar",
+      "label": "5 recortes",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "e-cada-dia",
+      "from": "guardar",
+      "to": "llega",
+      "label": "luego, cada día",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "e-mira",
+      "from": "llega",
+      "to": "detecta",
+      "label": "mira la cámara",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-recorte",
+      "from": "detecta",
+      "to": "compara",
+      "label": "recorte JPEG",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-si",
+      "from": "compara",
+      "to": "regla",
+      "label": "sí: Ana, 82 %",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-permitido",
+      "from": "regla",
+      "to": "asistencia",
+      "label": "permitido",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-mqtt",
+      "from": "asistencia",
+      "to": "abre",
+      "label": "evento MQTT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e-no-parece",
+      "from": "compara",
+      "to": "no-entra",
+      "label": "no se parece",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "e-sin-permiso",
+      "from": "regla",
+      "to": "no-entra",
+      "label": "sin permiso",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "e-aviso",
+      "from": "no-entra",
+      "to": "aviso",
+      "label": "evento MQTT",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Cómo leerlo",
+      "items": [
+        "Empieza arriba a la izquierda: la inscripción se hace una sola vez",
+        "Después, cada llegada va de izquierda a derecha",
+        "Abajo, lo que pasa si no la dejan entrar"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "El agente",
+      "items": [
+        "En Assist le preguntas: ¿quién llegó tarde hoy?",
+        "Consulta estos registros sin poder cambiarlos"
+      ]
+    }
+  ]
+}

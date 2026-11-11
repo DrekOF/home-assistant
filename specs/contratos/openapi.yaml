@@ -1,0 +1,1107 @@
+# Nombre: openapi.yaml
+# Descripción: Contrato de la API REST de AccesIA para la web de administración y las cámaras.
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+openapi: 3.1.0
+info:
+  title: API de AccesIA
+  version: 1.0.0
+  description: >-
+    API del servidor de AccesIA. La web de administración usa la cookie de sesión y las cámaras
+    usan su token. Fechas y horas en ISO 8601 con la zona de Colombia (-05:00). Todos los errores
+    siguen el esquema Error. Reglas en specs/reglas.md; el contrato de la cámara se explica en
+    specs/contratos/api-dispositivo.md.
+servers:
+  - url: http://localhost:8000
+    description: PC de desarrollo
+  - url: http://10.42.0.1:8000
+    description: Raspberry en la red AccesIA
+security:
+  - sesion: []
+tags:
+  - name: Salud
+  - name: Sesión
+  - name: Personas
+  - name: Consentimiento
+  - name: Rostros
+  - name: Inscripciones
+  - name: Cámaras
+  - name: Accesos
+  - name: Asistencia
+  - name: Horarios
+  - name: Configuración
+
+paths:
+  /api/v1/salud:
+    get:
+      tags: [Salud]
+      operationId: verSalud
+      summary: Estado del servidor, la base de datos y MQTT
+      security: []
+      responses:
+        "200":
+          description: Estado actual
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Salud" }
+
+  /api/v1/sesion:
+    post:
+      tags: [Sesión]
+      operationId: iniciarSesion
+      summary: Inicia sesión y deja la cookie accesia_sesion
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credenciales" }
+      responses:
+        "200":
+          description: Sesión iniciada
+          headers:
+            Set-Cookie:
+              description: "accesia_sesion=...; HttpOnly; SameSite=Strict; Path=/"
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Administrador" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+    get:
+      tags: [Sesión]
+      operationId: verSesion
+      summary: Administrador de la sesión actual
+      responses:
+        "200":
+          description: Administrador
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Administrador" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+    delete:
+      tags: [Sesión]
+      operationId: cerrarSesion
+      summary: Cierra la sesión
+      responses:
+        "204": { description: Sesión cerrada }
+
+  /api/v1/personas:
+    get:
+      tags: [Personas]
+      operationId: listarPersonas
+      summary: Lista personas con búsqueda y paginación
+      parameters:
+        - name: q
+          in: query
+          description: Busca en nombre y documento, sin importar tildes ni mayúsculas
+          schema: { type: string, maxLength: 60 }
+        - name: activa
+          in: query
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Pagina"
+        - $ref: "#/components/parameters/PorPagina"
+      responses:
+        "200":
+          description: Página de personas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginaPersonas" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+    post:
+      tags: [Personas]
+      operationId: crearPersona
+      summary: Crea una persona (RF-02 · C1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonaNueva" }
+      responses:
+        "201":
+          description: Persona creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Persona" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/personas/{persona_id}:
+    parameters:
+      - $ref: "#/components/parameters/PersonaId"
+    get:
+      tags: [Personas]
+      operationId: verPersona
+      summary: Ficha de una persona, sin huellas (RF-12 · C3)
+      responses:
+        "200":
+          description: Persona
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Persona" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    patch:
+      tags: [Personas]
+      operationId: editarPersona
+      summary: Cambia datos de una persona, incluido activarla o desactivarla
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonaCambios" }
+      responses:
+        "200":
+          description: Persona actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Persona" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+    delete:
+      tags: [Personas]
+      operationId: borrarPersona
+      summary: Borra la persona con sus huellas, consentimientos, inscripciones y asistencia (RF-12 · C2)
+      description: Sus eventos de acceso se conservan sin persona.
+      responses:
+        "204": { description: Persona borrada }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/personas/{persona_id}/consentimiento:
+    parameters:
+      - $ref: "#/components/parameters/PersonaId"
+    get:
+      tags: [Consentimiento]
+      operationId: verConsentimiento
+      summary: Consentimiento vigente de la persona
+      responses:
+        "200":
+          description: Consentimiento vigente
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Consentimiento" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    post:
+      tags: [Consentimiento]
+      operationId: registrarConsentimiento
+      summary: Registra el consentimiento de la persona (RF-02 · C2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentimientoNuevo" }
+      responses:
+        "201":
+          description: Consentimiento registrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Consentimiento" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+    delete:
+      tags: [Consentimiento]
+      operationId: revocarConsentimiento
+      summary: Revoca el consentimiento y borra las huellas en la misma transacción (RF-02 · C5)
+      responses:
+        "204": { description: Consentimiento revocado y huellas borradas }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/consentimiento/texto:
+    get:
+      tags: [Consentimiento]
+      operationId: verTextoConsentimiento
+      summary: Texto vigente del consentimiento (specs/consentimiento.md)
+      responses:
+        "200":
+          description: Texto y versión
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TextoConsentimiento" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+  /api/v1/personas/{persona_id}/rostros:
+    parameters:
+      - $ref: "#/components/parameters/PersonaId"
+    get:
+      tags: [Rostros]
+      operationId: listarRostros
+      summary: Muestras de la persona, sin las huellas
+      responses:
+        "200":
+          description: Muestras
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RostroResumen" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    delete:
+      tags: [Rostros]
+      operationId: borrarRostros
+      summary: Borra todas las huellas de la persona (RF-12 · C1)
+      responses:
+        "204": { description: Huellas borradas }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/rostros/{rostro_id}:
+    parameters:
+      - $ref: "#/components/parameters/RostroId"
+    delete:
+      tags: [Rostros]
+      operationId: borrarRostro
+      summary: Borra una muestra
+      responses:
+        "204": { description: Muestra borrada }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/inscripciones:
+    post:
+      tags: [Inscripciones]
+      operationId: abrirInscripcion
+      summary: Abre una inscripción para una persona en una cámara (RF-03, R9)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InscripcionNueva" }
+      responses:
+        "201":
+          description: Inscripción activa
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inscripcion" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/inscripciones/{inscripcion_id}:
+    parameters:
+      - $ref: "#/components/parameters/InscripcionId"
+    get:
+      tags: [Inscripciones]
+      operationId: verInscripcion
+      summary: Avance de la inscripción; la web la consulta cada segundo (RF-03 · C6)
+      responses:
+        "200":
+          description: Inscripción
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inscripcion" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    delete:
+      tags: [Inscripciones]
+      operationId: cancelarInscripcion
+      summary: Cancela una inscripción activa; las muestras aceptadas se conservan
+      responses:
+        "204": { description: Inscripción cancelada }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+
+  /api/v1/dispositivos:
+    get:
+      tags: [Cámaras]
+      operationId: listarCamaras
+      summary: Lista las cámaras con su estado
+      responses:
+        "200":
+          description: Cámaras
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Dispositivo" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+    post:
+      tags: [Cámaras]
+      operationId: crearCamara
+      summary: Registra una cámara; el token se muestra una sola vez (RF-10 · C1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DispositivoNuevo" }
+      responses:
+        "201":
+          description: Cámara creada con su token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DispositivoConToken" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/dispositivos/{codigo}:
+    parameters:
+      - $ref: "#/components/parameters/CodigoCamara"
+    get:
+      tags: [Cámaras]
+      operationId: verCamara
+      summary: Una cámara con su estado
+      responses:
+        "200":
+          description: Cámara
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dispositivo" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+    patch:
+      tags: [Cámaras]
+      operationId: editarCamara
+      summary: Cambia nombre, tipo, URL de captura o si está activa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DispositivoCambios" }
+      responses:
+        "200":
+          description: Cámara actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dispositivo" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/dispositivos/{codigo}/token:
+    parameters:
+      - $ref: "#/components/parameters/CodigoCamara"
+    post:
+      tags: [Cámaras]
+      operationId: cambiarTokenCamara
+      summary: Genera un token nuevo; el anterior deja de servir (RF-10 · C2)
+      responses:
+        "200":
+          description: Cámara con su token nuevo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DispositivoConToken" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/dispositivos/{codigo}/rostros:
+    parameters:
+      - $ref: "#/components/parameters/CodigoCamara"
+    post:
+      tags: [Cámaras]
+      operationId: enviarRostro
+      summary: La cámara envía el recorte de una cara (specs/contratos/api-dispositivo.md)
+      security:
+        - tokenDispositivo: []
+      parameters:
+        - name: X-AccesIA-Firmware
+          in: header
+          schema: { type: string, maxLength: 60 }
+        - name: X-AccesIA-Puntaje
+          in: header
+          schema: { type: number, minimum: 0, maximum: 1 }
+      requestBody:
+        required: true
+        description: JPEG del recorte con 25 % de margen, máximo 100 KB
+        content:
+          image/jpeg:
+            schema: { type: string, contentMediaType: image/jpeg }
+      responses:
+        "200":
+          description: Resultado del recorte
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespuestaRostro" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "403": { $ref: "#/components/responses/Prohibido" }
+        "413": { $ref: "#/components/responses/ImagenGrande" }
+        "415": { $ref: "#/components/responses/TipoNoSoportado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+        "429": { $ref: "#/components/responses/DemasiadasPeticiones" }
+
+  /api/v1/accesos:
+    get:
+      tags: [Accesos]
+      operationId: listarAccesos
+      summary: Eventos de acceso con filtros (RF-05 · C3)
+      parameters:
+        - name: desde
+          in: query
+          schema: { type: string, format: date-time }
+        - name: hasta
+          in: query
+          schema: { type: string, format: date-time }
+        - name: resultado
+          in: query
+          schema: { $ref: "#/components/schemas/ResultadoAcceso" }
+        - name: persona_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: dispositivo
+          in: query
+          schema: { type: string, pattern: "^[a-z0-9-]{3,32}$" }
+        - $ref: "#/components/parameters/Pagina"
+        - $ref: "#/components/parameters/PorPagina"
+      responses:
+        "200":
+          description: Página de eventos, del más reciente al más antiguo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginaEventos" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/asistencia:
+    get:
+      tags: [Asistencia]
+      operationId: verAsistencia
+      summary: Reporte de asistencia de un día (RF-06 · C3)
+      parameters:
+        - name: fecha
+          in: query
+          description: Fecha local de Colombia; por defecto, hoy
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Reporte del día
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReporteAsistencia" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/asistencia.csv:
+    get:
+      tags: [Asistencia]
+      operationId: exportarAsistencia
+      summary: Exporta la asistencia a CSV (RF-06 · C4, extra)
+      description: "Columnas: fecha, nombre, documento, llegada, estado, minutos_tarde. Separador coma, UTF-8."
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/horarios:
+    get:
+      tags: [Horarios]
+      operationId: listarHorarios
+      summary: Lista los horarios
+      responses:
+        "200":
+          description: Horarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Horario" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+    post:
+      tags: [Horarios]
+      operationId: crearHorario
+      summary: Crea un horario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HorarioNuevo" }
+      responses:
+        "201":
+          description: Horario creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Horario" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+
+  /api/v1/horarios/{horario_id}:
+    parameters:
+      - $ref: "#/components/parameters/HorarioId"
+    patch:
+      tags: [Horarios]
+      operationId: editarHorario
+      summary: Cambia un horario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HorarioCambios" }
+      responses:
+        "200":
+          description: Horario actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Horario" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
+    delete:
+      tags: [Horarios]
+      operationId: borrarHorario
+      summary: Borra un horario que nadie usa
+      responses:
+        "204": { description: Horario borrado }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+
+  /api/v1/configuracion:
+    get:
+      tags: [Configuración]
+      operationId: verConfiguracion
+      summary: Valores de las reglas que usa el servidor (solo lectura, D-14)
+      responses:
+        "200":
+          description: Configuración
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Configuracion" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+
+components:
+  securitySchemes:
+    sesion:
+      type: apiKey
+      in: cookie
+      name: accesia_sesion
+      description: Cookie HttpOnly y SameSite=Strict que deja POST /api/v1/sesion.
+    tokenDispositivo:
+      type: http
+      scheme: bearer
+      description: Token de la cámara. Se muestra una sola vez, al crearla o al cambiarlo.
+
+  parameters:
+    PersonaId:
+      name: persona_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RostroId:
+      name: rostro_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    InscripcionId:
+      name: inscripcion_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    HorarioId:
+      name: horario_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CodigoCamara:
+      name: codigo
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[a-z0-9-]{3,32}$" }
+    Pagina:
+      name: pagina
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PorPagina:
+      name: por_pagina
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    NoAutorizado:
+      description: "Sin sesión, credenciales inválidas o token inválido (codigo: sin_sesion, credenciales_invalidas o token_invalido)"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { detalle: "Inicia sesión para continuar.", codigo: sin_sesion }
+    Prohibido:
+      description: "La cámara está desactivada (codigo: dispositivo_inactivo)"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NoEncontrado:
+      description: "No existe (codigo: no_encontrado)"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflicto:
+      description: >-
+        Choca con el estado actual (codigo: documento_duplicado, codigo_duplicado, nombre_duplicado,
+        consentimiento_vigente, inscripcion_activa, inscripcion_terminada u horario_en_uso)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NoProcesable:
+      description: >-
+        Datos inválidos o regla incumplida (codigo: validacion, sin_consentimiento,
+        version_texto_invalida o imagen_invalida)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ImagenGrande:
+      description: "La imagen pasa de 100 KB (codigo: imagen_grande)"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TipoNoSoportado:
+      description: "El cuerpo no es image/jpeg (codigo: tipo_no_soportado)"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    DemasiadasPeticiones:
+      description: "Más de un recorte por segundo de la misma cámara (codigo: demasiadas_peticiones)"
+      headers:
+        Retry-After:
+          schema: { type: integer, example: 1 }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [detalle, codigo]
+      properties:
+        detalle: { type: string, description: Texto para personas, en español }
+        codigo:
+          type: string
+          enum:
+            - sin_sesion
+            - credenciales_invalidas
+            - token_invalido
+            - dispositivo_inactivo
+            - no_encontrado
+            - documento_duplicado
+            - codigo_duplicado
+            - nombre_duplicado
+            - consentimiento_vigente
+            - version_texto_invalida
+            - sin_consentimiento
+            - inscripcion_activa
+            - inscripcion_terminada
+            - horario_en_uso
+            - imagen_grande
+            - tipo_no_soportado
+            - imagen_invalida
+            - demasiadas_peticiones
+            - validacion
+            - error_interno
+
+    Salud:
+      type: object
+      required: [estado, base, mqtt, version, hora]
+      properties:
+        estado: { type: string, enum: [ok, degradado] }
+        base: { type: string, enum: [ok, error] }
+        mqtt: { type: string, enum: [ok, sin_conexion] }
+        version: { type: string, example: "1.0.0" }
+        hora: { type: string, format: date-time }
+
+    Credenciales:
+      type: object
+      required: [correo, clave]
+      properties:
+        correo: { type: string, format: email }
+        clave: { type: string, minLength: 8, maxLength: 128 }
+
+    Administrador:
+      type: object
+      required: [id, correo, nombre]
+      properties:
+        id: { type: string, format: uuid }
+        correo: { type: string, format: email }
+        nombre: { type: string }
+
+    Rol:
+      type: string
+      enum: [estudiante, docente, administrativo, otro]
+
+    PersonaCorta:
+      type: object
+      required: [id, nombre]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+
+    Persona:
+      type: object
+      required:
+        [id, documento, nombre, rol, horario_id, horario_nombre, activa, consentimiento_vigente, muestras, creada, actualizada]
+      properties:
+        id: { type: string, format: uuid }
+        documento: { type: string, pattern: "^[0-9A-Za-z-]{3,20}$" }
+        nombre: { type: string, minLength: 2, maxLength: 120 }
+        rol: { $ref: "#/components/schemas/Rol" }
+        horario_id: { type: [string, "null"], format: uuid }
+        horario_nombre: { type: [string, "null"] }
+        activa: { type: boolean }
+        consentimiento_vigente: { type: boolean }
+        muestras: { type: integer, minimum: 0, description: Cantidad de huellas guardadas }
+        creada: { type: string, format: date-time }
+        actualizada: { type: string, format: date-time }
+
+    PersonaNueva:
+      type: object
+      required: [documento, nombre]
+      properties:
+        documento: { type: string, pattern: "^[0-9A-Za-z-]{3,20}$" }
+        nombre: { type: string, minLength: 2, maxLength: 120 }
+        rol: { $ref: "#/components/schemas/Rol" }
+        horario_id: { type: [string, "null"], format: uuid }
+        activa: { type: boolean, default: true }
+
+    PersonaCambios:
+      type: object
+      minProperties: 1
+      properties:
+        documento: { type: string, pattern: "^[0-9A-Za-z-]{3,20}$" }
+        nombre: { type: string, minLength: 2, maxLength: 120 }
+        rol: { $ref: "#/components/schemas/Rol" }
+        horario_id: { type: [string, "null"], format: uuid }
+        activa: { type: boolean }
+
+    PaginaPersonas:
+      type: object
+      required: [elementos, total, pagina, por_pagina]
+      properties:
+        elementos:
+          type: array
+          items: { $ref: "#/components/schemas/Persona" }
+        total: { type: integer, minimum: 0 }
+        pagina: { type: integer, minimum: 1 }
+        por_pagina: { type: integer, minimum: 1 }
+
+    Consentimiento:
+      type: object
+      required: [id, persona_id, version_texto, medio, registrado_por, aceptado_en, revocado_en]
+      properties:
+        id: { type: string, format: uuid }
+        persona_id: { type: string, format: uuid }
+        version_texto: { type: string, example: "1.0" }
+        medio: { type: string, enum: [web, papel] }
+        registrado_por: { type: [string, "null"], description: Nombre del administrador que lo registró }
+        aceptado_en: { type: string, format: date-time }
+        revocado_en: { type: [string, "null"], format: date-time }
+
+    ConsentimientoNuevo:
+      type: object
+      required: [version_texto, acepta]
+      properties:
+        version_texto: { type: string, description: Debe ser la versión vigente del texto, example: "1.0" }
+        medio: { type: string, enum: [web, papel], default: web }
+        acepta: { const: true, description: La persona marcó que acepta }
+
+    TextoConsentimiento:
+      type: object
+      required: [version, texto]
+      properties:
+        version: { type: string, example: "1.0" }
+        texto: { type: string, description: Texto en Markdown }
+
+    RostroResumen:
+      type: object
+      required: [id, fuente, modelo, calidad, creado]
+      properties:
+        id: { type: string, format: uuid }
+        fuente: { $ref: "#/components/schemas/TipoCamara" }
+        modelo: { type: string, example: sface_2021dec }
+        calidad: { type: [number, "null"], description: Nitidez de R7 }
+        creado: { type: string, format: date-time }
+
+    EstadoInscripcion:
+      type: string
+      enum: [activa, completada, vencida, cancelada]
+
+    MotivoMuestra:
+      type: string
+      enum: [sin_cara, varias_caras, cara_pequena, borrosa, parece_otra_persona]
+
+    Inscripcion:
+      type: object
+      required: [id, persona, dispositivo, estado, muestras, requeridas, ultimo_motivo, creada, vence, terminada]
+      properties:
+        id: { type: string, format: uuid }
+        persona: { $ref: "#/components/schemas/PersonaCorta" }
+        dispositivo: { type: string, pattern: "^[a-z0-9-]{3,32}$" }
+        estado: { $ref: "#/components/schemas/EstadoInscripcion" }
+        muestras: { type: integer, minimum: 0 }
+        requeridas: { type: integer, minimum: 1 }
+        ultimo_motivo:
+          anyOf:
+            - { $ref: "#/components/schemas/MotivoMuestra" }
+            - { type: "null" }
+        creada: { type: string, format: date-time }
+        vence: { type: string, format: date-time }
+        terminada: { type: [string, "null"], format: date-time }
+
+    InscripcionNueva:
+      type: object
+      required: [persona_id, dispositivo]
+      properties:
+        persona_id: { type: string, format: uuid }
+        dispositivo: { type: string, pattern: "^[a-z0-9-]{3,32}$" }
+
+    InscripcionCorta:
+      type: object
+      required: [id, muestras, requeridas, estado, vence]
+      properties:
+        id: { type: string, format: uuid }
+        muestras: { type: integer, minimum: 0 }
+        requeridas: { type: integer, minimum: 1 }
+        estado: { $ref: "#/components/schemas/EstadoInscripcion" }
+        vence: { type: string, format: date-time }
+
+    TipoCamara:
+      type: string
+      enum: [tinyml, respaldo, simulador]
+
+    EstadoCamara:
+      type: object
+      description: Último estado que publicó la cámara por MQTT (specs/contratos/mqtt.md)
+      properties:
+        perfil: { type: string }
+        firmware: { type: string }
+        ip: { type: string }
+        rssi: { type: integer }
+        psram_kb: { type: integer }
+        libre_kb: { type: integer }
+        segundos_encendida: { type: integer }
+
+    Dispositivo:
+      type: object
+      required: [codigo, nombre, tipo, url_captura, activo, en_linea, modo, ultimo_contacto, estado, creado]
+      properties:
+        codigo: { type: string, pattern: "^[a-z0-9-]{3,32}$" }
+        nombre: { type: string }
+        tipo: { $ref: "#/components/schemas/TipoCamara" }
+        url_captura: { type: [string, "null"], format: uri }
+        activo: { type: boolean }
+        en_linea: { type: boolean, description: Según su disponibilidad en MQTT o un contacto en los últimos 2 minutos }
+        modo: { type: string, enum: [reconocer, inscribir] }
+        ultimo_contacto: { type: [string, "null"], format: date-time }
+        estado:
+          anyOf:
+            - { $ref: "#/components/schemas/EstadoCamara" }
+            - { type: "null" }
+        creado: { type: string, format: date-time }
+
+    DispositivoNuevo:
+      type: object
+      required: [codigo, nombre, tipo]
+      description: url_captura es obligatoria si el tipo es respaldo.
+      properties:
+        codigo: { type: string, pattern: "^[a-z0-9-]{3,32}$", example: entrada }
+        nombre: { type: string, minLength: 2, maxLength: 60, example: Entrada }
+        tipo: { $ref: "#/components/schemas/TipoCamara" }
+        url_captura: { type: [string, "null"], format: uri }
+
+    DispositivoCambios:
+      type: object
+      minProperties: 1
+      properties:
+        nombre: { type: string, minLength: 2, maxLength: 60 }
+        tipo: { $ref: "#/components/schemas/TipoCamara" }
+        url_captura: { type: [string, "null"], format: uri }
+        activo: { type: boolean }
+
+    DispositivoConToken:
+      allOf:
+        - $ref: "#/components/schemas/Dispositivo"
+        - type: object
+          required: [token]
+          properties:
+            token: { type: string, description: Se muestra una sola vez }
+
+    RespuestaRostro:
+      type: object
+      required: [modo, resultado, motivo, persona, similitud, repetido, evento_id, inscripcion, mensaje, hora]
+      properties:
+        modo: { type: string, enum: [reconocer, inscribir] }
+        resultado:
+          type: string
+          enum: [permitido, denegado, desconocido, descartado, muestra_aceptada, muestra_rechazada]
+        motivo:
+          type: [string, "null"]
+          enum:
+            - inactiva
+            - sin_consentimiento
+            - bajo_umbral
+            - sin_cara
+            - varias_caras
+            - cara_pequena
+            - borrosa
+            - parece_otra_persona
+            - null
+        persona:
+          anyOf:
+            - { $ref: "#/components/schemas/PersonaCorta" }
+            - { type: "null" }
+        similitud: { type: [number, "null"], minimum: -1, maximum: 1 }
+        repetido: { type: boolean }
+        evento_id: { type: [string, "null"], format: uuid }
+        inscripcion:
+          anyOf:
+            - { $ref: "#/components/schemas/InscripcionCorta" }
+            - { type: "null" }
+        mensaje: { type: string }
+        hora: { type: string, format: date-time }
+
+    ResultadoAcceso:
+      type: string
+      enum: [permitido, denegado, desconocido]
+
+    EventoAcceso:
+      type: object
+      required: [id, fecha_hora, dispositivo, resultado, motivo, persona, similitud]
+      properties:
+        id: { type: string, format: uuid }
+        fecha_hora: { type: string, format: date-time }
+        dispositivo: { type: string }
+        resultado: { $ref: "#/components/schemas/ResultadoAcceso" }
+        motivo:
+          type: [string, "null"]
+          enum: [inactiva, sin_consentimiento, bajo_umbral, null]
+        persona:
+          anyOf:
+            - { $ref: "#/components/schemas/PersonaCorta" }
+            - { type: "null" }
+        similitud: { type: [number, "null"] }
+
+    PaginaEventos:
+      type: object
+      required: [elementos, total, pagina, por_pagina]
+      properties:
+        elementos:
+          type: array
+          items: { $ref: "#/components/schemas/EventoAcceso" }
+        total: { type: integer, minimum: 0 }
+        pagina: { type: integer, minimum: 1 }
+        por_pagina: { type: integer, minimum: 1 }
+
+    EstadoAsistencia:
+      type: string
+      enum: [a_tiempo, tarde, sin_horario]
+
+    FilaAsistencia:
+      type: object
+      required: [persona, llegada, estado, minutos_tarde]
+      properties:
+        persona: { $ref: "#/components/schemas/PersonaCorta" }
+        llegada: { type: string, format: date-time }
+        estado: { $ref: "#/components/schemas/EstadoAsistencia" }
+        minutos_tarde: { type: [integer, "null"], minimum: 0 }
+
+    ReporteAsistencia:
+      type: object
+      required: [fecha, a_tiempo, tarde, sin_horario, ausentes, total_llegadas]
+      properties:
+        fecha: { type: string, format: date }
+        a_tiempo:
+          type: array
+          items: { $ref: "#/components/schemas/FilaAsistencia" }
+        tarde:
+          type: array
+          items: { $ref: "#/components/schemas/FilaAsistencia" }
+        sin_horario:
+          type: array
+          items: { $ref: "#/components/schemas/FilaAsistencia" }
+        ausentes:
+          type: array
+          description: Personas activas cuyo horario incluye ese día y que no llegaron
+          items: { $ref: "#/components/schemas/PersonaCorta" }
+        total_llegadas: { type: integer, minimum: 0 }
+
+    Horario:
+      type: object
+      required: [id, nombre, hora_inicio, tolerancia_min, dias]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string }
+        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$", example: "07:00" }
+        tolerancia_min: { type: integer, minimum: 0, maximum: 120 }
+        dias:
+          type: array
+          description: 1 = lunes ... 7 = domingo
+          minItems: 1
+          uniqueItems: true
+          items: { type: integer, minimum: 1, maximum: 7 }
+
+    HorarioNuevo:
+      type: object
+      required: [nombre, hora_inicio]
+      properties:
+        nombre: { type: string, minLength: 2, maxLength: 60 }
+        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        tolerancia_min: { type: integer, minimum: 0, maximum: 120, default: 10 }
+        dias:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: integer, minimum: 1, maximum: 7 }
+          default: [1, 2, 3, 4, 5]
+
+    HorarioCambios:
+      type: object
+      minProperties: 1
+      properties:
+        nombre: { type: string, minLength: 2, maxLength: 60 }
+        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        tolerancia_min: { type: integer, minimum: 0, maximum: 120 }
+        dias:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: integer, minimum: 1, maximum: 7 }
+
+    Configuracion:
+      type: object
+      required:
+        - umbral_similitud
+        - ventana_repetido_s
+        - alerta_desconocidos
+        - alerta_ventana_s
+        - inscripcion_muestras
+        - inscripcion_vence_s
+        - cara_min_px
+        - nitidez_min
+        - zona_horaria
+        - modelo_deteccion
+        - modelo_huella
+        - version
+      properties:
+        umbral_similitud: { type: number, example: 0.363 }
+        ventana_repetido_s: { type: integer, example: 60 }
+        alerta_desconocidos: { type: integer, example: 3 }
+        alerta_ventana_s: { type: integer, example: 60 }
+        inscripcion_muestras: { type: integer, example: 5 }
+        inscripcion_vence_s: { type: integer, example: 120 }
+        cara_min_px: { type: integer, example: 80 }
+        nitidez_min: { type: number, example: 60 }
+        zona_horaria: { type: string, example: America/Bogota }
+        modelo_deteccion: { type: string, example: yunet_2023mar }
+        modelo_huella: { type: string, example: sface_2021dec }
+        version: { type: string, example: "1.0.0" }

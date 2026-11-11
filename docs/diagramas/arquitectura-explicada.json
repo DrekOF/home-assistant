@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Control de acceso y asistencia: quién hace qué",
+    "subtitle": "Sigue los números del 1 al 6: lo que pasa cada vez que alguien llega",
+    "locale": "es",
+    "output": ".archify/architecture-acceso-facial-explicada-20261111-150500/arquitectura-explicada.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "persona",
+      "type": "external",
+      "label": "Ana (persona)",
+      "sublabel": "llega a la puerta",
+      "pos": [
+        290,
+        40
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL + pgvector",
+      "sublabel": "huellas, accesos y asistencia",
+      "tag": "ya existe",
+      "pos": [
+        610,
+        40
+      ],
+      "size": [
+        180,
+        72
+      ]
+    },
+    {
+      "id": "camara",
+      "type": "frontend",
+      "label": "ESP32-S3 + cámara",
+      "sublabel": "detecta la cara con TinyML",
+      "tag": "lo construimos",
+      "pos": [
+        290,
+        200
+      ],
+      "size": [
+        170,
+        72
+      ]
+    },
+    {
+      "id": "servidor",
+      "type": "backend",
+      "label": "Servidor (FastAPI)",
+      "sublabel": "reconoce la cara y decide",
+      "tag": "lo construimos",
+      "pos": [
+        610,
+        200
+      ],
+      "size": [
+        180,
+        72
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web de administración",
+      "sublabel": "inscribir y ver reportes",
+      "tag": "lo construimos",
+      "pos": [
+        900,
+        200
+      ],
+      "size": [
+        180,
+        72
+      ]
+    },
+    {
+      "id": "admin",
+      "type": "external",
+      "label": "Administrador",
+      "sublabel": "usa la web y Assist",
+      "pos": [
+        1230,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "ollama",
+      "type": "backend",
+      "label": "Ollama",
+      "sublabel": "modelo del agente, local",
+      "tag": "ya existe",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        170,
+        72
+      ]
+    },
+    {
+      "id": "ha",
+      "type": "backend",
+      "label": "Home Assistant",
+      "sublabel": "muestra, abre y avisa",
+      "tag": "ya existe",
+      "pos": [
+        290,
+        400
+      ],
+      "size": [
+        170,
+        72
+      ]
+    },
+    {
+      "id": "mosquitto",
+      "type": "messagebus",
+      "label": "Mosquitto (MQTT)",
+      "sublabel": "mensajes entre aparatos",
+      "tag": "ya existe",
+      "pos": [
+        610,
+        400
+      ],
+      "size": [
+        180,
+        72
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1-llega",
+      "from": "persona",
+      "to": "camara",
+      "label": "1 · se para frente a la cámara",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c2-recorte",
+      "from": "camara",
+      "to": "servidor",
+      "label": "2 · recorte JPEG",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c3-busca",
+      "from": "servidor",
+      "to": "postgres",
+      "label": "3 · busca la huella",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c4-evento",
+      "from": "servidor",
+      "to": "mosquitto",
+      "label": "4 · evento",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c5-entidades",
+      "from": "mosquitto",
+      "to": "ha",
+      "label": "5 · entidades",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c6-puerta",
+      "from": "ha",
+      "to": "camara",
+      "label": "6 · abrir la puerta",
+      "variant": "emphasis",
+      "labelDx": -64
+    },
+    {
+      "id": "ca-assist",
+      "from": "admin",
+      "to": "ha",
+      "label": "A · pregunta en Assist",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          1305,
+          540
+        ],
+        [
+          375,
+          540
+        ]
+      ]
+    },
+    {
+      "id": "cb-modelo",
+      "from": "ha",
+      "to": "ollama",
+      "label": "B · al modelo"
+    },
+    {
+      "id": "cc-mcp",
+      "from": "ha",
+      "to": "servidor",
+      "label": "C · MCP, solo lectura",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "usa-web",
+      "from": "admin",
+      "to": "web",
+      "label": "inscribe"
+    },
+    {
+      "id": "rest",
+      "from": "web",
+      "to": "servidor",
+      "label": "REST /api/v1"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Cómo leerlo",
+      "items": [
+        "Empieza arriba a la izquierda, con Ana",
+        "1 a 6: lo que pasa cada vez que alguien llega",
+        "A a C: cuando le preguntas algo al agente",
+        "A la derecha: la web para inscribir personas y ver reportes"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Qué hace cada pieza",
+      "items": [
+        "Cámara: los ojos. Detecta la cara y envía el recorte",
+        "Servidor: el portero. Reconoce la cara y decide si entra",
+        "PostgreSQL: el libro de registro",
+        "Home Assistant: la consola de la portería. Muestra, abre y avisa",
+        "Ollama: el modelo del agente, sin internet"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Qué construimos y qué ya existe",
+      "items": [
+        "Construimos: el firmware de la cámara, el servidor, la web, las herramientas del agente y la configuración de Home Assistant",
+        "Ya existen y se instalan: Home Assistant, PostgreSQL, Mosquitto y Ollama"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Dónde corre",
+      "items": [
+        "Todo en la Raspberry Pi con Docker Compose, menos la cámara",
+        "Si la Raspberry trae Home Assistant OS: Home Assistant en la Pi y el resto en un portátil",
+        "La puerta la abre una regla del servidor, nunca el agente"
+      ]
+    }
+  ]
+}

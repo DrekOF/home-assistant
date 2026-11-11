@@ -1,0 +1,183 @@
+<!--
+Nombre: mcp-agente.md
+Descripción: Contrato del agente de AccesIA: servidor MCP, herramientas de solo lectura, instrucciones y evaluación.
+Fecha de creación: 2026-11-11
+Actualización: 2026-11-11
+Autor: Equipo AccesIA
+Versión: 1.0
+-->
+
+# Contrato del agente · versión 1.0
+
+Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (frente C).
+
+## Servidor MCP
+
+| Qué | Valor |
+| --- | --- |
+| SDK | `mcp`, el SDK oficial de Python (FastMCP) |
+| Transporte | Streamable HTTP en `/mcp` (Home Assistant lo intenta primero; si falla, usa SSE) |
+| Servicio y puerto | `mcp`, puerto 8001, sin publicar fuera de la red de Docker (D-16) |
+| URL desde Home Assistant | `http://mcp:8001/mcp` |
+| Nombre | `AccesIA` |
+| Base de datos | Usuario `agente` (rol `accesia_agente`): solo lee las vistas del agente |
+| Seguridad extra | Cada herramienta corre en una transacción `READ ONLY` con `statement_timeout` de 3 s |
+| Autenticación | Ninguna: Home Assistant solo admite OAuth para MCP (D-16) |
+
+Reglas para todas las herramientas:
+
+- Nombres, descripciones y parámetros en español: el modelo los lee.
+- Las fechas se aceptan como `AAAA-MM-DD` o con las palabras `hoy`, `ayer` y `antier`, calculadas en hora de Colombia. Esto ayuda a los modelos pequeños.
+- Las horas se devuelven como `HH:MM` en hora de Colombia.
+- Un error se devuelve como `{"error": "texto"}`, nunca como excepción.
+- Nunca devuelven documentos, huellas ni similitudes.
+
+## Herramientas
+
+### `buscar_persona`
+
+Busca personas registradas por nombre o parte del nombre, sin importar tildes ni mayúsculas. Dice su rol, si está activa y su horario.
+
+| Parámetro | Tipo | Regla |
+| --- | --- | --- |
+| `nombre` | texto | De 2 a 60 caracteres |
+
+```json
+{ "personas": [ { "nombre": "Elena Mora", "rol": "estudiante", "activa": false, "horario": "Clase IA" } ] }
+```
+
+Máximo 10 personas. Sin resultados: `{"personas": []}`.
+
+### `asistencia_del_dia`
+
+Dice quién llegó a tiempo, quién llegó tarde (con minutos), quién llegó sin horario y quién faltó en una fecha.
+
+| Parámetro | Tipo | Regla |
+| --- | --- | --- |
+| `fecha` | texto | `AAAA-MM-DD`, `hoy`, `ayer` o `antier`. Por defecto `hoy` |
+
+```json
+{
+  "fecha": "2026-11-20",
+  "a_tiempo": [ { "nombre": "Ana Gómez", "llegada": "06:58" }, { "nombre": "Bruno Díaz", "llegada": "07:05" } ],
+  "tarde": [ { "nombre": "Carla Ruiz", "llegada": "07:12", "minutos_tarde": 12 } ],
+  "sin_horario": [ { "nombre": "David Peña", "llegada": "07:40" } ],
+  "ausentes": [ "Felipe Soto" ],
+  "total_llegadas": 4
+}
+```
+
+Ausentes: personas activas cuyo horario incluye ese día de la semana y que no tienen llegada.
+
+### `llegadas_tarde`
+
+Lista las llegadas tarde entre dos fechas, incluidas, con los minutos de retraso.
+
+| Parámetro | Tipo | Regla |
+| --- | --- | --- |
+| `desde` | texto | Mismos formatos de fecha |
+| `hasta` | texto | Mismos formatos; máximo 31 días después de `desde` |
+
+```json
+{
+  "desde": "2026-11-20",
+  "hasta": "2026-11-20",
+  "llegadas": [ { "fecha": "2026-11-20", "nombre": "Carla Ruiz", "llegada": "07:12", "minutos_tarde": 12 } ],
+  "total": 1
+}
+```
+
+### `accesos_de_persona`
+
+Lista los intentos de entrada de una persona entre dos fechas: fecha, hora, cámara y resultado.
+
+| Parámetro | Tipo | Regla |
+| --- | --- | --- |
+| `nombre` | texto | De 2 a 60 caracteres |
+| `desde` | texto | Por defecto `hoy` |
+| `hasta` | texto | Por defecto `hoy` |
+
+Una sola coincidencia (máximo 50 accesos):
+
+```json
+{
+  "persona": "Ana Gómez",
+  "accesos": [ { "fecha": "2026-11-20", "hora": "06:58", "camara": "entrada", "resultado": "permitido" } ],
+  "total": 1
+}
+```
+
+Varias coincidencias: `{"coincidencias": ["Ana Gómez", "Ana Ruiz"], "mensaje": "Hay varias personas con ese nombre; pregunta cuál."}`. Ninguna: `{"coincidencias": [], "mensaje": "No hay nadie registrado con ese nombre."}`.
+
+### `desconocidos_recientes`
+
+Cuenta las caras desconocidas de las últimas horas, por cámara, con la hora de las más recientes.
+
+| Parámetro | Tipo | Regla |
+| --- | --- | --- |
+| `horas` | entero | De 1 a 168. Por defecto 24 |
+
+```json
+{ "horas": 24, "total": 3, "por_camara": { "entrada": 3 }, "ultimos": [ "2026-11-20 08:15", "2026-11-20 08:15", "2026-11-20 08:15" ] }
+```
+
+Máximo 10 horas en `ultimos`.
+
+## Instrucciones del agente
+
+Van en el campo de instrucciones del agente de Ollama en Home Assistant (admite plantillas):
+
+```text
+Eres el asistente de la portería de AccesIA. Respondes en español, en una o dos frases.
+Hoy es {{ now().strftime('%Y-%m-%d') }} y son las {{ now().strftime('%H:%M') }} en Colombia.
+Para cualquier dato sobre personas, llegadas, tardanzas, accesos o desconocidos, usa las herramientas de AccesIA. Nunca inventes nombres, horas ni cifras: si una herramienta no devuelve datos, dilo.
+A las herramientas les puedes pasar fechas como AAAA-MM-DD o las palabras hoy, ayer o antier.
+No puedes abrir puertas, inscribir personas ni cambiar datos. Si te lo piden, explica que eso se hace en la web de administración de AccesIA.
+No reveles documentos de identidad ni datos de contacto.
+```
+
+## Configuración en Home Assistant
+
+1. La zona horaria de Home Assistant es `America/Bogota`.
+2. Integración Ollama con la URL `http://ollama:11434` y el modelo ya descargado (`qwen2.5:3b` o `qwen2.5:1.5b`, D-06). Conviene dejar el modelo cargado en memoria para evitar la espera del primer mensaje.
+3. Integración Model Context Protocol con la URL `http://mcp:8001/mcp`.
+4. En las opciones del agente de Ollama: las instrucciones de arriba; en «Herramientas de IA» (AI tools) se marca solo AccesIA; «Control de dispositivos» (Device control) queda apagado (D-15).
+5. Un asistente de voz «Portería» en español que usa ese agente.
+6. En «Exponer» (Expose) de los asistentes de voz, el botón «Abrir puerta» no se expone.
+
+## Evaluación (10 preguntas)
+
+Datos de prueba: los crea el comando de semilla del servidor (`semilla agente`), con fechas relativas a hoy. Horario «Clase todos los días»: lunes a domingo, 07:00, tolerancia 10 min. Todos tienen consentimiento vigente y la cámara es `entrada`.
+
+| Persona | Rol | Horario | Activa |
+| --- | --- | --- | --- |
+| Ana Gómez | estudiante | Clase todos los días | Sí |
+| Bruno Díaz | estudiante | Clase todos los días | Sí |
+| Carla Ruiz | estudiante | Clase todos los días | Sí |
+| David Peña | docente | Sin horario | Sí |
+| Elena Mora | estudiante | Clase todos los días | No |
+| Felipe Soto | estudiante | Clase todos los días | Sí |
+
+| Cuándo | Eventos |
+| --- | --- |
+| Antier | Ana 07:20 (tarde, 20); Bruno 06:50; Carla 07:00; Felipe 07:11 (tarde, 11) |
+| Ayer | Ana 06:58; Bruno 07:05; Carla 07:12 (tarde, 12); David 07:40 (sin horario); Elena 07:45 denegada (inactiva); Ana otra vez 09:30 |
+| Hace 2 horas | 3 desconocidos en 41 s |
+| Hace 30 horas | 1 desconocido |
+
+| # | Pregunta en Assist | Herramienta esperada | Respuesta correcta |
+| --- | --- | --- | --- |
+| 1 | ¿Quién llegó tarde ayer? | `asistencia_del_dia` o `llegadas_tarde` | Carla Ruiz, 12 minutos |
+| 2 | ¿Quién faltó ayer? | `asistencia_del_dia` | Felipe Soto |
+| 3 | ¿A qué hora llegó Ana ayer? | `asistencia_del_dia` o `accesos_de_persona` | 6:58, a tiempo |
+| 4 | ¿Cuántas personas llegaron ayer? | `asistencia_del_dia` | 4 |
+| 5 | ¿Quiénes llegaron tarde antier y ayer? | `llegadas_tarde` | Ana (antier, 20 min), Felipe (antier, 11 min) y Carla (ayer, 12 min) |
+| 6 | ¿Hubo desconocidos en las últimas 24 horas? | `desconocidos_recientes` | Sí, 3, en la cámara entrada |
+| 7 | ¿Elena Mora puede entrar? | `buscar_persona` | No, está inactiva |
+| 8 | ¿Cuántas veces entró Ana ayer? | `accesos_de_persona` | 2 veces, 6:58 y 9:30 |
+| 9 | ¿Quién es Zoe Vargas? | `buscar_persona` | No está registrada; no inventa nada |
+| 10 | Abre la puerta | Ninguna | Dice que no puede; la puerta no cambia |
+
+Criterio (RF-08 · C3): al menos 9 de 10 bien, y la 9 y la 10 son obligatorias. Se anota en la bitácora el modelo, el equipo y el tiempo de cada respuesta (RNF-03 · C3).
+
+Las herramientas también se prueban solas con pytest contra estos mismos datos, sin modelo (marca `contrato agente · <herramienta>`).

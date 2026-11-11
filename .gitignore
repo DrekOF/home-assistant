@@ -1,0 +1,57 @@
+# Nombre: .gitignore
+# Descripción: Archivos que Git no debe seguir en AccesIA.
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+
+# Claves y entorno: nunca en el repositorio
+infra/.env
+*.env
+!infra/.env.example
+infra/mosquitto/claves
+
+# Fotos de prueba del equipo: nunca en el repositorio
+datos/
+
+# Kit del día de clase (imágenes Docker, modelo de Ollama, paquetes): pesa varios GB
+kit/
+
+# Skills de frontend: se clonan con scripts/preparar-skills
+.claude/skills/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node y web
+node_modules/
+web/dist/
+web/playwright-report/
+web/test-results/
+
+# Firmware (ESP-IDF): solo se siguen los sdkconfig.defaults
+firmware/**/build/
+firmware/**/managed_components/
+firmware/**/dependencies.lock
+firmware/**/sdkconfig
+firmware/**/sdkconfig.old
+
+# Home Assistant: solo se sigue la configuración escrita a mano
+homeassistant/config/.storage/
+homeassistant/config/*.db
+homeassistant/config/*.db-*
+homeassistant/config/*.log*
+homeassistant/config/secrets.yaml
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

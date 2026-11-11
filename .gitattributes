@@ -1,0 +1,15 @@
+# Nombre: .gitattributes
+# Descripción: Fin de línea y archivos binarios en AccesIA.
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.onnx binary
+*.bin binary

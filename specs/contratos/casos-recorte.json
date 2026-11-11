@@ -1,0 +1,31 @@
+{
+  "contrato": "specs/contratos/api-dispositivo.md",
+  "version": "1.1",
+  "descripcion": "Casos de la fórmula del recorte. Los leen las pruebas del firmware y del simulador (marca contrato recorte · <nombre>). cara es el índice, desde 0, de la cara elegida (la de mayor área). x1 e y1 no se incluyen en el recorte.",
+  "margen": 0.25,
+  "formula": {
+    "x0": "max(0, piso(x - w/4))",
+    "y0": "max(0, piso(y - h/4))",
+    "x1": "min(W, techo(x + w + w/4))",
+    "y1": "min(H, techo(y + h + h/4))"
+  },
+  "casos": [
+    {
+      "nombre": "dos caras",
+      "cuadro": { "ancho": 320, "alto": 240 },
+      "caras": [
+        { "x": 40, "y": 50, "w": 60, "h": 70 },
+        { "x": 150, "y": 60, "w": 80, "h": 100 }
+      ],
+      "esperado": { "cara": 1, "x0": 130, "y0": 35, "x1": 250, "y1": 185, "ancho": 120, "alto": 150 }
+    },
+    {
+      "nombre": "en el borde",
+      "cuadro": { "ancho": 320, "alto": 240 },
+      "caras": [
+        { "x": 10, "y": 8, "w": 82, "h": 98 }
+      ],
+      "esperado": { "cara": 0, "x0": 0, "y0": 0, "x1": 113, "y1": 131, "ancho": 113, "alto": 131 }
+    }
+  ]
+}

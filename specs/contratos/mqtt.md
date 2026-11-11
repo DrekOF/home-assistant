@@ -4,10 +4,10 @@ Descripción: Contrato MQTT de AccesIA: temas, mensajes, descubrimiento de Home 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
-# Contrato MQTT · versión 1.0
+# Contrato MQTT · versión 1.1
 
 Lo cumplen el servidor (frente B), la cámara y el simulador (frente A) y Home Assistant (frente C).
 
@@ -16,6 +16,8 @@ Lo cumplen el servidor (frente B), la cámara y el simulador (frente A) y Home A
 - Mosquitto 2 en el puerto 1883, sin acceso anónimo.
 - Tres usuarios, con claves en `infra/.env`: `servidor`, `homeassistant` y `camara` (la usan las cámaras y el simulador).
 - `{codigo}` es el código de la cámara, por ejemplo `entrada`. En los `entity_id` de Home Assistant los guiones del código pasan a guion bajo.
+- `servidor` está reservado: es el `{codigo}` de los temas del servidor y ninguna cámara puede usarlo (el SQL y la API lo rechazan).
+- Cada cámara, y el simulador, se conecta con su código como client id: la ACL usa `%c` para dejarla solo en sus temas. Dos clientes con el mismo client id se desconectan entre sí, así que una cámara y el simulador no pueden usar el mismo código a la vez.
 
 ACL de Mosquitto (`infra/mosquitto/acl`):
 
@@ -30,11 +32,17 @@ topic read accesia/#
 topic write accesia/+/puerta/set
 
 user camara
-topic read accesia/+/puerta/set
-topic write accesia/+/puerta/estado
-topic write accesia/+/estado
-topic write accesia/+/disponible
+topic deny accesia/servidor/#
+
+# %c es el client id. Mosquitto aplica las líneas pattern a todos los usuarios;
+# al usuario camara solo le dan acceso estas.
+pattern read accesia/%c/puerta/set
+pattern write accesia/%c/puerta/estado
+pattern write accesia/%c/estado
+pattern write accesia/%c/disponible
 ```
+
+La línea `deny` impide que un cliente con el usuario `camara` y el client id `servidor` publique en nombre del servidor.
 
 ## Temas
 
@@ -52,9 +60,10 @@ topic write accesia/+/disponible
 | `homeassistant/{componente}/{nodo}/{objeto}/config` | servidor | Home Assistant | JSON de descubrimiento | 1 | Sí |
 
 - Los eventos no son retenidos para que una automatización no se repita cuando Home Assistant se reinicia.
+- Una repetición de R4 de un `permitido` se publica en `accesia/{codigo}/evento` con `repetido: true`, para que la automatización abra la puerta otra vez. Una repetición de un `denegado` no se publica.
 - Al recibir `ABRIR`, la cámara mantiene la puerta abierta los segundos configurados (3 por defecto), publica `abierta` y luego `cerrada`. `CERRAR` la cierra antes.
 - El servidor publica el descubrimiento al arrancar, cuando Home Assistant publica `online` en `homeassistant/status` y cuando se crea o cambia una cámara.
-- El servidor publica el resumen al arrancar, después de cada evento y cada 5 minutos (así cambia de día a medianoche).
+- El servidor publica el resumen al arrancar, después de cada evento guardado, después de cada llegada registrada a mano (RF-06 · C5) y cada 5 minutos (así cambia de día a medianoche).
 
 ## Mensajes
 
@@ -68,10 +77,13 @@ Evento (`asistencia` solo viene cuando este evento creó la llegada del día; si
   "motivo": null,
   "persona": { "id": "01a1e5c2-7f3a-7b2c-9d4e-5f6a7b8c9d0e", "nombre": "Ana Gómez" },
   "similitud": 0.71,
+  "repetido": false,
   "asistencia": { "estado": "a_tiempo", "minutos_tarde": null },
   "hora": "2026-11-20T06:58:12-05:00"
 }
 ```
+
+`repetido` es `true` solo en la repetición de un `permitido` (R4). Entonces `evento_id` es el del evento original; `persona`, `similitud` y `hora` son los de este recorte, y `asistencia` es `null`.
 
 Con `desconocido`, `persona` es `null`: nunca se publica a quién se parece.
 
@@ -96,10 +108,10 @@ Resumen:
 }
 ```
 
-EstadoCamara (la cámara puede no tener hora, por eso no la envía):
+EstadoCamara (la cámara puede no tener hora, por eso no la envía). `firmware` es el mismo texto de la cabecera `X-AccesIA-Firmware` de `api-dispositivo.md`. El simulador no envía `perfil`, `rssi`, `psram_kb` ni `libre_kb`.
 
 ```json
-{ "perfil": "esp32s3_eye", "firmware": "1.0.0", "ip": "10.42.0.23", "rssi": -58, "psram_kb": 8192, "libre_kb": 3120, "segundos_encendida": 5321 }
+{ "perfil": "esp32s3_eye", "firmware": "tinyml-esp32s3_eye-1.0.0", "ip": "10.42.0.23", "rssi": -58, "psram_kb": 8192, "libre_kb": 3120, "segundos_encendida": 5321 }
 ```
 
 ## Entidades de Home Assistant (descubrimiento)
@@ -160,7 +172,14 @@ Otros campos que cambian por entidad:
 
 ## Automatizaciones de Home Assistant
 
-La regla del servidor ya decidió el acceso (D-03); Home Assistant solo abre la puerta y avisa. Van en `homeassistant/config/automations.yaml`:
+La regla del servidor ya decidió el acceso (D-03); Home Assistant solo abre la puerta y avisa. Van en un archivo propio, `homeassistant/config/automatizaciones_accesia.yaml`, que `configuration.yaml` incluye aparte del archivo que usa la interfaz:
+
+```yaml
+automation ui: !include automations.yaml
+automation accesia: !include automatizaciones_accesia.yaml
+```
+
+Home Assistant no deja editar desde la interfaz las automatizaciones de ese archivo, así que nunca lo reescribe ni le borra el encabezado o los comentarios. Contenido de `automatizaciones_accesia.yaml`:
 
 ```yaml
 - id: accesia_abrir_puerta
@@ -198,7 +217,7 @@ La regla del servidor ya decidió el acceso (D-03); Home Assistant solo abre la 
 
 ## Pruebas
 
-- El servidor prueba que publica cada mensaje con su tema, QoS y retención (marca `contrato MQTT · <tema>`).
+- El servidor prueba que publica cada mensaje con su tema, QoS y retención (marca `contrato MQTT · <tema>`), y que un `permitido` repetido se publica con `repetido: true` y un `denegado` repetido no (`contrato MQTT · repetido`).
 - Para mirar el tráfico:
 
 ```powershell

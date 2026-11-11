@@ -4,7 +4,7 @@ Descripción: Texto de la autorización para tratar datos biométricos en AccesI
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Autorización de datos biométricos · versión del texto 1.0
@@ -19,7 +19,7 @@ La web muestra este texto antes de inscribir a una persona. Con el consentimient
 
 **Responsable.** Equipo AccesIA, proyecto académico de la materia Inteligencia Artificial de la Universidad Surcolombiana. Contacto: [correo del equipo].
 
-**Qué datos.** Mi nombre, documento, rol y horario, y mi huella facial: una lista de 128 números calculada a partir de la imagen de mi cara. No se guardan fotos de mi cara.
+**Qué datos.** Mi nombre, documento, rol y horario; mi huella facial: una lista de 128 números calculada a partir de la imagen de mi cara; y el registro de mis entradas: fecha, hora y cámara. No se guardan fotos de mi cara.
 
 **Dato sensible.** La huella facial es un dato biométrico y por eso es un dato sensible.
 
@@ -43,3 +43,7 @@ Autorizo de manera previa, expresa e informada al Equipo AccesIA para tratar mis
 ## Cambios del texto
 
 Si el texto cambia, sube su versión (1.1, 2.0…). Quien aceptó una versión anterior conserva su consentimiento, y la web muestra qué versión aceptó cada persona.
+
+| Fecha | Versión del texto | Cambio |
+| --- | --- | --- |
+| 2026-11-11 | 1.0 | Se agregó «el registro de mis entradas: fecha, hora y cámara» a «Qué datos». Sigue siendo la 1.0 porque nadie la había aceptado todavía. |

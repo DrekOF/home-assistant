@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Arquitectura
@@ -33,20 +33,24 @@ Modelos de cara del servidor (de `opencv/opencv_zoo`, se descargan al construir 
 
 ### Cada llegada (pasos 1 a 6)
 
-1. La cámara toma una imagen, detecta la cara con ESP-DL y, si mide al menos `CARA_MIN_PX` de alto, la recorta con 25 % de margen, la comprime en JPEG y la envía por HTTP (máximo una por segundo).
+1. La cámara toma una imagen, detecta la cara con ESP-DL y, si mide al menos `CARA_MIN_PX` de alto, la recorta con 25 % de margen (fórmula en `contratos/api-dispositivo.md`), la comprime en JPEG y la envía por HTTP. Antes de enviar otra espera al menos 1 s desde la respuesta.
 2. El servidor valida el token de la cámara, vuelve a detectar la cara con YuNet para alinearla y saca la huella con SFace: 128 números normalizados.
 3. Busca la muestra más parecida con pgvector y aplica las reglas R1 a R4. Si hay una inscripción activa en esa cámara, aplica R7 y R9 en su lugar.
-4. Guarda el evento y, si es la primera entrada del día, la asistencia (R5). Responde a la cámara.
+4. Guarda el evento y, si es la primera entrada permitida del día y la persona aún no tiene llegada, la asistencia (R5). Responde a la cámara.
 5. Publica el evento en MQTT. Home Assistant actualiza sus entidades y, si el acceso es permitido, su automatización publica `ABRIR`.
 6. La cámara (o el simulador) abre la puerta 3 s con un LED o un relé y publica el estado de la puerta.
 
-Un desconocido no recibe ni publica a quién se parece. Las repeticiones de R4 no guardan evento ni publican nada.
+Un desconocido no recibe ni publica a quién se parece. Las repeticiones de R4 no guardan evento: la de un `permitido` se publica con `repetido: true` para que la puerta se abra otra vez, y la de un `denegado` no publica nada.
+
+### Llegada registrada a mano
+
+Si la persona no dio consentimiento, o si la cámara falla, un administrador registra su llegada en la pantalla Asistencia (RF-06 · C5). El servidor aplica R5 a la hora dada, guarda la asistencia con origen `manual` y publica el resumen en MQTT. No hay evento de acceso ni se abre la puerta.
 
 ### Inscripción
 
 1. El administrador crea la persona y registra su consentimiento en la web.
 2. Abre una inscripción para esa persona en una cámara (por ejemplo, `entrada`).
-3. La persona se para frente a la cámara. Cada cara que llega se revisa con R7 y las válidas se guardan como muestras. La web muestra el avance.
+3. La persona se para frente a la cámara. Cada cara que llega se revisa con R7 (desde la segunda, también que se parezca a la primera muestra) y las válidas se guardan como muestras. La web muestra el avance.
 4. Con 5 muestras la inscripción se completa y la cámara vuelve a reconocer. Si pasan 120 s, vence (R9).
 
 ### Pregunta al agente (pasos A a C)
@@ -63,14 +67,17 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 | --- | --- | --- | --- | --- |
 | `postgres` | `pgvector/pgvector:pg18` | 5432 | `127.0.0.1:${POSTGRES_PORT}` (5434 por defecto) | `servidor`, `mcp`, pruebas |
 | `mosquitto` | `eclipse-mosquitto:2` | 1883 | `1883` en la red | `servidor`, cámara, simulador, Home Assistant |
-| `servidor` | `accesia-servidor` (propia) | 8000 | `8000` en la red | cámara, simulador, web |
+| `servidor` | `accesia-servidor` (propia, `servidor/Dockerfile` con la raíz del repositorio como contexto) | 8000 | `8000` en la red | cámara, simulador, web |
 | `mcp` | `accesia-servidor` (misma imagen, otro comando) | 8001 | no se publica | Home Assistant |
 | `homeassistant` | `ghcr.io/home-assistant/home-assistant:stable` | 8123 | `8123` en la red | navegador |
 | `ollama` | `ollama/ollama` | 11434 | no se publica | Home Assistant |
 
-- Volúmenes: `datos-postgres`, `datos-ollama` y `datos-mosquitto`. La configuración de Home Assistant se monta desde `homeassistant/config`.
+- Volúmenes: `datos-postgres`, `datos-ollama` y `datos-mosquitto`. `datos-postgres` se monta en `/var/lib/postgresql`: PostgreSQL 18 guarda los datos en `/var/lib/postgresql/18/docker`, no en `/var/lib/postgresql/data`. La configuración de Home Assistant se monta desde `homeassistant/config`.
+- La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql`, el texto de `specs/consentimiento.md` y, más adelante, la web compilada. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/` y `node_modules/`.
+- El servidor corre con un solo proceso de Uvicorn: la hora de la última alerta de R6, el control del 429 y la conexión MQTT viven en memoria, y con varios procesos cada uno contaría por su lado.
 - Las versiones exactas de las imágenes se fijan el Día 4, antes de armar el kit.
-- Escenario 2 (Home Assistant OS en la Raspberry): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en la red propia o en un hotspot.
+- Escenario 2 (Home Assistant OS en la Raspberry): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en la red propia o en un hotspot. Es la excepción a D-16 y D-19.
+- Ollama en el portátil (RNF-03 · C3): `infra/compose.ollama-portatil.yaml` levanta solo `ollama` en el portátil y publica el 11434 en la red propia; Home Assistant sigue en la Raspberry. Lo crea la tarea C del Día 4. Es otra excepción a D-19.
 
 Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001/mcp`, `http://ollama:11434`, `mqtt://mosquitto:1883`.
 
@@ -80,13 +87,13 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 
 | Variable | Ejemplo | Para qué |
 | --- | --- | --- |
-| `POSTGRES_PORT` | `5434` | Puerto de PostgreSQL en el equipo (no se usa 5432, ver `CLAUDE.md`) |
+| `POSTGRES_PORT` | `5434` | Puerto de PostgreSQL en el equipo (no se usa 5432, ver `CLAUDE.md`). Si Windows también tiene reservado este, se elige otro (`infra/README.md`) |
 | `POSTGRES_DB` | `accesia` | Nombre de la base |
 | `POSTGRES_USER` | `accesia` | Dueño de la base, lo usa el servidor |
 | `POSTGRES_PASSWORD` | (clave) | Clave del dueño |
 | `AGENTE_DB_PASSWORD` | (clave) | Clave del usuario `agente`, de solo lectura (D-15) |
 | `SESION_SECRETO` | (64 caracteres al azar) | Firma de la cookie de sesión de la web |
-| `ADMIN_CORREO` | `admin@accesia.local` | Primer administrador, creado al arrancar si no existe |
+| `ADMIN_CORREO` | `admin@example.com` | Primer administrador, creado al arrancar si no existe. Con dominio no reservado: la validación de correos rechaza `.local`, `.test` o `.localhost` |
 | `ADMIN_CLAVE_INICIAL` | (clave) | Clave inicial de ese administrador |
 | `MQTT_SERVIDOR_CLAVE` | (clave) | Usuario MQTT `servidor` |
 | `MQTT_HA_CLAVE` | (clave) | Usuario MQTT `homeassistant` |
@@ -97,7 +104,7 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `ALERTA_VENTANA_S` | `60` | R6 |
 | `INSCRIPCION_MUESTRAS` | `5` | R9 |
 | `INSCRIPCION_VENCE_S` | `120` | R9 |
-| `CARA_MIN_PX` | `80` | R7 y envío de la cámara |
+| `CARA_MIN_PX` | `80` | Envío de la cámara; el servidor descarta por debajo de 0,8 × este valor (R7) |
 | `NITIDEZ_MIN` | `60` | R7 |
 | `ZONA_HORARIA` | `America/Bogota` | R8 |
 | `OLLAMA_MODELO` | `qwen2.5:3b` | Modelo que se descarga para el agente (D-06) |
@@ -106,19 +113,19 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 
 ### Perfiles de placa
 
-Cada perfil es un binario. Los pines salen de la documentación oficial de cada placa y el código cita la fuente. La PSRAM esperada se confirma con el firmware de diagnóstico.
+Hay dos binarios, uno por tipo de PSRAM, porque ese tipo se fija al compilar (D-17): `octal` y `quad`. Cada binario trae los perfiles de su tipo de PSRAM, y el perfil se elige con el comando `perfil`. Los pines salen de la documentación oficial de cada placa y el código cita la fuente. La PSRAM esperada se confirma con el firmware de diagnóstico.
 
-| Perfil | Placa | PSRAM esperada |
-| --- | --- | --- |
-| `esp32s3_eye` | ESP32-S3-EYE (Espressif) | octal |
-| `freenove_s3_cam` | Freenove ESP32-S3 WROOM CAM | octal |
-| `xiao_s3_sense` | Seeed Studio XIAO ESP32S3 Sense | octal |
-| `generico_octal` | Otra ESP32-S3 con cámara; pines por consola | octal |
-| `generico_quad` | Otra ESP32-S3 con cámara; pines por consola | quad (D-17) |
+| Perfil | Placa | PSRAM esperada | Binario |
+| --- | --- | --- | --- |
+| `esp32s3_eye` | ESP32-S3-EYE (Espressif) | octal | `octal` |
+| `freenove_s3_cam` | Freenove ESP32-S3 WROOM CAM | octal | `octal` |
+| `xiao_s3_sense` | Seeed Studio XIAO ESP32S3 Sense | octal | `octal` |
+| `generico_octal` | Otra ESP32-S3 con cámara; pines por consola | octal | `octal` |
+| `generico_quad` | Otra ESP32-S3 con cámara; pines por consola | quad | `quad` |
 
 Binarios auxiliares:
 
-- `diagnostico`: muestra por el monitor serial el chip, la flash, la PSRAM y el sensor de la cámara. En clase dice en un minuto qué perfil usar.
+- `diagnostico`: muestra por el monitor serial el chip, la flash, la PSRAM y el sensor de la cámara. Se compila con `CONFIG_SPIRAM_IGNORE_NOTFOUND=y` para que arranque en cualquier placa, con PSRAM octal, quad o sin PSRAM. En clase dice en un minuto qué binario y qué perfil usar.
 - `respaldo`: servidor de imágenes al estilo CameraWebServer (`GET /capture`). Lo usa el modo extraer del servidor (RF-10 · C4).
 
 La tabla de particiones cabe en 4 MB de flash, para que el mismo binario sirva en placas de 4, 8 y 16 MB.
@@ -135,7 +142,7 @@ Se guarda en NVS y no requiere recompilar. Comandos:
 | `codigo <codigo>` | `codigo entrada` |
 | `token <token>` | El token que da la web al crear la cámara |
 | `mqtt <url> <usuario> <clave>` | `mqtt mqtt://10.42.0.1:1883 camara clave123` |
-| `perfil <nombre>` | `perfil generico_octal` |
+| `perfil <nombre>` | `perfil generico_octal` (solo los perfiles del binario cargado) |
 | `pin <nombre> <número>` | `pin xclk 15` (solo perfiles genéricos) |
 | `puerta <pin> <segundos>` | `puerta 2 3`; `-1` si no hay LED ni relé |
 | `cara_min <px>` | `cara_min 80` (igual que `CARA_MIN_PX` del servidor) |
@@ -144,21 +151,22 @@ Se guarda en NVS y no requiere recompilar. Comandos:
 
 ### Comportamiento
 
-- Captura en QVGA (320 × 240) para detectar; recorta la cara más grande con 25 % de margen y la envía en JPEG de calidad 80.
-- Envía como máximo un recorte por segundo. Tras `permitido`, `denegado` o `desconocido` espera 3 s antes de volver a enviar.
+- Captura en QVGA (320 × 240) para detectar; recorta la cara más grande (la de mayor área) con la fórmula de `contratos/api-dispositivo.md` y la envía en JPEG de calidad 80.
+- Después de cada respuesta espera al menos 1 s, contado desde que la recibe, antes de enviar otro recorte. Tras `permitido`, `denegado` o `desconocido` espera 3 s.
 - Si el servidor no responde (tiempo de espera 5 s), reintenta con espera creciente de 1, 2, 4 y hasta 10 s, y lo muestra por el monitor serial.
-- MQTT: se suscribe a `accesia/{codigo}/puerta/set`, publica el estado de la puerta, su estado general cada 60 s y su disponibilidad con último deseo (`contratos/mqtt.md`).
+- MQTT: se conecta con su código como client id (la ACL lo exige), se suscribe a `accesia/{codigo}/puerta/set`, publica el estado de la puerta, su estado general cada 60 s y su disponibilidad con último deseo (`contratos/mqtt.md`).
 
 ## Simulador
 
-- Cumple `contratos/api-dispositivo.md` y la parte de la cámara en `contratos/mqtt.md`.
-- Dos modos: webcam (detecta con YuNet, recorta con el mismo margen y envía) y carpeta de fotos de `datos/` (para pruebas repetibles).
+- Cumple `contratos/api-dispositivo.md` y la parte de la cámara en `contratos/mqtt.md`, con su código como client id. No puede estar conectado a la vez que una cámara con el mismo código.
+- Dos modos: webcam (detecta con YuNet, recorta con la misma fórmula y envía) y carpeta de fotos de `datos/` (para pruebas repetibles). Los dos pasan los casos de `contratos/casos-recorte.json`.
+- Modo «como la cámara», que se combina con los dos anteriores: reduce cada imagen a 320 × 240 y la comprime en JPEG de calidad 80 antes de detectar, para que los recortes se parezcan a los del ESP32-S3. Se usa para calibrar el umbral (RNF-07).
 - Simula la puerta: al recibir `ABRIR` muestra «PUERTA ABIERTA» 3 s y publica su estado.
 - Se registra como un dispositivo de tipo `simulador`.
 
 ## Red y despliegue
 
-- Red propia: la Raspberry crea el Wi-Fi «AccesIA» y queda en `10.42.0.1`. La cámara apunta a `http://10.42.0.1:8000` y a `mqtt://10.42.0.1:1883`.
+- Red propia: la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg` en NetworkManager, porque el ESP32-S3 no usa 5 GHz) y queda en `10.42.0.1`. La cámara apunta a `http://10.42.0.1:8000` y a `mqtt://10.42.0.1:1883`.
 - Plan B de red: la red del salón o el hotspot de un celular; la cámara se reconfigura por consola serial.
 
 | Escenario | Qué trae la Raspberry | Dónde corre cada cosa |

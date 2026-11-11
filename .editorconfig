@@ -3,7 +3,7 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-11
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 
 root = true
 
@@ -21,5 +21,11 @@ indent_size = 4
 [*.md]
 trim_trailing_whitespace = false
 
-[*.{ps1,bat}]
+# Windows PowerShell 5.1 lee como ANSI los .ps1 sin BOM y daña las tildes.
+# Los .bat van sin BOM: cmd.exe no lo entiende.
+[*.ps1]
+end_of_line = crlf
+charset = utf-8-bom
+
+[*.bat]
 end_of_line = crlf

@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # Decisiones
@@ -101,3 +101,4 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-12 | R1 | La comparación con el umbral tolera 1e-6, porque pgvector calcula en float32 y una similitud de 0,363 puede salir 0,36299998. Vale también en los pasos 5 y 6 de R7. Tarea B2 del Día 2. |
 | 2026-11-12 | Arquitectura | SFace se suma a la tabla de YuNet en Piezas: mismo commit `48b10fa` de `opencv/opencv_zoo`, con su SHA-256. El servidor usa `opencv-python-headless` 4.14.0.94, la misma versión del simulador, y guarda los modelos en `datos/modelos/` desde la raíz del repositorio (en la imagen, `/app/datos/modelos`), sin variable nueva. Tarea B2 del Día 2. |
 | 2026-11-12 | Tarea B2 | Donde el contrato no decía nada: mensajes de la respuesta que no dependen del género; abrir una inscripción en una cámara desactivada responde 422 `validacion`; `enviarRostro` comprueba en este orden: token (401), cámara desactivada (403), tipo (415), tamaño (413), ritmo (429) e imagen (422); un 429 no mueve el reloj del ritmo; una repetición de R4 lleva el resultado, el motivo y el evento originales, con la similitud del recorte nuevo. |
+| 2026-11-12 | Plan | Tareas del Día 3 en `tareas/dia-3/`, ya con D-21: A se divide en A1 (puerta del simulador por MQTT) y A2 (cámara de la placa, solo si llega el módulo); B en B1 (asistencia y API de consulta), B2 (MQTT) y B3 (servidor MCP y `semilla agente`), para que cada PR se pueda revisar; C en C1 (pantallas Accesos, Asistencia y Horarios) y C2 (Home Assistant OS y agente). `compose.escenario2.yaml` se adelanta del Día 4 al Día 3 (C2), porque es el despliegue de la demo y el Hito 2 lo necesita. Los endpoints de rostros (RF-12 · C1) y `GET /api/v1/configuracion`, que no tenían tarea, van en B1. |

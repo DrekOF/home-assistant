@@ -4,7 +4,7 @@ Descripción: Cómo se trabajan las tareas de AccesIA con Claude Code, orden y p
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Tareas
@@ -28,7 +28,8 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 
 - Día 1: primero la tarea 00, los tres juntos. Después A, B y C en paralelo, cada una en su rama.
 - Día 2: A, B1 y C empiezan en paralelo; B2 sale de `main` cuando B1 está fusionada. El orden y el guion del Hito 1 están en `dia-2/00-todos-orden-e-hito-1.md`.
-- Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A el Día 1; B1, B2, A y C el Día 2.
+- Día 3: B1 empieza primero, porque B2 y B3 la necesitan; A1, C1 y la primera parte de C2 van en paralelo. Las dependencias, el reparto entre tres sesiones y el guion del Hito 2 están en `dia-3/00-todos-orden-e-hito-2.md`.
+- Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A el Día 1; B1, B2, A y C el Día 2; B1, B2, B3, A1, C1, C2 y A2 el Día 3.
 - Las tareas de cada día se escriben al cerrar el día anterior, a partir de `specs/plan.md` y de lo aprendido.
 
 ## Tareas del Día 1
@@ -49,6 +50,19 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 | [dia-2/B1-cristhian-sesion-y-api.md](dia-2/B1-cristhian-sesion-y-api.md) | Cristhian Eduardo Sánchez Mosquera | `b/sesion-y-api` |
 | [dia-2/B2-cristhian-reconocimiento-e-inscripcion.md](dia-2/B2-cristhian-reconocimiento-e-inscripcion.md) | Cristhian Eduardo Sánchez Mosquera | `b/reconocimiento` |
 | [dia-2/C-jhon-inscripcion-y-camaras.md](dia-2/C-jhon-inscripcion-y-camaras.md) | Jhon Jairo Perdomo Perdomo | `c/inscripcion-y-camaras` |
+
+## Tareas del Día 3
+
+| Archivo | Responsable | Rama |
+| --- | --- | --- |
+| [dia-3/00-todos-orden-e-hito-2.md](dia-3/00-todos-orden-e-hito-2.md) | Todos | `b/hito-2` (solo el resultado del hito) |
+| [dia-3/A1-julian-puerta-del-simulador.md](dia-3/A1-julian-puerta-del-simulador.md) | Julián Andrés Silva Morales | `a/puerta-simulador` |
+| [dia-3/A2-julian-camara-de-la-placa.md](dia-3/A2-julian-camara-de-la-placa.md) | Julián Andrés Silva Morales | `a/camara-placa` |
+| [dia-3/B1-cristhian-asistencia-y-consultas.md](dia-3/B1-cristhian-asistencia-y-consultas.md) | Cristhian Eduardo Sánchez Mosquera | `b/asistencia` |
+| [dia-3/B2-cristhian-mqtt.md](dia-3/B2-cristhian-mqtt.md) | Cristhian Eduardo Sánchez Mosquera | `b/mqtt` |
+| [dia-3/B3-cristhian-mcp-y-semilla.md](dia-3/B3-cristhian-mcp-y-semilla.md) | Cristhian Eduardo Sánchez Mosquera | `b/mcp-agente` |
+| [dia-3/C1-jhon-accesos-asistencia-y-horarios.md](dia-3/C1-jhon-accesos-asistencia-y-horarios.md) | Jhon Jairo Perdomo Perdomo | `c/accesos-asistencia-horarios` |
+| [dia-3/C2-jhon-home-assistant-y-agente.md](dia-3/C2-jhon-home-assistant-y-agente.md) | Jhon Jairo Perdomo Perdomo | `c/home-assistant` |
 
 ## Plantilla de una tarea
 

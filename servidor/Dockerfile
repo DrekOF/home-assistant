@@ -1,9 +1,9 @@
 # Nombre: Dockerfile
 # Descripción: Imagen del servidor de AccesIA (multietapa con uv, usuario sin privilegios, amd64 y arm64).
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-11
+# Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 #
 # Se construye con la raíz del repositorio como contexto: docker build -f servidor/Dockerfile .
 # Las versiones exactas de las imágenes base se fijan el Día 4 (specs/arquitectura.md).
@@ -33,8 +33,10 @@ RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin acces
 
 WORKDIR /app/servidor
 COPY --from=construccion --chown=accesia:accesia /app/servidor /app/servidor
-# El SQL del contrato va en la misma ruta relativa que en el repositorio: la migración lo busca así.
+# El SQL del contrato y el texto del consentimiento van en la misma ruta relativa que en el repositorio:
+# la migración y GET /api/v1/consentimiento/texto los buscan así.
 COPY specs/contratos/base-de-datos.sql /app/specs/contratos/base-de-datos.sql
+COPY specs/consentimiento.md /app/specs/consentimiento.md
 
 ENV PATH="/app/servidor/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1

@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Bitácora
@@ -22,6 +22,55 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 2 · Tarea B1 · Sesión y API de administración
+
+- Quién: el frente B.
+- Qué:
+  - Contrato de la API 1.3: el código `metodo_no_permitido` para el 405, que conserva la cabecera `Allow`, y el campo `Dispositivo.inscripcion_activa`. Los tipos de la web se regeneraron con `npm run tipos`.
+  - Sesión de la web: `POST`, `GET` y `DELETE /api/v1/sesion`. La cookie `accesia_sesion` va firmada con `SESION_SECRETO`, con `HttpOnly`, `SameSite=Strict` y `Path=/`, y dura 8 horas desde el último uso. Las claves se guardan con Argon2id. Al arrancar, el servidor crea el primer administrador («Administrador») con `ADMIN_CORREO` y `ADMIN_CLAVE_INICIAL`; sin `SESION_SECRETO` no arranca.
+  - API de personas, consentimiento, horarios por bloques y cámaras, con los códigos de error del contrato.
+    - El texto del consentimiento se lee de `specs/consentimiento.md`, que la imagen ahora copia.
+    - Revocar borra las huellas y cancela la inscripción activa en la misma transacción.
+    - Listar o ver cámaras vence las inscripciones que ya pasaron su hora y muestra `modo` e `inscripcion_activa`. La función queda lista para B2.
+  - Comando `accesia crear-camara`, que valida como la API y muestra el token una sola vez.
+- Cómo:
+  - Claude Code trabajó en un worktree aparte (`AccesIA-b1`), con `infra/.env` y las claves de MQTT copiadas, porque otra sesión seguía la tarea A del Día 1 en la carpeta principal. Propuso el plan y el equipo lo aprobó con estas decisiones: nombre «Administrador», sesión de 8 horas, `SESION_SECRETO` obligatoria, argon2-cffi, itsdangerous y email-validator, `terminada` igual a `vence` en una inscripción vencida, PR en borrador después del contrato y Compose levantado desde el worktree.
+  - Un cambio frente al plan: la sesión no usa el `SessionMiddleware` de Starlette, sino una dependencia con la misma cookie firmada con itsdangerous. El middleware necesita la clave al crear la app, es decir al importarla, y eso obligaba a tener `DATABASE_URL` incluso en las pruebas que no usan la base. Para el contrato y para la web no cambia nada.
+  - Cada petición usa una transacción, con `Depends(..., scope="function")` de FastAPI: se confirma antes de enviar la respuesta, así quien recibe un 201 ya puede leer lo guardado.
+  - El equipo pidió que las pruebas que esperan un error de la base corran dentro de un savepoint. Las pruebas de la API usan la transacción de la prueba y cada petición corre en su savepoint, lo mismo que `join_transaction_mode="create_savepoint"`. Además, las consultas que pueden chocar con una restricción abren otro.
+  - Se comprobó rompiendo el código a propósito:
+    - sin los dos savepoints, la prueba del 409 falla con `InFailedSqlTransaction`; con cualquiera de los dos, pasa;
+    - con la cookie en `SameSite=Lax`, sin vencer las inscripciones o sin cancelar la inscripción al revocar, falló cada vez la prueba que correspondía.
+  - Docker Desktop se cerró durante la tarea, y las pruebas fallaban con `CreateFile`. Se volvió a abrir; el README del servidor lo explica.
+- Decisiones donde el contrato no decía nada (se copió el simulacro de la web):
+  - personas ordenadas por nombre con la colación española `es-x-icu`;
+  - un horario que no existe da 422 `validacion`, y un `PATCH` vacío también;
+  - un id que no es un uuid da 404;
+  - `DELETE /api/v1/sesion` responde 204 aunque no haya sesión;
+  - con medio web, `aceptado_en` se ignora y vale la hora del registro;
+  - registrar o revocar el consentimiento actualiza `actualizada` de la persona.
+- Otras decisiones:
+  - En línea es «un contacto en los últimos 2 minutos» hasta que llegue MQTT, y `estado` es `null`.
+  - Revocar primero vence las inscripciones que ya pasaron su hora y después cancela la activa.
+  - El servidor toma la hora de `accesia.tiempo.ahora()` para todo lo que guarda y compara, para que las pruebas la controlen.
+- Pruebas:
+  - `uv run pytest`: 164 en verde, entre ellas las 24 del Día 1, la nueva del 405 y 139 de B1, con su resumen por marca. Ruff (`F`, `E9` y `B`) sin observaciones.
+  - Web: `npm run build` y `npm test` (68) en verde; `npm run tipos` sin cambios. `openapi-spec-validator`: `openapi.yaml` 1.3 OK.
+  - Compose con la imagen nueva:
+    - salud OK, 405 `metodo_no_permitido` y 401 `sin_sesion`;
+    - el administrador de `infra/.env` quedó creado con Argon2id;
+    - un script, sin mostrar las claves, recorrió sesión, horarios, persona, documento repetido, búsqueda sin tildes, consentimiento, revocación, borrado y cierre de sesión;
+    - `crear-camara` en el contenedor: token de 43 caracteres con su SHA-256 igual al guardado; rechaza el código repetido y `servidor`; en PowerShell las tildes se ven bien. La cámara de prueba se borró.
+  - Web real con `npm run dev` y Playwright, con un script aparte que lee las credenciales de `infra/.env` sin mostrarlas: entra, crea una persona con «Clase IA», «Inscribir» está deshabilitado, registra el consentimiento, «Inscribir» se habilita, el historial muestra «Versión 1.0 · En la web… lo registró Administrador» y la sesión sigue al recargar. La persona de prueba se borró. La primera corrida falló esperando el aviso de consentimiento registrado; las tres siguientes pasaron y no se encontró la causa.
+  - La CI del PR corre las mismas pruebas; el PR se fusiona solo con `servidor.yml` y `web.yml` en verde.
+- Cambios de contrato o de specs: `openapi.yaml` 1.3, `contratos/README.md` 1.3 y su registro en `decisiones.md` 1.5. `arquitectura.md` 1.3 anota la duración de la sesión, que sin `SESION_SECRETO` no arranca y el nombre y la clave mínima del primer administrador. `CLAUDE.md`, `servidor/README.md` e `infra/README.md` suman `crear-camara`.
+- Pendiente:
+  - Los endpoints de rostros (RF-12 · C1) y `GET /api/v1/configuracion` siguen sin tarea: se asignan el Día 3.
+  - `en_linea` y `estado` de las cámaras se completan con MQTT el Día 3.
+  - El registro del contenedor no muestra los avisos de nivel INFO del servidor (por ejemplo, que creó el primer administrador): uvicorn no configura ese registro. Los de nivel WARNING y ERROR sí salen.
+  - argparse escribe en inglés sus propios mensajes (`usage`, `the following arguments are required`).
+  - Starlette sigue avisando que `TestClient` con httpx está en desuso.
 
 ## 2026-11-12 · Día 2 · Tareas del Día 2
 

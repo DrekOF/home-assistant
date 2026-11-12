@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit de AccesIA (frentes B y C).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Infraestructura · frentes B y C
@@ -39,10 +39,13 @@ Cada día:
 | Construir y levantar todo | `docker compose -f infra/compose.yaml up -d --build` |
 | Ver si están sanos | `docker compose -f infra/compose.yaml ps` |
 | Probar el servidor | `curl.exe http://localhost:8000/api/v1/salud` |
+| Registrar una cámara y ver su token una sola vez | `docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador` |
 | Ver los registros del servidor | `docker compose -f infra/compose.yaml logs -f servidor` |
 | Mirar el tráfico de MQTT | `docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P "<MQTT_SERVIDOR_CLAVE>" -t "accesia/#" -v` |
 | Bajar todo y conservar los datos | `docker compose -f infra/compose.yaml down` |
 | Bajar todo y borrar los datos (fin del semestre) | `docker compose -f infra/compose.yaml down -v` |
+
+Al arrancar, el servidor crea el administrador de `ADMIN_CORREO` con `ADMIN_CLAVE_INICIAL` si todavía no existe; con esos dos datos se entra a la web. Sin `SESION_SECRETO`, el servidor no arranca.
 
 Hasta el Día 3, `/api/v1/salud` responde `"estado": "degradado"` y `"mqtt": "sin_conexion"`: el servidor todavía no se conecta a MQTT.
 

@@ -1,17 +1,18 @@
 # Nombre: openapi.yaml
 # Descripción: Contrato de la API REST de AccesIA para la web de administración y las cámaras.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-11
+# Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.2
+# Versión: 1.3
 openapi: 3.1.0
 info:
   title: API de AccesIA
-  version: 1.2.0
+  version: 1.3.0
   description: >-
     API del servidor de AccesIA. La web de administración usa la cookie de sesión y las cámaras
     usan su token. Fechas y horas en ISO 8601 con la zona de Colombia (-05:00). Todos los errores
-    siguen el esquema Error. Reglas en specs/reglas.md; el contrato de la cámara se explica en
+    siguen el esquema Error; una ruta que existe, llamada con otro método, responde 405
+    metodo_no_permitido. Reglas en specs/reglas.md; el contrato de la cámara se explica en
     specs/contratos/api-dispositivo.md.
 servers:
   - url: http://localhost:8000
@@ -774,6 +775,7 @@ components:
             - token_invalido
             - dispositivo_inactivo
             - no_encontrado
+            - metodo_no_permitido
             - documento_duplicado
             - codigo_duplicado
             - nombre_duplicado
@@ -979,7 +981,8 @@ components:
 
     Dispositivo:
       type: object
-      required: [codigo, nombre, tipo, url_captura, activo, en_linea, modo, ultimo_contacto, estado, creado]
+      required:
+        [codigo, nombre, tipo, url_captura, activo, en_linea, modo, inscripcion_activa, ultimo_contacto, estado, creado]
       properties:
         codigo: { type: string, pattern: "^[a-z0-9-]{3,32}$" }
         nombre: { type: string }
@@ -991,6 +994,14 @@ components:
           type: string
           enum: [reconocer, inscribir]
           description: Se calcula después de vencer las inscripciones que ya pasaron su hora (R9)
+        inscripcion_activa:
+          description: >-
+            Inscripción activa de la cámara, después de vencer las que ya pasaron su hora (R9); null si
+            no tiene. Sirve para encontrarla aunque se haya perdido su id. modo es inscribir si y solo si
+            este campo no es null.
+          anyOf:
+            - { $ref: "#/components/schemas/InscripcionCorta" }
+            - { type: "null" }
         ultimo_contacto: { type: [string, "null"], format: date-time }
         estado:
           anyOf:

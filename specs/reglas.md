@@ -2,9 +2,9 @@
 Nombre: reglas.md
 Descripción: Reglas de negocio R1 a R9 de AccesIA con sus casos de prueba.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Reglas de negocio
@@ -27,12 +27,13 @@ Las reglas viven en el servidor y se prueban primero (pruebas unitarias con pyte
 
 - Similitud = 1 − distancia de coseno de pgvector: `1 - (huella <=> :v)`.
 - Hay coincidencia si la similitud es mayor o igual que `UMBRAL_SIMILITUD`.
+- La comparación tolera 1e-6: pgvector calcula en float32, y una similitud de 0,363 puede salir 0,36299998. La misma tolerancia vale en los pasos 5 y 6 de R7, que también comparan con el umbral.
 - Sin coincidencia, el resultado es `desconocido` con motivo `bajo_umbral` y sin persona.
 - El valor inicial viene de LFW, con caras de buena calidad. Se calibra con recortes como los de la cámara real: los del ESP32-S3 o los del simulador en modo «como la cámara» (RNF-07).
 
 | Caso | Entrada | Esperado |
 | --- | --- | --- |
-| R1 · igual al umbral | Mejor similitud 0,363 | Coincide |
+| R1 · igual al umbral | Mejor similitud 0,363, también 0,363 menos un paso de float32 (0,36299998) | Coincide |
 | R1 · bajo el umbral | Mejor similitud 0,362 | `desconocido`, `bajo_umbral`, persona nula |
 | R1 · base vacía | No hay muestras | `desconocido`, similitud nula |
 

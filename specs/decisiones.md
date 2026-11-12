@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Decisiones
@@ -75,3 +75,7 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-11 | D-11 | Los skills de frontend pasan a seis: se suman refactoring-ui (`wondelai/skills`) y web-design-guidelines (`vercel-labs/agent-skills`), con commit fijo como los demás. |
 | 2026-11-12 | Plan | Tareas del Día 2 en `tareas/dia-2/`. La tarea B se divide en B1 (sesión, personas, consentimiento, horarios, cámaras, `crear-camara` y el contrato de la API 1.3) y B2 (reconocimiento, R1 a R4, R7 e inscripción), para que cada PR se pueda revisar. B1 propone en su PR el contrato de la API 1.3: el código de error `metodo_no_permitido` para el 405, que hoy responde `no_encontrado`, y el campo `Dispositivo.inscripcion_activa`, para encontrar la inscripción activa de una cámara si se pierde su id. |
 | 2026-11-12 | Contrato API 1.3 | `openapi.yaml` suma el código de error `metodo_no_permitido`, para el 405 que antes respondía `no_encontrado`, y el campo `Dispositivo.inscripcion_activa` (`InscripcionCorta` o `null`), para que la web encuentre la inscripción activa de una cámara si pierde su id. Los dos solo agregan. Tarea B1 del Día 2. |
+| 2026-11-12 | Contrato cámara 1.2 | `api-dispositivo.md` aclara que 100 KB son 102 400 bytes: el servidor responde 413 `imagen_grande` desde 102 401 bytes. Solo aclara; el simulador ya envía como máximo 100 000 bytes. Tarea B2 del Día 2. |
+| 2026-11-12 | R1 | La comparación con el umbral tolera 1e-6, porque pgvector calcula en float32 y una similitud de 0,363 puede salir 0,36299998. Vale también en los pasos 5 y 6 de R7. Tarea B2 del Día 2. |
+| 2026-11-12 | Arquitectura | Modelos de cara de `opencv/opencv_zoo` en el commit `48b10fa`, con su tamaño y su SHA-256, y OpenCV 4.14.0.94 en el servidor (`opencv-python-headless`) y en el simulador. El servidor los guarda en `datos/modelos/` desde la raíz del repositorio (en la imagen, `/app/datos/modelos`), sin variable nueva. Tarea B2 del Día 2. |
+| 2026-11-12 | Tarea B2 | Donde el contrato no decía nada: mensajes de la respuesta que no dependen del género; abrir una inscripción en una cámara desactivada responde 422 `validacion`; `enviarRostro` comprueba en este orden: token (401), cámara desactivada (403), tipo (415), tamaño (413), ritmo (429) e imagen (422); un 429 no mueve el reloj del ritmo; una repetición de R4 lleva el resultado, el motivo y el evento originales, con la similitud del recorte nuevo. |

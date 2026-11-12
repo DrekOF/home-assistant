@@ -2,12 +2,12 @@
 Nombre: api-dispositivo.md
 Descripción: Contrato entre la cámara (o el simulador) y el servidor de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
-# Contrato cámara → servidor · versión 1.1
+# Contrato cámara → servidor · versión 1.2
 
 Lo cumplen el firmware y el simulador (frente A) y el servidor (frente B). En `openapi.yaml` es la operación `enviarRostro`.
 
@@ -26,7 +26,7 @@ El cuerpo es el JPEG del recorte:
 
 - La cara más grande del cuadro (la de mayor área), recortada con 25 % de margen según la fórmula de abajo.
 - La cara mide al menos `CARA_MIN_PX` de alto según el detector de la cámara; la cámara no envía caras más pequeñas.
-- JPEG de calidad 80, de máximo 100 KB.
+- JPEG de calidad 80, de máximo 100 KB (102 400 bytes).
 - Después de cada respuesta, la cámara espera al menos 1 s antes de enviar el siguiente recorte (3 s si la respuesta fue `permitido`, `denegado` o `desconocido`). La espera se cuenta desde que recibe la respuesta, no desde que envió.
 
 El servidor vuelve a detectar la cara con YuNet para alinearla antes de sacar la huella. Por eso el margen importa: sin él, YuNet puede no encontrar la cara. Las cajas de ESP-DL y de YuNet no miden igual, así que el servidor solo descarta por tamaño si la cara mide menos de 0,8 × `CARA_MIN_PX` (R7).
@@ -148,7 +148,7 @@ Cuerpo: `{"detalle": "texto para personas", "codigo": "texto para programas"}`.
 | --- | --- | --- |
 | 401 | `token_invalido` | Falta el token, no corresponde o no existe una cámara con ese código (no se dice cuál de las tres) |
 | 403 | `dispositivo_inactivo` | El token es válido pero la cámara está desactivada |
-| 413 | `imagen_grande` | El cuerpo pasa de 100 KB |
+| 413 | `imagen_grande` | El cuerpo pasa de 100 KB (102 400 bytes) |
 | 415 | `tipo_no_soportado` | `Content-Type` no es `image/jpeg` |
 | 422 | `imagen_invalida` | El JPEG no se puede leer |
 | 429 | `demasiadas_peticiones` | Llegan dos recortes de esa cámara con menos de 0,8 s entre sí. Lleva la cabecera `Retry-After: 1` |

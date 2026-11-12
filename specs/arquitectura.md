@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Arquitectura
@@ -27,7 +27,19 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Ollama | Modelo del agente | Ollama con qwen2.5:3b o qwen2.5:1.5b | C | `infra/` |
 | Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
 
-Modelos de cara del servidor (de `opencv/opencv_zoo`, se descargan al construir la imagen): `face_detection_yunet_2023mar.onnx` (YuNet, licencia MIT) y `face_recognition_sface_2021dec.onnx` (SFace, licencia Apache 2.0).
+Modelos de cara de `opencv/opencv_zoo`, fijados en el commit `48b10fa505aeb51fbd127fc60a5c660040e823b7`. Los usan el servidor y el simulador, y nunca se suben al repositorio:
+
+| Modelo | Archivo | Bytes | SHA-256 | Licencia |
+| --- | --- | --- | --- | --- |
+| YuNet (detección) | `face_detection_yunet_2023mar.onnx` | 232 589 | `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4` | MIT |
+| SFace (huella) | `face_recognition_sface_2021dec.onnx` | 38 696 353 | `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79` | Apache 2.0 |
+
+- Se descargan de `https://github.com/opencv/opencv_zoo/raw/<commit>/models/…`, porque `raw.githubusercontent.com` devuelve el puntero de Git LFS y no el modelo.
+- OpenCV 4.14.0.94, la última 4.x estable: `opencv-python-headless` en el servidor y `opencv-python` en el simulador. YuNet 2023mar pide 4.8 o más reciente.
+- En el servidor, los modelos van en `datos/modelos/` desde la raíz del repositorio, que Git y Docker ignoran:
+  - en el PC y en la CI los baja `uv run accesia descargar-modelos` (desde `servidor/`);
+  - la imagen los baja al construir, a `/app/datos/modelos`.
+  - En los dos casos se comprueban el tamaño y el SHA-256 de cada uno. El servidor los carga una vez, al arrancar; sin ellos, no arranca.
 
 ## Flujos
 

@@ -1,0 +1,16 @@
+# Nombre: idf_component.yml
+# Descripción: Dependencias del firmware en el ESP Component Registry, con versiones fijas.
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# firmware/dependencies.lock (en Git) fija también las dependencias de estas: dl_fft, esp_new_jpeg y esp_jpeg.
+# esp-dl va explícita para que no suba sola a una 3.3 más nueva: human_face_detect 0.5.2 acepta ~3.3.14.
+# Las versiones se eligieron el 2026-11-12 compilando el ejemplo human_face_detect de ESP-DL (docs/bitacora.md).
+
+dependencies:
+  idf: ">=5.4.4,<5.5"
+  espressif/esp32-camera: "2.1.9"
+  espressif/human_face_detect: "0.5.2"
+  espressif/esp-dl: "3.3.14"

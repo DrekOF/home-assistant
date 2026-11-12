@@ -1,0 +1,48 @@
+# Nombre: firmware.yml
+# Descripción: CI del firmware de AccesIA: compila la XIAO ESP32-C6 y corre las pruebas de la lógica pura (D-21, RNF-06 · C3).
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Se adelantó del Día 4 por D-21. Compila con la imagen oficial de ESP-IDF 5.4.4 y prueba la lógica pura con
+# doctest en ubuntu-24.04, como firmware/scripts/probar-logica.ps1 en el equipo.
+
+name: Firmware
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  compilar:
+    name: Compilación del firmware (esp32c6)
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v5.4.4
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compilar para la XIAO ESP32-C6
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          . "$IDF_PATH/export.sh"
+          cd firmware
+          idf.py -B build-c6 -D SDKCONFIG="$PWD/build-c6/sdkconfig" -D IDF_TARGET=esp32c6 build
+
+      - name: Revisar que dependencies.lock.esp32c6 esté al día con idf_component.yml
+        shell: bash
+        run: git diff --exit-code -- firmware/dependencies.lock.esp32c6
+
+  pruebas:
+    name: Pruebas de la lógica pura del firmware
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Correr las pruebas (doctest)
+        run: bash firmware/scripts/probar-logica.sh

@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -140,4 +140,13 @@ npm test                                              Vitest: lógica, simulacro
 npm run e2e                                           Playwright con el simulacro; capturas en web/capturas/
 ```
 
-Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md` y `web/README.md`.
+Firmware de la XIAO ESP32-C6, desde la raíz (necesita ESP-IDF 5.4.4 y PowerShell, no Git Bash):
+
+```text
+.\firmware\scripts\compilar.ps1                       compila en firmware\build-c6
+.\firmware\scripts\probar-logica.ps1                  pruebas de la lógica pura en ubuntu:24.04 (Docker Desktop)
+idf.py -C firmware -B firmware\build-c6 -p COM5 flash monitor
+                                                      flashea y abre la consola (Ctrl+] sale)
+```
+
+Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md`, `web/README.md` y `firmware/README.md`.

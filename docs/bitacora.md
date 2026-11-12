@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Bitácora
@@ -22,6 +22,62 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 2 · Hardware real: specs de la XIAO ESP32-C6 (D-21)
+
+- Quién: el frente A, con los contratos que son del frente B.
+- Qué:
+  - En clase entregaron una Seeed Studio XIAO ESP32-C6 (4 MB de flash, sin PSRAM ni interfaz de cámara) y una Raspberry Pi 5 con Home Assistant OS. El módulo de cámara llega la próxima clase.
+  - D-21 nueva, con una tabla de lo que cambia en D-01, D-02, D-04, D-05, D-06, D-08, D-09, D-10, D-16, D-17, D-18 y D-19.
+  - `mqtt.md` 1.2, que solo agrega:
+    - el tema `accesia/{codigo}/ambiente`;
+    - el descubrimiento de los dos sensores, publicado por la placa;
+    - tres líneas de la ACL;
+    - `sensor` y `antena` en `EstadoCamara`;
+    - el broker de la demo en el portátil.
+  - `arquitectura.md` 1.4:
+    - la placa del C6, con sus pines, su consola y su comportamiento;
+    - el flujo de temperatura y humedad;
+    - el escenario 2 como despliegue y la red del hotspot;
+    - qué hacer según el módulo de cámara que llegue;
+    - el S3 como referencia.
+  - `requisitos.md` 1.3: RF-14 nuevo, y cambios en RF-01, RF-07 · C1, RF-11 · C2, RNF-04 · C2 y RNF-06 · C3.
+  - Otros archivos:
+    - `plan.md` 1.5;
+    - `enunciado.md` 1.2, con una nota aparte que no toca el texto del docente;
+    - `specs/README.md` 1.2, con P-02 resuelto y P-03 nuevo;
+    - `contratos/README.md` 1.4;
+    - la guía del día de clase 1.2;
+    - `CLAUDE.md` 1.2.
+- Cómo:
+  - Claude Code propuso el plan del C6 y el equipo lo aprobó con seis decisiones:
+    - el broker en el portátil;
+    - el sensor cada 30 s, con `null` tras 3 fallas y DHT22 por defecto;
+    - el nivel activo en el comando `puerta`, con GPIO15 en bajo en el C6;
+    - las specs primero, en una rama `b/`;
+    - `esp-idf-lib/dht` 1.2.0 fija;
+    - `firmware.yml` adelantado.
+  - El equipo hizo dos ajustes: la red de la demo es el hotspot de Windows del portátil en 2,4 GHz, y el enunciado lleva una nota aparte.
+  - Antes de escribir se comprobó:
+    - ESP-IDF 5.4.4 ya compila para `esp32c6` sin reinstalar nada: el ejemplo `hello_world` tardó 119 s.
+    - Los pines coinciden con la wiki de Seeed: GPIO3 y GPIO14 para la antena, el LED en GPIO15, D2 = GPIO2 y sin PSRAM. La wiki no dice en qué nivel enciende el LED.
+    - `esp-idf-lib/dht` 1.2.0 declara soporte para `esp32c6`. La 1.2.1 y la 1.2.2 salieron el 11 y el 12 de noviembre, sin targets declarados.
+    - El manual de `mosquitto.conf` exige que `%c` ocupe un nivel entero del tema. Por eso el nodo del descubrimiento de la placa es el código.
+    - ESP-DL 3.3 declara soporte para `esp32c6`, pero `human_face_detect` solo trae modelos para el S3 y el P4.
+- Pruebas: no hay código. La CI del PR corre la web y el servidor. La prueba de la ACL del servidor no lee `mqtt.md`, así que no cambia.
+- Cambios de contrato o de specs: `mqtt.md` 1.2, que solo agrega. No se tocan `openapi.yaml` ni `api-dispositivo.md`.
+- Pendiente de infra (frentes B y C):
+  - `infra/mosquitto/acl`: las tres líneas de `mqtt.md` 1.2, con sus casos en `test_mqtt_acl.py` (`contrato MQTT · acl`). Sin eso, la placa no puede publicar `ambiente` ni su descubrimiento.
+  - Firewall de Windows en la red del hotspot: abrir el 1883 (MQTT), y también el 8001 (`mcp`) y el 11434 (`ollama`), que usa Home Assistant OS desde la Pi.
+  - El hotspot de Windows del portátil, en 2,4 GHz y con el nombre `AccesIA`.
+  - `compose.escenario2.yaml` (Día 4 de C), que pasa a ser el despliegue de la demo.
+  - Home Assistant OS: la integración MQTT apunta a `192.168.137.1:1883` con el usuario `homeassistant`, y la copia de seguridad lleva `automatizaciones_accesia.yaml`.
+  - Servidor: el `model` del dispositivo pasa a «XIAO ESP32-C6».
+  - El kit y `verificar.sh`: el binario del C6 y la comprobación de las entidades de ambiente.
+- Otros pendientes:
+  - El firmware del C6, en `a/firmware-c6`, después de este PR.
+  - P-03: qué módulo de cámara llega.
+  - Los diagramas de `docs/diagramas/` todavía muestran el ESP32-S3 y Home Assistant en contenedor. Se regeneran con Archify, no a mano.
 
 ## 2026-11-12 · Día 2 · Tarea B1 · Sesión y API de administración
 

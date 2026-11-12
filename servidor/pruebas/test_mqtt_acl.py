@@ -2,9 +2,9 @@
 Nombre: test_mqtt_acl.py
 Descripción: Prueba «contrato MQTT · acl»: Mosquitto con el mosquitto.conf y la ACL del repositorio, comprobados con paho-mqtt.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import re
@@ -135,14 +135,14 @@ def escucha(clientes: Callable[..., Cliente]) -> Cliente:
     return suscriptor
 
 
-def marcar(clientes: Callable[..., Cliente], escucha: Cliente) -> None:
+def marcar(clientes: Callable[..., Cliente], escucha: Cliente, tema: str = "accesia/prueba/marca") -> None:
     """Publica una marca y espera a que llegue. Mosquitto entrega en orden de llegada:
     si la marca llegó y un mensaje publicado antes no, el broker lo descartó."""
     marcador = clientes(f"prueba-marca-{uuid.uuid4().hex[:8]}", "servidor")
     assert not marcador.conectar().is_failure
     carga = uuid.uuid4().hex
-    marcador.publicar("accesia/prueba/marca", carga)
-    assert escucha.esperar("accesia/prueba/marca", carga), "No llegó la marca."
+    marcador.publicar(tema, carga)
+    assert escucha.esperar(tema, carga), "No llegó la marca."
 
 
 def test_una_conexion_anonima_es_rechazada(clientes: Callable[..., Cliente]) -> None:
@@ -181,3 +181,52 @@ def test_la_camara_publica_solo_en_los_temas_de_su_client_id(
     camara.publicar("accesia/otra/estado", carga)
     marcar(clientes, escucha)
     assert not escucha.recibio("accesia/otra/estado")
+
+
+def test_la_placa_publica_su_ambiente_solo_con_su_codigo(clientes: Callable[..., Cliente], escucha: Cliente) -> None:
+    """mqtt.md 1.2 (D-21): accesia/{codigo}/ambiente."""
+    placa = clientes("entrada", "camara")
+    assert not placa.conectar().is_failure
+    carga = uuid.uuid4().hex
+
+    placa.publicar("accesia/entrada/ambiente", carga)
+    assert escucha.esperar("accesia/entrada/ambiente", carga), "La placa no pudo publicar su ambiente."
+
+    placa.publicar("accesia/otra/ambiente", carga)
+    marcar(clientes, escucha)
+    assert not escucha.recibio("accesia/otra/ambiente")
+
+
+@pytest.fixture
+def escucha_descubrimiento(clientes: Callable[..., Cliente]) -> Cliente:
+    """Suscriptor con el usuario servidor que recibe todo homeassistant/#."""
+    suscriptor = clientes(f"prueba-descubrimiento-{uuid.uuid4().hex[:8]}", "servidor")
+    assert not suscriptor.conectar().is_failure
+    suscriptor.suscribir("homeassistant/#")
+    return suscriptor
+
+
+def test_la_placa_publica_solo_el_descubrimiento_de_sus_dos_sensores(
+    clientes: Callable[..., Cliente], escucha_descubrimiento: Cliente
+) -> None:
+    """mqtt.md 1.2 (D-21): homeassistant/sensor/{codigo}/temperatura/config y …/humedad/config, y nada más."""
+    placa = clientes("entrada", "camara")
+    assert not placa.conectar().is_failure
+    carga = uuid.uuid4().hex
+
+    for objeto in ("temperatura", "humedad"):
+        tema = f"homeassistant/sensor/entrada/{objeto}/config"
+        placa.publicar(tema, carga)
+        assert escucha_descubrimiento.esperar(tema, carga), f"La placa no pudo publicar en {tema}."
+
+    prohibidos = (
+        "homeassistant/sensor/otra/temperatura/config",
+        "homeassistant/sensor/entrada/otro/config",
+        "homeassistant/binary_sensor/entrada/puerta/config",
+        "homeassistant/sensor/accesia_entrada/temperatura/config",
+    )
+    for tema in prohibidos:
+        placa.publicar(tema, carga)
+    marcar(clientes, escucha_descubrimiento, "homeassistant/prueba/marca")
+    for tema in prohibidos:
+        assert not escucha_descubrimiento.recibio(tema), f"La placa publicó en {tema}."

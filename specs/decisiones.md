@@ -2,9 +2,9 @@
 Nombre: decisiones.md
 Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Decisiones
@@ -73,3 +73,4 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-11 | D-20 | Horarios por bloques: tabla `horario_bloque`, R5 con el bloque del día de la llegada, requisito RF-13 y pantalla Horarios en el Día 3 de C. |
 | 2026-11-11 | Contratos 1.2 | `base-de-datos.sql`, `openapi.yaml` y `mcp-agente.md` pasan a 1.2 por D-20. El esquema `Horario` cambia de campos, así que rompe la 1.1; según `contratos/README.md` eso sería 2.0, pero se dejó en 1.2 porque todavía no hay código que lo use. |
 | 2026-11-11 | D-11 | Los skills de frontend pasan a seis: se suman refactoring-ui (`wondelai/skills`) y web-design-guidelines (`vercel-labs/agent-skills`), con commit fijo como los demás. |
+| 2026-11-12 | Plan | Tareas del Día 2 en `tareas/dia-2/`. La tarea B se divide en B1 (sesión, personas, consentimiento, horarios, cámaras, `crear-camara` y el contrato de la API 1.3) y B2 (reconocimiento, R1 a R4, R7 e inscripción), para que cada PR se pueda revisar. B1 propone en su PR el código de error `metodo_no_permitido` para el 405, que hoy responde `no_encontrado`. |

@@ -2,9 +2,9 @@
 Nombre: bitacora.md
 Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el método con IA) y qué quedó pendiente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Bitácora
@@ -22,6 +22,36 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 2 · Tareas del Día 2
+
+- Quién: el frente B, para todo el equipo.
+- Qué: las tareas del Día 2 en `tareas/dia-2/`, con la plantilla de `tareas/README.md`:
+  - `00-todos-orden-e-hito-1.md`: orden entre tareas, acuerdos para no pisarse y guion del Hito 1, con sus criterios y qué revisar si algo falla.
+  - `A-julian-simulador.md`: simulador con YuNet, la fórmula y los casos del recorte, el envío de `api-dispositivo.md`, el modo «como la cámara» (320 × 240 y JPEG 80) y el modo carpeta. La puerta por MQTT queda para el Día 3.
+  - `B1-cristhian-sesion-y-api.md`: sesión y primer administrador; API de personas, consentimiento, horarios por bloques y cámaras; comando `crear-camara`; contrato de la API 1.3 con `metodo_no_permitido`.
+  - `B2-cristhian-reconocimiento-e-inscripcion.md`: reconocimiento con YuNet + SFace + pgvector, R1 a R4, R7 e inscripción (R9).
+  - `C-jhon-inscripcion-y-camaras.md`: Personas y consentimiento contra la API real, y pantallas Inscripción (barra «Muestra 3 de 5») y Cámaras.
+- Cómo: se le pidió a Claude Code escribir las tareas sin escribir código, desde un worktree aparte, porque otra sesión trabajaba la tarea A del Día 1 en la carpeta principal. Leyó el plan, las specs, los contratos vigentes, la bitácora, la revisión de los contratos y el código del Día 1. Del Día 1 se llevaron a las tareas:
+  - La CI de la web falla si `esquema.d.ts` no coincide con `openapi.yaml`: B1 regenera los tipos en el mismo PR en que cambia el contrato.
+  - Cada prueba del servidor lleva su marca: las tareas nombran las marcas nuevas.
+  - Donde el contrato no dice nada, el servidor responde como el simulacro de la web: orden por nombre, horario inexistente 422.
+  - Los espacios duros de la web van como ` `.
+  - El 405 respondía `no_encontrado`; B1 propone `metodo_no_permitido`.
+- Decisiones menores al escribir, para revisarlas en el PR:
+  - Ramas: `a/simulador`, `b/sesion-y-api`, `b/reconocimiento`, `c/inscripcion-y-camaras` y `b/hito-1`, esta solo para el resultado del hito.
+  - Orden si una sola persona hace varias: B1, B2, A y C.
+  - Los ONNX no se suben: en el PC quedan en `datos/modelos/` (Git y Docker ya ignoran `datos/`) y la imagen los descarga al construir, con URL de un commit fijo de opencv_zoo y SHA-256. La primera tarea que fije YuNet lo anota en `arquitectura.md` y la otra lo reusa.
+  - La CI no tiene caras: las reglas se prueban con la visión reemplazada, y las pruebas con caras reales leen `datos/prueba/` y se saltan si no existe.
+  - El token del simulador sale de `TOKEN_CAMARA`, como en el ejemplo de `api-dispositivo.md`.
+  - Forma de los comandos que usa el guion del hito: `accesia crear-camara entrada --nombre Entrada --tipo simulador` y `uv run simulador webcam --codigo entrada --como-camara`.
+  - El simulador todavía no entra a GitHub Actions: RNF-06 · C3 suma el frente A el Día 4.
+  - Las tareas piden proponer en el plan lo que las specs no dicen: formato de las respuestas esperadas del modo carpeta, cómo llevar una imagen 16:9 a 320 × 240, nombre del primer administrador, duración de la sesión, mensajes de la respuesta, orden de las comprobaciones de `enviarRostro` y qué responder si se abre una inscripción en una cámara inactiva.
+- Pruebas: no hay código. Se revisaron a mano las referencias de las tareas: archivos, secciones, criterios RF y RNF, casos de las reglas, códigos de error y operaciones de `openapi.yaml`.
+- Cambios de contrato o de specs: ninguno en los contratos (el 1.3 lo hace B1 en su PR). `specs/plan.md` 1.4 tiene una fila por tarea del Día 2, con B dividida en B1 y B2, y `specs/decisiones.md` lo anota en su registro. `tareas/README.md` suma el Día 2.
+- Pendiente:
+  - Asignar el Día 3 a lo que no tiene tarea: los endpoints de rostros (RF-12 · C1) y `GET /api/v1/configuracion`.
+  - El contrato no tiene cómo encontrar la inscripción activa de una cámara si se pierde su id; la tarea C lo explica en la pantalla. Si molesta en la demo, se propone un cambio de contrato.
 
 ## 2026-11-11 · Día 1 · Tarea C · Skills de frontend y web base
 

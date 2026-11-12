@@ -75,7 +75,7 @@ Home Assistant puede preguntarle al servidor MCP de AccesIA, con sus cinco herra
 - C1 (RF-08 · C1) Las cinco herramientas funcionan por MCP, con lo que devuelve el contrato.
 - C2 (RF-08 · C4; D-15) Todo es de solo lectura, con el usuario `agente`, y nada devuelve documentos, huellas ni similitudes.
 - C3 (`mcp-agente.md` · Evaluación) `semilla agente` crea los datos de la tabla, y las herramientas responden bien las preguntas 1 a 9.
-- C4 El servicio `mcp` arranca con Docker Compose y acepta el encabezado `Host` de `mcp:8001` y del portátil.
+- C4 El servicio `mcp` acepta el encabezado `Host` de `mcp:8001` y del portátil, con sus pruebas. Antes de fusionar, `docker compose … config` lo revisa; el arranque real se comprueba al reconstruir el Compose de la carpeta principal (acuerdos de `00-todos-orden-e-hito-2.md`).
 - C5 (RNF-06 · C3) `uv run pytest` y `servidor.yml` en verde.
 - C6 `servidor/README.md`, `infra/README.md`, `CLAUDE.md`, las specs que cambien y la bitácora al día.
 

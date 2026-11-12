@@ -28,7 +28,7 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 
 - Día 1: primero la tarea 00, los tres juntos. Después A, B y C en paralelo, cada una en su rama.
 - Día 2: A, B1 y C empiezan en paralelo; B2 sale de `main` cuando B1 está fusionada. El orden y el guion del Hito 1 están en `dia-2/00-todos-orden-e-hito-1.md`.
-- Día 3: B1 empieza primero, porque B2 y B3 la necesitan; A1, C1 y la primera parte de C2 van en paralelo. Las dependencias, el reparto entre tres sesiones y el guion del Hito 2 están en `dia-3/00-todos-orden-e-hito-2.md`.
+- Día 3: primero el Hito 1 del Día 2, apenas se fusione la C del Día 2. B1 empieza primero, porque B2 y B3 la necesitan; A1, C1 y la primera parte de C2 van en paralelo. Desde el Hito 1, Docker Compose corre solo desde la carpeta principal, en `main`. Las dependencias, el reparto entre tres sesiones y el guion del Hito 2 están en `dia-3/00-todos-orden-e-hito-2.md`.
 - Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A el Día 1; B1, B2, A y C el Día 2; B1, B2, B3, A1, C1, C2 y A2 el Día 3.
 - Las tareas de cada día se escriben al cerrar el día anterior, a partir de `specs/plan.md` y de lo aprendido.
 

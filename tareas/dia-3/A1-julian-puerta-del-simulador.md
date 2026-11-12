@@ -11,7 +11,7 @@ Versión: 1.0
 
 - Responsable: Julián Andrés Silva Morales (frente A)
 - Rama: `a/puerta-simulador`
-- Depende de: nada del servidor. Solo necesita el broker de Docker Compose y el usuario `camara` con su clave de `infra/.env`. No necesita el PR #11: las líneas de la ACL para la puerta, el estado y la disponibilidad ya están en `main`.
+- Depende de: nada del servidor. Solo necesita el broker de Docker Compose y el usuario `camara` con su clave de `infra/.env`; la ACL ya está en `main`.
 - Lee primero: `CLAUDE.md`; `tareas/dia-3/00-todos-orden-e-hito-2.md`; `specs/contratos/mqtt.md` completo (Broker, Temas, EstadoCamara y Entidades); `specs/arquitectura.md` (Simulador y Red y despliegue); `specs/decisiones.md` (D-10 y D-21); `specs/requisitos.md` (RF-07 · C2 y RNF-03 · C2); `simulador/README.md`.
 
 ## Objetivo
@@ -46,7 +46,7 @@ El simulador también hace la parte MQTT de la cámara: con su código como clie
    - `contrato MQTT · estado del simulador`: los campos de EstadoCamara que manda el simulador, y solo esos.
    - Que sin la opción de MQTT el simulador no se conecta al broker.
    - Con un broker falso o con Mosquitto en un contenedor (como `test_mqtt_acl.py` del servidor), para que corran en `simulador.yml`.
-6. Prueba de punta a punta con el Compose de la sesión de B (avísale antes de usarlo):
+6. Prueba de punta a punta con el Compose de la carpeta principal (acuerdos de `00-todos-orden-e-hito-2.md`):
    - con `mosquitto_pub` y el usuario `homeassistant`, `ABRIR` en `accesia/entrada/puerta/set`;
    - el simulador lo muestra, y `mosquitto_sub` ve `abierta` y `cerrada`.
 7. `simulador/README.md` (opción nueva, variables y ejemplo) y la sección Comandos de `CLAUDE.md`.

@@ -57,6 +57,11 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - Los endpoints de rostros y `GET /api/v1/configuracion`, que el Día 2 dejó sin tarea, van en B1.
   - La placa y el simulador no pueden usar el mismo código a la vez: el simulador solo se conecta a MQTT si se pide (A1). En el Hito 2, la puerta es la de la placa.
   - El Hito 2 usa datos reales: un horario con un bloque que ya pasó, para que la llegada salga tarde. La semilla del agente es para la medición de las 10 preguntas.
+- Ajustes de la revisión del equipo:
+  - El Hito 1 todavía no se ha corrido: va primero, apenas se fusione la C del Día 2, y antes del Hito 2.
+  - Desde el Hito 1, Docker Compose corre solo desde la carpeta principal, que siempre está en `main`. Quien fusiona un PR que cambia el servidor, la web o la infra hace `git pull` allí y lo reconstruye, avisando.
+  - El firewall del portátil deja entrar desde `192.168.137.0/24` el 1883, el 8001 y el 11434, y Ollama escucha fuera de localhost (`OLLAMA_HOST=0.0.0.0` si corre nativo). El 8000 se suma cuando la placa envíe recortes.
+  - De la lista de infra de D-21, el `model` del dispositivo y la limpieza del descubrimiento van en B2, y la copia de seguridad de Home Assistant OS en C2.
   - Las tareas piden proponer en el plan lo que las specs no dicen:
     - la opción de MQTT del simulador;
     - el `model` del dispositivo para un simulador;
@@ -68,7 +73,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pruebas: no hay código. Se revisaron a mano las referencias de las tareas: archivos, secciones, criterios RF y RNF, casos de las reglas, temas MQTT, operaciones y códigos de error de `openapi.yaml`.
 - Cambios de contrato o de specs: ninguno en los contratos. `specs/plan.md` 1.6 tiene una fila por tarea del Día 3, y `specs/decisiones.md` 1.9 lo anota en su registro. `tareas/README.md` 1.2 suma el Día 3 e `infra/README.md` 1.4 dice que `compose.escenario2.yaml` es del Día 3.
 - Pendiente:
-  - el PR #11 (firmware del C6) y la tarea C del Día 2, que siguen en curso;
+  - la tarea C del Día 2, que sigue en curso, y después el Hito 1;
   - P-03, el módulo de cámara, que decide si A2 se hace el Día 3.
 
 ## 2026-11-12 · Día 2 · Firmware de la XIAO ESP32-C6

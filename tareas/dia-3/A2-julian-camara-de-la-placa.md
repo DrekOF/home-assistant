@@ -13,7 +13,7 @@ Versión: 1.0
 - Rama: `a/camara-placa`
 - Depende de:
   - que llegue el módulo de cámara (P-03). Si no llegó, la tarea no empieza: pasa al Día 4 y se anota en la bitácora;
-  - el PR #11 (`a/firmware-c6`) en `main`, con el firmware del C6 y su punto de extensión `accesia_vision`;
+  - el PR #11, ya en `main`, con el firmware del C6 y su punto de extensión `accesia_vision`;
   - si el módulo es una cámara SPI para el C6, el cambio de contrato de «Antes de empezar», fusionado antes del código.
 - Lee primero: `CLAUDE.md`; `tareas/dia-3/00-todos-orden-e-hito-2.md`; `specs/arquitectura.md` (Firmware, en especial «Cuando llegue el módulo de cámara» y «Referencia: ESP32-S3»); `specs/decisiones.md` (D-02, D-17 y D-21); `specs/requisitos.md` (RF-01 y RF-14); `specs/contratos/api-dispositivo.md` completo; `firmware/README.md`.
 
@@ -46,7 +46,7 @@ La placa toma imágenes con el módulo que llegó y se las envía al servidor, d
 4. Pruebas de la lógica pura con `firmware/scripts/probar-logica.sh`:
    - lo que se decide sin hardware;
    - en el caso del S3, los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
-5. Prueba con la placa, contra el servidor del portátil en el hotspot: `permitido` para una persona inscrita y `desconocido` para otra. Mide el tiempo de respuesta (RF-04 · C5) y anótalo.
+5. Prueba con la placa, contra el servidor del portátil en el hotspot: `permitido` para una persona inscrita y `desconocido` para otra. Mide el tiempo de respuesta (RF-04 · C5) y anótalo. Para esto, el firewall del portátil también deja entrar el 8000 desde `192.168.137.0/24` (C2).
 6. `firmware/README.md`, `specs/arquitectura.md` (Firmware y Piezas) y la bitácora.
 
 ## No hacer

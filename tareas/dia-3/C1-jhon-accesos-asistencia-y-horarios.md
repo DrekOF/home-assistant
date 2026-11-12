@@ -71,7 +71,7 @@ La ficha de la persona muestra sus muestras, sus accesos y su asistencia, con el
      - ver el reporte y registrar una llegada manual, también el 409;
      - crear, editar y borrar un horario, también `horario_en_uso`;
      - borrar las huellas desde la ficha.
-   - Playwright contra el servidor real (`npm run e2e:servidor`, con el Compose arriba y avisándole a la sesión de B): las mismas pantallas con datos que se crean y se borran al final. Las credenciales salen de `infra/.env`, nunca del código.
+   - Playwright contra el servidor real (`npm run e2e:servidor`), con el Compose de la carpeta principal (acuerdos de `00-todos-orden-e-hito-2.md`): las mismas pantallas, con datos que se crean y se borran al final. Las credenciales salen de `infra/.env`, nunca del código.
    - Capturas de las pantallas nuevas a 1280×720 y 1440×900, revisadas.
    - Revisión de accesibilidad con la copia local de `.claude/skills/web-design-guidelines/command.md`.
 8. `web/README.md` y `web/DESIGN.md` (componentes nuevos).

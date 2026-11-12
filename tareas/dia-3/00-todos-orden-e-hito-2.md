@@ -1,6 +1,6 @@
 <!--
 Nombre: 00-todos-orden-e-hito-2.md
-Descripción: Día 3 para los tres integrantes: dependencias y orden entre las tareas A1, A2, B1, B2, B3, C1 y C2, reparto entre tres sesiones y guion del Hito 2.
+Descripción: Día 3 para los tres integrantes: el Hito 1 primero, dependencias y orden entre las tareas A1, A2, B1, B2, B3, C1 y C2, reparto entre tres sesiones, el Compose desde la carpeta principal y guion del Hito 2.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
@@ -15,7 +15,7 @@ Versión: 1.0
 
 ## Objetivo
 
-Que las tareas del Día 3 avancen en tres sesiones sin pisarse y que al final del día, con el hardware de D-21, Home Assistant abra la puerta cuando el simulador reconoce a alguien y Assist diga quién llegó tarde (Hito 2). Si el hito no se cumple, se resuelve antes de empezar el Día 4 (`specs/plan.md`).
+Que las tareas del Día 3 avancen en tres sesiones sin pisarse y que al final del día, con el hardware de D-21, Home Assistant abra la puerta cuando el simulador reconoce a alguien y Assist diga quién llegó tarde (Hito 2). Antes va el Hito 1 del Día 2, que todavía no se ha corrido (ver «Hito 1 primero»). Si un hito no se cumple, se resuelve antes de seguir (`specs/plan.md`).
 
 ## Con qué se trabaja (D-21)
 
@@ -30,17 +30,24 @@ Que las tareas del Día 3 avancen en tres sesiones sin pisarse y que al final de
 | Archivo | Responsable | Rama | Depende de |
 | --- | --- | --- | --- |
 | [A1-julian-puerta-del-simulador.md](A1-julian-puerta-del-simulador.md) | Julián Andrés Silva Morales | `a/puerta-simulador` | Nada del servidor: solo el broker de Compose y `mqtt.md` |
-| [A2-julian-camara-de-la-placa.md](A2-julian-camara-de-la-placa.md) | Julián Andrés Silva Morales | `a/camara-placa` | Que llegue el módulo de cámara (P-03) y el PR #11 en `main` |
+| [A2-julian-camara-de-la-placa.md](A2-julian-camara-de-la-placa.md) | Julián Andrés Silva Morales | `a/camara-placa` | Que llegue el módulo de cámara (P-03); el PR #11 ya está en `main` |
 | [B1-cristhian-asistencia-y-consultas.md](B1-cristhian-asistencia-y-consultas.md) | Cristhian Eduardo Sánchez Mosquera | `b/asistencia` | B2 del Día 2 (ya en `main`) |
-| [B2-cristhian-mqtt.md](B2-cristhian-mqtt.md) | Cristhian Eduardo Sánchez Mosquera | `b/mqtt` | B1, por la asistencia del evento y el resumen; el PR #11, por la ACL y `test_mqtt_acl.py` |
+| [B2-cristhian-mqtt.md](B2-cristhian-mqtt.md) | Cristhian Eduardo Sánchez Mosquera | `b/mqtt` | B1, por la asistencia del evento y el resumen (el PR #11, con la ACL, ya está en `main`) |
 | [B3-cristhian-mcp-y-semilla.md](B3-cristhian-mcp-y-semilla.md) | Cristhian Eduardo Sánchez Mosquera | `b/mcp-agente` | B1, por R5 en la semilla |
 | [C1-jhon-accesos-asistencia-y-horarios.md](C1-jhon-accesos-asistencia-y-horarios.md) | Jhon Jairo Perdomo Perdomo | `c/accesos-asistencia-horarios` | C del Día 2 fusionada; B1 para probar contra el servidor real (antes, simulacro) |
-| [C2-jhon-home-assistant-y-agente.md](C2-jhon-home-assistant-y-agente.md) | Jhon Jairo Perdomo Perdomo | `c/home-assistant` | La Pi 5 y el hotspot para empezar; B2 (entidades y eventos) y B3 (`mcp` y semilla) para terminar; el PR #11 para la puerta y el ambiente de la placa |
+| [C2-jhon-home-assistant-y-agente.md](C2-jhon-home-assistant-y-agente.md) | Jhon Jairo Perdomo Perdomo | `c/home-assistant` | La Pi 5 y el hotspot para empezar; B2 (entidades y eventos) y B3 (`mcp` y semilla) para terminar. El PR #11, ya en `main`, da la puerta y el ambiente de la placa |
 
 ## Qué está en curso al empezar
 
-- La sesión del C6 termina el PR #11 (`a/firmware-c6`): el firmware de la placa, la ACL 1.1 de MQTT y `firmware.yml`. Nadie más toca `firmware/` ni `infra/mosquitto/acl`.
-- La tarea C del Día 2 (`c/inscripcion-y-camaras`) sigue en curso y usa el Compose de la sesión de B para su e2e contra el servidor real. Nadie baja ese Compose sin avisar.
+- El PR #11 ya está en `main`: el firmware de la placa, la ACL 1.1 de MQTT y `firmware.yml`. Nadie más toca `firmware/` ni `infra/mosquitto/acl`.
+- La tarea C del Día 2 (`c/inscripcion-y-camaras`) sigue en curso y hace su e2e contra el Compose que hoy corre desde `AccesIA-b2`. Nadie baja ese Compose ni borra ese worktree hasta que esa tarea se fusione.
+
+## Hito 1 primero
+
+- El Hito 1 del Día 2 (`tareas/dia-2/00-todos-orden-e-hito-1.md`) todavía no se ha corrido. Va primero: apenas se fusione la C del Día 2, y antes del Hito 2.
+- Para el Hito 1, el Compose pasa a la carpeta principal. Se baja el de `AccesIA-b2` sin `-v`, para conservar los datos, y se levanta desde la carpeta principal, en `main` (ver «Docker Compose» en los acuerdos).
+- Las tareas del Día 3 siguen mientras tanto. Durante un hito no se fusiona nada que obligue a reconstruir el Compose.
+- Si el Hito 1 no se cumple, se resuelve antes del Hito 2.
 
 ## Qué va en paralelo (tres sesiones)
 
@@ -48,10 +55,10 @@ El camino crítico es B: B2 y B3 necesitan B1, y el Hito 2 necesita las tres. Po
 
 | Turno | Sesión A | Sesión B | Sesión C |
 | --- | --- | --- | --- |
-| 1 | Termina el PR #11 | B1 | Termina la C del Día 2 |
-| 2 | A1 | B2 (con B1 y el PR #11 en `main`) | C1 contra el simulacro |
-| 3 | B3, si la sesión A quedó libre y B1 está en `main` | B3, si nadie la tomó | C1 contra el servidor real (con B1); C2 empieza por lo que no espera a nadie |
-| 4 | A2, si llegó el módulo | Apoya el Hito 2 | C2 con B2 y B3 en `main` |
+| 1 | A1 | B1 | Termina la C del Día 2 |
+| 2 | Hito 1, apenas se fusione la C del Día 2 | Hito 1 | Hito 1 |
+| 3 | B3, si la sesión A quedó libre y B1 está en `main` | B2 (con B1 en `main`) | C1 contra el simulacro; contra el servidor real con B1 |
+| 4 | A2, si llegó el módulo | B3, si nadie la tomó | C2: empieza por lo que no espera a nadie y termina con B2 y B3 en `main` |
 | 5 | Hito 2 | Hito 2 | Hito 2 |
 
 - Van en paralelo sin chocar:
@@ -60,19 +67,25 @@ El camino crítico es B: B2 y B3 necesitan B1, y el Hito 2 necesita las tres. Po
   - B2 con B3, una vez fusionada B1. Comparten solo `pyproject.toml` y `uv.lock`: el segundo PR trae `main` y vuelve a correr `uv lock`.
   - C2 con todo, en su primera parte: hotspot, firewall, Home Assistant OS, Ollama y los archivos de `homeassistant/`.
 - No van en paralelo:
-  - B2 o B3 antes de B1.
-  - `compose.escenario2.yaml` de C2 antes de B3, porque publica el servicio `mcp`.
+  - el Hito 2 antes del Hito 1;
+  - B2 o B3 antes de B1;
+  - `compose.escenario2.yaml` de C2 antes de B3, porque publica el servicio `mcp`;
   - A2 sin el módulo.
 - Si una misma persona hace varias tareas el mismo día, este orden evita bloqueos: B1, B2, B3, A1, C1, C2 y A2.
 - B3 sigue siendo de Cristhian aunque la corra la sesión A: la sesión es solo dónde se ejecuta.
 
 ## Acuerdos para no pisarse
 
+- Docker Compose, desde el Hito 1:
+  - corre solo desde la carpeta principal (`AccesIA`), que siempre está en `main`. Ninguna sesión lo levanta desde su worktree;
+  - quien fusiona un PR que cambia el servidor, la web o la infra hace `git pull` en la carpeta principal y lo reconstruye, avisando a las demás sesiones. Lo levanta con `docker compose -f infra/compose.yaml up -d --build`, y con `-f infra/compose.escenario2.yaml` cuando exista;
+  - las pruebas de cada tarea no lo necesitan: el servidor usa testcontainers, la web su simulacro y el simulador sus dobles;
+  - una tarea que cambia la infra la revisa antes de fusionar con `docker compose … config` y sus pruebas. El arranque real se comprueba al reconstruir.
 - Contratos:
   - Nadie cambia un contrato hoy sin proponerlo antes (`specs/contratos/README.md`).
   - B2 propone en su PR si `EstadoCamara` suma `sensor` y `antena` en `openapi.yaml`, como ya dice `mqtt.md` 1.2. Si se acepta, es la 1.4 (solo agrega), y B2 regenera `web/src/api/esquema.d.ts` con `npm run tipos`.
 - Archivos compartidos:
-  - `infra/compose.yaml`: B3 suma el servicio `mcp` y C2 suma `ollama`. El segundo que fusione trae `main` y conserva los dos servicios.
+  - `infra/compose.yaml`: B3 suma el servicio `mcp`, y C2 suma `ollama` si Ollama va en Compose. El segundo que fusione trae `main` y conserva los dos servicios.
   - `.env.example` y `arquitectura.md` (Configuración): solo suma variables quien las necesita, y lo anota.
 - MQTT:
   - Los temas son los de `mqtt.md` 1.2; nadie inventa temas.
@@ -92,8 +105,8 @@ Qué se demuestra:
 
 ### Preparación
 
-- `main` con A1, B1, B2, B3, C2 y el PR #11 (C1 es deseable, no obligatoria).
-- El hotspot de Windows `AccesIA` en 2,4 GHz. El firewall deja entrar, en esa red, el 1883, el 8001 y el 11434 (`arquitectura.md`, Red y despliegue).
+- El Hito 1 cumplido, y `main` con A1, B1, B2, B3 y C2 (C1 es deseable, no obligatoria). El PR #11 ya está.
+- El hotspot de Windows `AccesIA` en 2,4 GHz. El firewall del portátil deja entrar desde `192.168.137.0/24` lo que Home Assistant usa en él: el 1883 (MQTT), el 8001 (MCP) y el 11434 (Ollama). Ollama escucha fuera de localhost (C2). El 8000 se suma cuando la placa envíe recortes.
 - La Pi 5 con Home Assistant OS en el hotspot, con lo de C2: integración MQTT con el broker del portátil, Ollama, MCP, el agente «Portería», las automatizaciones y el panel.
 - La placa con el firmware del PR #11, en el hotspot, con el código `entrada` y el token de la cámara `entrada`.
 - Una persona inscrita en el Hito 1, con consentimiento, y otro integrante sin inscribir, que hará de desconocido.
@@ -101,7 +114,7 @@ Qué se demuestra:
 
 ### Pasos
 
-1. Levantar el servidor en el escenario 2 (terminal 1):
+1. Levantar el servidor en el escenario 2, desde la carpeta principal en `main` (terminal 1):
 
    ```powershell
    docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build

@@ -2,16 +2,16 @@
 Nombre: CLAUDE.md
 Descripción: Reglas e instrucciones para Claude Code en el repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.3
 -->
 
 # AccesIA — instrucciones para Claude Code
 
 AccesIA es un control de acceso y asistencia con reconocimiento facial para la materia de Inteligencia Artificial (USCO).
 
-- Una cámara ESP32-S3 detecta la cara con un modelo TinyML y envía solo el recorte.
+- La cámara detecta la cara con un modelo TinyML y envía solo el recorte. Hoy la cámara es el simulador: la placa entregada, una XIAO ESP32-C6, todavía no tiene cámara y maneja la puerta y un sensor de temperatura y humedad (D-21).
 - El servidor saca la huella de la cara (YuNet + SFace, 128 números) y la compara en PostgreSQL con pgvector.
 - Home Assistant muestra lo que pasa, abre la puerta y avisa de desconocidos.
 - Un agente con Ollama responde preguntas con herramientas de solo lectura.
@@ -57,11 +57,12 @@ SQL               líneas que empiezan con --
 - Nada de claves en el repositorio: van en `infra/.env`, que Git ignora. `infra/.env.example` lleva solo los nombres.
 - Las fotos de prueba del equipo van en `datos/` (Git la ignora) y nunca se suben.
 
-## Hardware que todavía no tenemos
+## Hardware
 
-- La placa ESP32-S3 y la Raspberry llegan el día de la clase. Todo se desarrolla y se prueba con el simulador (`simulador/`), que cumple el mismo contrato que la cámara.
-- No asumas pines, sensor de cámara ni tipo de PSRAM: el firmware se configura por perfiles de placa (`specs/arquitectura.md`).
-- Las imágenes Docker se construyen para arm64 y amd64.
+- Entregado el 12/11/2026 (D-21): una Seeed Studio XIAO ESP32-C6 (4 MB de flash, sin PSRAM ni interfaz de cámara) y una Raspberry Pi 5 con Home Assistant OS. El módulo de cámara llega la próxima clase (P-03).
+- Hasta entonces, la cámara es el simulador (`simulador/`), que cumple el mismo contrato. Todo se sigue probando con él.
+- Los pines de la XIAO ESP32-C6 están en `specs/arquitectura.md`; no asumas otros. El firmware del ESP32-S3, con sus perfiles de placa, queda como referencia en el PR #7.
+- La demo usa el escenario 2: Docker Compose corre en el portátil, en el hotspot de Windows, y la Pi solo trae Home Assistant OS. Las imágenes Docker se siguen construyendo para arm64 y amd64.
 
 ## Web
 
@@ -88,7 +89,7 @@ AccesIA/
 │   └── contratos/         API, MQTT, MCP del agente y base de datos (mandan sobre el código)
 ├── tareas/                tareas para Claude Code, por día y por frente
 ├── docs/                  bitácora, guía del día de clase y diagramas
-├── firmware/              cámara ESP32-S3 (ESP-IDF, C++)             frente A
+├── firmware/              placa XIAO ESP32-C6 (ESP-IDF, C++)         frente A
 ├── simulador/             cámara simulada con la webcam (Python)      frente A
 ├── servidor/              API, reconocimiento, reglas, MQTT y MCP     frente B
 ├── web/                   web de administración (React + Vite)        frente C
@@ -120,6 +121,19 @@ uv run pytest                                         corre todas las pruebas, c
 uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
 ```
 
+Desde `simulador/` (necesita uv; para enviar, el servidor arriba y la cámara creada con `crear-camara`):
+
+```text
+uv sync                                               instala las dependencias
+uv run simulador modelo                               descarga YuNet a datos/modelos/ y comprueba su SHA-256 (una vez)
+$env:TOKEN_CAMARA = "<token>"                         token de la cámara, solo en esta terminal
+uv run simulador webcam --codigo entrada --como-camara
+                                                      detecta con la webcam y envía; q o Esc para salir
+uv run simulador carpeta datos/prueba --codigo entrada --como-camara
+                                                      envía las fotos y las compara con su esperado.json
+uv run pytest                                         corre las pruebas del simulador, con su resumen por marca
+```
+
 Skills de frontend, desde la raíz (después, reinicia Claude Code):
 
 ```text
@@ -139,4 +153,4 @@ npm test                                              Vitest: lógica, simulacro
 npm run e2e                                           Playwright con el simulacro; capturas en web/capturas/
 ```
 
-Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md` y `web/README.md`.
+Más detalle en `infra/README.md`, `servidor/README.md`, `simulador/README.md`, `scripts/README.md` y `web/README.md`.

@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Contratos
@@ -15,7 +15,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.3 | B | C (web), A (simulador) |
-| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.1 | B | A (cámara), C (Home Assistant) |
+| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.2 | B | A (placa y simulador), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.2 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
@@ -34,6 +34,7 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Servidor: cada respuesta y error de `api-dispositivo.md`, cada tema MQTT, cada herramienta del agente, el esquema migrado igual a `base-de-datos.sql` y las respuestas de la API validadas contra `openapi.yaml`.
 - Web: los tipos se generan desde `openapi.yaml`; si el contrato cambia y la web no, TypeScript no compila.
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
+- Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
 
 ## Cámara → servidor 1.2 (2026-11-12)
@@ -42,6 +43,16 @@ Una aclaración en `api-dispositivo.md`, propuesta en la tarea B2 del Día 2. Lo
 
 - 100 KB son 102 400 bytes: el servidor responde 413 `imagen_grande` desde 102 401 bytes. El simulador ya envía como máximo 100 000 bytes, así que los dos lados quedan de acuerdo.
 - Solo aclara: no cambia campos, códigos ni temas, por eso es 1.2 y no 2.0. Los casos de `casos-recorte.json` no cambian.
+
+## `mqtt.md` 1.2 (2026-11-12)
+
+Por el hardware real de la clase (D-21): una XIAO ESP32-C6 con un sensor de temperatura y humedad, y Home Assistant OS en la Pi. Solo agrega, por eso es 1.2 y no 2.0. Los demás contratos no cambian, y `api-dispositivo.md` y `openapi.yaml` no se tocan.
+
+- Tema `accesia/{codigo}/ambiente`, con el mensaje Ambiente: temperatura y humedad cada 30 s, retenido, y `null` tras 3 lecturas fallidas seguidas.
+- La placa publica el descubrimiento de sus dos sensores de ambiente, para que se vean aunque el servidor esté apagado. El servidor sigue publicando el de las demás entidades.
+- La ACL de `camara` suma tres líneas `pattern` para esos temas. El archivo `infra/mosquitto/acl` y su prueba `contrato MQTT · acl` se actualizan aparte, con la lista de infra de D-21.
+- `EstadoCamara` suma `sensor` y `antena`, los dos opcionales; la XIAO ESP32-C6 no envía `psram_kb`.
+- El broker de la demo es el Mosquitto del portátil, en la IP del hotspot de Windows.
 
 ## Versión 1.3 (2026-11-12)
 

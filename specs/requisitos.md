@@ -2,9 +2,9 @@
 Nombre: requisitos.md
 Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criterios de aceptación.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.4
 -->
 
 # Requisitos
@@ -14,6 +14,8 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 ## Requisitos funcionales
 
 ### RF-01 Detección en la cámara (TinyML) · frente A
+
+Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendiente del módulo que llega la próxima clase. Mientras tanto lo cumplen el simulador (C6) y, como referencia, el firmware del ESP32-S3 del PR #7.
 
 - C1 Detecta caras dentro del ESP32-S3 con `espressif/human_face_detect` (MSR + MNP, int8).
 - C2 Envía solo el recorte en JPEG, con la fórmula del recorte de `contratos/api-dispositivo.md`, y espera al menos 1 s desde cada respuesta antes de enviar otro.
@@ -63,7 +65,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 ### RF-07 Home Assistant · frentes B (publicación) y C (configuración)
 
-- C1 Las entidades de `contratos/mqtt.md` aparecen solas al arrancar el servidor y cada vez que Home Assistant avisa que está en línea.
+- C1 Las entidades de `contratos/mqtt.md` aparecen solas al arrancar el servidor y cada vez que Home Assistant avisa que está en línea. Las de temperatura y humedad las publica la placa al conectarse (D-21).
 - C2 Con un acceso permitido, también si es una repetición de R4, la automatización abre la puerta y la entidad Puerta cambia en menos de 2 s (meta propuesta).
 - C3 Con la alerta de R6, Home Assistant crea una notificación de desconocidos.
 - C4 Hay un panel «Portería» con última persona, último resultado, asistentes hoy, llegadas tarde hoy, desconocidos, puerta y cámara en línea.
@@ -94,7 +96,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 ### RF-11 Kit del día de clase · frente C, con A y B
 
 - C1 Scripts `instalar.sh` y `verificar.sh`.
-- C2 Imágenes arm64 en archivos `.tar`, modelo de Ollama, copia de seguridad de Home Assistant, los dos binarios del firmware (`octal` y `quad`), el de diagnóstico, el de respaldo y esptool.
+- C2 Imágenes de Docker en archivos `.tar`, modelo de Ollama, copia de seguridad de Home Assistant OS, el binario del firmware de la XIAO ESP32-C6 y esptool (D-21). Las imágenes arm64 solo hacen falta en el escenario 1. Los binarios del ESP32-S3 (`octal` y `quad`), el de diagnóstico y el de respaldo quedan como referencia.
 - C3 Ensayo desde cero hasta la primera persona reconocida en menos de 45 minutos (meta propuesta).
 
 ### RF-12 Derechos del titular (Ley 1581) · frentes B y C
@@ -110,6 +112,15 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 - C3 Un horario en uso no se puede borrar (409, código `horario_en_uso`).
 - C4 Una persona tiene un horario o ninguno, y R5 califica cada llegada con el bloque del día.
 - C5 La web tiene la pantalla Horarios: la lista y un formulario con un renglón por día (activo, hora y tolerancia).
+
+### RF-14 Placa del punto de acceso (XIAO ESP32-C6) · frente A
+
+- C1 Un solo binario para la XIAO ESP32-C6, que compila en GitHub Actions con `firmware.yml` (D-21).
+- C2 Al arrancar enciende el conmutador de antena (GPIO3 en bajo) y elige la antena configurada: GPIO14 en bajo para la interna y en alto para la externa. El comando `antena` la cambia.
+- C3 Cada 30 s lee el sensor (DHT22 por defecto; DHT11 con el comando `sensor`) y publica la temperatura y la humedad en `accesia/{codigo}/ambiente`. Tras 3 lecturas fallidas seguidas publica `null`.
+- C4 Publica el descubrimiento de sus dos sensores: Temperatura y Humedad aparecen en Home Assistant aunque el servidor esté apagado, y quedan no disponibles si la placa se desconecta.
+- C5 Con `ABRIR` enciende el LED (GPIO15, que enciende en bajo) los segundos configurados y publica `abierta` y luego `cerrada`. El resto del tiempo el LED muestra el estado de la placa.
+- C6 Se configura por consola serial sin recompilar: Wi-Fi, servidor, código, token, MQTT, puerta con su nivel, sensor y antena.
 
 ## Requisitos no funcionales
 
@@ -138,7 +149,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 ### RNF-04 Portabilidad
 
 - C1 Imágenes para arm64 y amd64.
-- C2 Corre en Windows con Docker Desktop y en Raspberry Pi OS de 64 bits.
+- C2 Corre en Windows con Docker Desktop y en Raspberry Pi OS de 64 bits. En la demo (D-21), Docker Compose corre en el portátil con Windows y la Pi solo trae Home Assistant OS.
 - C3 En clase no necesita internet.
 
 ### RNF-05 Idioma y hora
@@ -150,7 +161,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 - C1 Cada requisito y cada regla tiene pruebas que citan su código.
 - C2 Un PR se fusiona solo con las pruebas en verde.
-- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por frente para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). El firmware se suma el Día 4 con `.github/workflows/firmware.yml`, que compila los dos binarios y corre sus pruebas. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
+- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por pieza para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). Desde el Día 2 se suma `.github/workflows/simulador.yml` (pytest del simulador con el modelo YuNet en caché, tarea A). El firmware se suma con `.github/workflows/firmware.yml`, que D-21 adelanta: compila el binario de la XIAO ESP32-C6 y corre las pruebas de la lógica pura. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
 
 ### RNF-07 Precisión del reconocimiento (meta propuesta)
 

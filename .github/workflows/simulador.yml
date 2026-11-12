@@ -1,0 +1,64 @@
+# Nombre: simulador.yml
+# Descripción: CI del simulador de la cámara de AccesIA: corre pytest con el modelo YuNet en caché (RNF-06 · C3).
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Es solo del simulador: el servidor tiene servidor.yml, la web web.yml y el firmware se suma el Día 4.
+# Corre en todo PR, como los otros dos: un cambio en specs/contratos/casos-recorte.json también lo afecta.
+# La CI no tiene fotos de caras: las pruebas que las necesitan leen datos/prueba/ y se saltan.
+
+name: Simulador
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: Pruebas del simulador
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: simulador
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.7"
+          python-version: "3.13"
+          enable-cache: true
+          # Su propia caché: el servidor tiene otro uv.lock.
+          cache-dependency-glob: simulador/uv.lock
+
+      # La clave es el SHA-256 del modelo: si cambia el modelo, cambia la caché.
+      - name: Modelo YuNet en caché
+        uses: actions/cache@v4
+        with:
+          path: datos/modelos
+          key: yunet-8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
+
+      - name: Instalar dependencias
+        run: uv sync --locked
+
+      # opencv-python trae ventanas y necesita libGL; el runner suele tenerlo, y si no, se instala.
+      - name: Comprobar OpenCV
+        run: |
+          if ! uv run python -c "import cv2" 2>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64
+          fi
+          uv run python -c "import cv2; print('OpenCV', cv2.__version__)"
+
+      # Con la caché no usa la red: solo comprueba el SHA-256.
+      - name: Descargar y comprobar el modelo
+        run: uv run simulador modelo
+
+      - name: Correr las pruebas
+        run: uv run pytest

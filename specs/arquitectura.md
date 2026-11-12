@@ -4,12 +4,12 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.6
 -->
 
 # Arquitectura
 
-**La cámara ve, el servidor reconoce, Home Assistant actúa y el agente responde.** Todo, menos la cámara, corre con Docker Compose en la Raspberry Pi (o en un portátil, según el escenario).
+**La cámara ve, el servidor reconoce, Home Assistant actúa y el agente responde.** Todo, menos la cámara, corre con Docker Compose en la Raspberry Pi (o en un portátil, según el escenario). En la demo (D-21), Docker Compose corre en un portátil y la Raspberry Pi 5 trae Home Assistant OS (escenario 2).
 
 Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién hace qué) y `paso-a-paso.html` (el recorrido).
 
@@ -17,29 +17,33 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 
 | Pieza | Qué hace | Tecnología | Frente | Carpeta |
 | --- | --- | --- | --- | --- |
-| Cámara | Detecta la cara, envía el recorte y abre la puerta | ESP-IDF 5.4 (C++), `espressif/esp32-camera`, `espressif/human_face_detect` (MSR + MNP, int8), esp-mqtt | A | `firmware/` |
+| Cámara | Detecta la cara y envía el recorte. Hasta que llegue el módulo de cámara (D-21) la hace el simulador; el firmware del ESP32-S3 queda como referencia (PR #7) | ESP-IDF 5.4 (C++), `espressif/esp32-camera`, `espressif/human_face_detect` (MSR + MNP, int8), esp-mqtt | A | `firmware/` |
+| Placa del punto de acceso | Abre la puerta (un LED), publica su estado y un sensor de temperatura y humedad; la cámara, cuando llegue el módulo (D-21) | Seeed Studio XIAO ESP32-C6, ESP-IDF 5.4 (C++), esp-mqtt, `esp-idf-lib/dht` | A | `firmware/` |
 | Simulador | Hace lo mismo que la cámara con la webcam o con una carpeta de fotos | Python 3.13, OpenCV (YuNet), httpx, paho-mqtt | A | `simulador/` |
 | Servidor | Huella, reglas, inscripción, asistencia, eventos MQTT, API y web | Python 3.13, FastAPI, OpenCV (YuNet + SFace), SQLAlchemy 2, psycopg 3, pgvector, Alembic, paho-mqtt | B | `servidor/` |
 | Servidor MCP | Herramientas de solo lectura del agente | SDK oficial `mcp` de Python, mismo paquete del servidor | B | `servidor/` |
 | Base de datos | Personas, huellas, eventos y asistencia | PostgreSQL 18 + pgvector | B | `specs/contratos/base-de-datos.sql` |
-| Broker MQTT | Mensajes entre servidor, cámara y Home Assistant | Mosquitto 2 | B | `infra/mosquitto/` |
-| Home Assistant | Panel, automatizaciones (puerta y avisos) y Assist | Home Assistant Container | C | `homeassistant/` |
+| Broker MQTT | Mensajes entre servidor, cámara, placa y Home Assistant | Mosquitto 2, en el portátil en la demo (D-21) | B | `infra/mosquitto/` |
+| Home Assistant | Panel, automatizaciones (puerta y avisos) y Assist | Home Assistant OS en la Raspberry Pi 5 (D-21); Home Assistant Container en el escenario 1 | C | `homeassistant/` |
 | Ollama | Modelo del agente | Ollama con qwen2.5:3b o qwen2.5:1.5b | C | `infra/` |
 | Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
 
-Modelos de cara de `opencv/opencv_zoo`, fijados en el commit `48b10fa505aeb51fbd127fc60a5c660040e823b7`. Los usan el servidor y el simulador, y nunca se suben al repositorio:
+Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un commit fijo de `opencv/opencv_zoo` y se comprueban con su SHA-256; en el PC quedan en `datos/modelos/`, que Git y Docker ignoran:
 
-| Modelo | Archivo | Bytes | SHA-256 | Licencia |
-| --- | --- | --- | --- | --- |
-| YuNet (detección) | `face_detection_yunet_2023mar.onnx` | 232 589 | `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4` | MIT |
-| SFace (huella) | `face_recognition_sface_2021dec.onnx` | 38 696 353 | `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79` | Apache 2.0 |
+| Modelo | Commit de `opencv/opencv_zoo` | SHA-256 | Bytes |
+| --- | --- | --- | --- |
+| `face_detection_yunet_2023mar.onnx` | `48b10fa505aeb51fbd127fc60a5c660040e823b7` | `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4` | 232 589 |
+| `face_recognition_sface_2021dec.onnx` | `48b10fa505aeb51fbd127fc60a5c660040e823b7` | `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79` | 38 696 353 |
 
-- Se descargan de `https://github.com/opencv/opencv_zoo/raw/<commit>/models/…`, porque `raw.githubusercontent.com` devuelve el puntero de Git LFS y no el modelo.
-- OpenCV 4.14.0.94, la última 4.x estable: `opencv-python-headless` en el servidor y `opencv-python` en el simulador. YuNet 2023mar pide 4.8 o más reciente.
-- En el servidor, los modelos van en `datos/modelos/` desde la raíz del repositorio, que Git y Docker ignoran:
-  - en el PC y en la CI los baja `uv run accesia descargar-modelos` (desde `servidor/`);
-  - la imagen los baja al construir, a `/app/datos/modelos`.
-  - En los dos casos se comprueban el tamaño y el SHA-256 de cada uno. El servidor los carga una vez, al arrancar; sin ellos, no arranca.
+- URL de YuNet: `https://github.com/opencv/opencv_zoo/raw/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_detection_yunet/face_detection_yunet_2023mar.onnx`.
+- URL de SFace, que solo usa el servidor: `https://github.com/opencv/opencv_zoo/raw/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_recognition_sface/face_recognition_sface_2021dec.onnx`.
+- Licencias: YuNet, MIT; SFace, Apache 2.0.
+- opencv_zoo guarda los modelos con Git LFS: `raw.githubusercontent.com` devuelve el puntero de LFS y no el modelo. La URL de `github.com/…/raw/…` redirige al modelo.
+- YuNet 2023mar pide OpenCV 4.8 o más reciente. El simulador usa `opencv-python` 4.14.0.94, la última 4.x estable; el servidor, `opencv-python-headless` 4.14.0.94, la misma versión sin ventanas.
+- En el servidor:
+  - en el PC y en la CI los baja `uv run accesia descargar-modelos` (desde `servidor/`) a `datos/modelos/`, desde la raíz del repositorio;
+  - la imagen los baja al construir, a `/app/datos/modelos`, y si el tamaño o el SHA-256 no coinciden, la construcción falla;
+  - se cargan una vez, al arrancar; sin ellos, el servidor no arranca.
 
 ## Flujos
 
@@ -53,6 +57,8 @@ Modelos de cara de `opencv/opencv_zoo`, fijados en el commit `48b10fa505aeb51fbd
 6. La cámara (o el simulador) abre la puerta 3 s con un LED o un relé y publica el estado de la puerta.
 
 Un desconocido no recibe ni publica a quién se parece. Las repeticiones de R4 no guardan evento: la de un `permitido` se publica con `repetido: true` para que la puerta se abra otra vez, y la de un `denegado` no publica nada.
+
+Con el hardware de D-21, el paso 1 lo hace el simulador hasta que llegue el módulo de cámara, y el paso 6 lo hace la placa con su LED.
 
 ### Llegada registrada a mano
 
@@ -71,6 +77,12 @@ Si la persona no dio consentimiento, o si la cámara falla, un administrador reg
 - B. Home Assistant le pasa la pregunta y las herramientas de AccesIA a Ollama; el modelo pide `asistencia_del_dia`.
 - C. Home Assistant llama al servidor MCP, que consulta las vistas con el usuario `agente`. El modelo responde con esos datos.
 
+### Temperatura y humedad (D-21)
+
+1. Cada 30 s la placa lee su sensor (DHT22 o DHT11) y publica la temperatura y la humedad en `accesia/{codigo}/ambiente`.
+2. Home Assistant las muestra en el dispositivo de la cámara. El descubrimiento de esos dos sensores lo publica la placa al conectarse, así que no depende del servidor.
+3. Si la placa se apaga, su último deseo deja las dos entidades no disponibles.
+
 ## Servicios de Docker Compose
 
 Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, no en modo host (D-19).
@@ -78,7 +90,7 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 | Servicio | Imagen | Puerto interno | Publicado en el equipo | Quién lo usa |
 | --- | --- | --- | --- | --- |
 | `postgres` | `pgvector/pgvector:pg18` | 5432 | `127.0.0.1:${POSTGRES_PORT}` (5434 por defecto) | `servidor`, `mcp`, pruebas |
-| `mosquitto` | `eclipse-mosquitto:2` | 1883 | `1883` en la red | `servidor`, cámara, simulador, Home Assistant |
+| `mosquitto` | `eclipse-mosquitto:2` | 1883 | `1883` en la red | `servidor`, placa, simulador, Home Assistant |
 | `servidor` | `accesia-servidor` (propia, `servidor/Dockerfile` con la raíz del repositorio como contexto) | 8000 | `8000` en la red | cámara, simulador, web |
 | `mcp` | `accesia-servidor` (misma imagen, otro comando) | 8001 | no se publica | Home Assistant |
 | `homeassistant` | `ghcr.io/home-assistant/home-assistant:stable` | 8123 | `8123` en la red | navegador |
@@ -88,7 +100,7 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 - La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql`, el texto de `specs/consentimiento.md` y, más adelante, la web compilada. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/` y `node_modules/`.
 - El servidor corre con un solo proceso de Uvicorn: la hora de la última alerta de R6, el control del 429 y la conexión MQTT viven en memoria, y con varios procesos cada uno contaría por su lado.
 - Las versiones exactas de las imágenes se fijan el Día 4, antes de armar el kit.
-- Escenario 2 (Home Assistant OS en la Raspberry): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en la red propia o en un hotspot. Es la excepción a D-16 y D-19.
+- Escenario 2 (Home Assistant OS en la Raspberry), el de la demo (D-21): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en el hotspot del portátil o en otra red propia. Era la excepción a D-16 y D-19; con D-21 es el caso normal.
 - Ollama en el portátil (RNF-03 · C3): `infra/compose.ollama-portatil.yaml` levanta solo `ollama` en el portátil y publica el 11434 en la red propia; Home Assistant sigue en la Raspberry. Lo crea la tarea C del Día 4. Es otra excepción a D-19.
 
 Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001/mcp`, `http://ollama:11434`, `mqtt://mosquitto:1883`.
@@ -121,11 +133,77 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `ZONA_HORARIA` | `America/Bogota` | R8 |
 | `OLLAMA_MODELO` | `qwen2.5:3b` | Modelo que se descarga para el agente (D-06) |
 
-## Firmware de la cámara
+## Firmware
 
-### Perfiles de placa
+### Placa de la demo: XIAO ESP32-C6 (D-21)
 
-Hay dos binarios, uno por tipo de PSRAM, porque ese tipo se fija al compilar (D-17): `octal` y `quad`. Cada binario trae los perfiles de su tipo de PSRAM, y el perfil se elige con el comando `perfil`. Los pines salen de la documentación oficial de cada placa y el código cita la fuente. La PSRAM esperada se confirma con el firmware de diagnóstico.
+Un solo binario para la Seeed Studio XIAO ESP32-C6: 4 MB de flash, 512 KB de SRAM y sin PSRAM. La tabla de particiones de 4 MB no cambia. Todavía no tiene cámara: maneja la puerta, publica su estado y lee un sensor de temperatura y humedad.
+
+| Uso | Pin | Nota |
+| --- | --- | --- |
+| Sensor DHT22 o DHT11 (DATA) | D2 = GPIO2 | El módulo de tres pines trae su resistencia de pull-up |
+| Conmutador de antena | GPIO3 | En bajo al arrancar, antes del Wi-Fi: enciende el conmutador. ESP-IDF no lo hace solo |
+| Antena | GPIO14 | En bajo, la cerámica interna (por defecto); en alto, una externa U.FL |
+| LED de usuario | GPIO15 | Enciende en bajo. Hace de puerta y muestra el estado |
+| UART0 | GPIO16 (TX) y GPIO17 (RX) | La consola lee por UART0 y por el USB-C (USB Serial/JTAG) |
+
+Los pines salen de la wiki de Seeed (`wiki.seeedstudio.com/xiao_esp32c6_getting_started`) y se verifican con la placa. La wiki no dice en qué nivel enciende el LED.
+
+Comportamiento:
+
+- Al arrancar pone GPIO3 en bajo y GPIO14 según la antena configurada, y después enciende el Wi-Fi en 2,4 GHz.
+- MQTT, con su código como client id (la ACL lo exige):
+  - se suscribe a `accesia/{codigo}/puerta/set`;
+  - publica la puerta, su estado general cada 60 s y su disponibilidad con último deseo;
+  - publica las lecturas de ambiente cada 30 s y el descubrimiento de sus dos sensores (`contratos/mqtt.md`).
+- La puerta manda sobre el LED. Con `ABRIR` queda encendido los segundos configurados (3 por defecto), y la placa publica `abierta` y luego `cerrada`; `CERRAR` lo apaga antes. El resto del tiempo el LED muestra el estado de la placa: parpadea mientras se conecta al Wi-Fi o al broker.
+- Sensor: DHT22 por defecto; el comando `sensor` lo cambia. Tras 3 lecturas fallidas seguidas publica `null`.
+
+### Consola serial
+
+Se guarda en NVS y no requiere recompilar. Los comandos entran por UART0 y por el USB nativo.
+
+| Comando | Ejemplo |
+| --- | --- |
+| `estado` | Muestra la placa, el Wi-Fi, la IP, el servidor, MQTT, el sensor con su última lectura y la antena |
+| `wifi <ssid> <clave>` | `wifi AccesIA clave123` (el hotspot del portátil) |
+| `servidor <url>` | `servidor http://192.168.137.1:8000` |
+| `codigo <codigo>` | `codigo entrada` |
+| `token <token>` | El token que da la web al crear la cámara |
+| `mqtt <url> <usuario> <clave>` | `mqtt mqtt://192.168.137.1:1883 camara clave123` |
+| `puerta <pin> <segundos> [bajo\|alto]` | `puerta 15 3 bajo`, lo de fábrica en el C6. El nivel es el que enciende; `-1` si no hay LED ni relé |
+| `sensor <dht22\|dht11>` | `sensor dht11` |
+| `antena <interna\|externa>` | `antena externa` |
+| `reiniciar` | Reinicia la placa |
+| `ayuda` | Lista los comandos |
+
+Los valores de fábrica apuntan al portátil en el hotspot: servidor `http://192.168.137.1:8000` y MQTT `mqtt://192.168.137.1:1883` con el usuario `camara`. Los comandos `perfil`, `pin` y `cara_min` son del firmware del ESP32-S3 y vuelven con él.
+
+### Cámara
+
+Así se comporta cualquier cámara que envíe recortes (hoy el simulador; el ESP32-S3 de referencia):
+
+- Captura en QVGA (320 × 240) para detectar; recorta la cara más grande (la de mayor área) con la fórmula de `contratos/api-dispositivo.md` y la envía en JPEG de calidad 80.
+- Después de cada respuesta espera al menos 1 s, contado desde que la recibe, antes de enviar otro recorte. Tras `permitido`, `denegado` o `desconocido` espera 3 s.
+- Si el servidor no responde (tiempo de espera 5 s), reintenta con espera creciente de 1, 2, 4 y hasta 10 s, y lo muestra por el monitor serial.
+
+#### Cuando llegue el módulo de cámara
+
+El firmware del C6 deja un punto de extensión, sin código de cámara ni de TinyML: una fuente de cuadros y un detector. Lo que se haga depende del módulo:
+
+- **Cámara SPI con salida JPEG conectada al C6:**
+  - Un cuadro QVGA en JPEG (10 a 20 KB) cabe en la SRAM.
+  - ESP-DL no trae modelos de caras para el C6 y, sin PSRAM, no cabrían. El TinyML sería un clasificador int8 de TensorFlow Lite Micro (`espressif/esp-tflite-micro`, como su ejemplo `person_detection`, de 96 × 96 en grises). Dice si hay alguien, pero no dónde está la cara.
+  - Sin cajas, el C6 no puede recortar ni medir `cara_min`. Enviaría el cuadro completo, y el servidor lo trataría como en el modo extraer: YuNet, la cara de mayor área, la misma fórmula y `CARA_MIN_PX`.
+  - Esa parte del servidor ya existe: `recortar_cara_mas_grande` en `servidor/accesia/vision.py` (tarea B2) detecta con YuNet, elige la cara de mayor área y recorta con la fórmula del contrato; se prueba con `casos-recorte.json`.
+  - Eso cambia `api-dispositivo.md` y `openapi.yaml`, en su propio PR.
+- **Placa con cámara aparte:**
+  - Si es un ESP32-S3 con cámara, vuelve el firmware de referencia y el contrato no cambia.
+  - Si es un ESP32-CAM, sirve como cámara de respaldo, con el modo extraer.
+
+#### Referencia: ESP32-S3 (PR #7)
+
+El firmware del ESP32-S3 del enunciado quedó en el PR #7, en borrador, por si se vuelve a él. Detecta con `espressif/human_face_detect` (MSR + MNP, int8), recorta, y su consola suma `perfil`, `pin` y `cara_min`. Puede volver como otro target del mismo proyecto (`idf.py set-target esp32s3`). Para él valen D-17 y esta tabla:
 
 | Perfil | Placa | PSRAM esperada | Binario |
 | --- | --- | --- | --- |
@@ -135,56 +213,29 @@ Hay dos binarios, uno por tipo de PSRAM, porque ese tipo se fija al compilar (D-
 | `generico_octal` | Otra ESP32-S3 con cámara; pines por consola | octal | `octal` |
 | `generico_quad` | Otra ESP32-S3 con cámara; pines por consola | quad | `quad` |
 
-Binarios auxiliares:
-
-- `diagnostico`: muestra por el monitor serial el chip, la flash, la PSRAM y el sensor de la cámara. Se compila con `CONFIG_SPIRAM_IGNORE_NOTFOUND=y` para que arranque en cualquier placa, con PSRAM octal, quad o sin PSRAM. En clase dice en un minuto qué binario y qué perfil usar.
-- `respaldo`: servidor de imágenes al estilo CameraWebServer (`GET /capture`). Lo usa el modo extraer del servidor (RF-10 · C4).
-
-La tabla de particiones cabe en 4 MB de flash, para que el mismo binario sirva en placas de 4, 8 y 16 MB.
-
-### Configuración por consola serial
-
-Se guarda en NVS y no requiere recompilar. Comandos:
-
-| Comando | Ejemplo |
-| --- | --- |
-| `estado` | Muestra perfil, Wi-Fi, IP, servidor, MQTT y PSRAM |
-| `wifi <ssid> <clave>` | `wifi AccesIA clave123` |
-| `servidor <url>` | `servidor http://10.42.0.1:8000` |
-| `codigo <codigo>` | `codigo entrada` |
-| `token <token>` | El token que da la web al crear la cámara |
-| `mqtt <url> <usuario> <clave>` | `mqtt mqtt://10.42.0.1:1883 camara clave123` |
-| `perfil <nombre>` | `perfil generico_octal` (solo los perfiles del binario cargado) |
-| `pin <nombre> <número>` | `pin xclk 15` (solo perfiles genéricos) |
-| `puerta <pin> <segundos>` | `puerta 2 3`; `-1` si no hay LED ni relé |
-| `cara_min <px>` | `cara_min 80` (igual que `CARA_MIN_PX` del servidor) |
-| `reiniciar` | Reinicia la placa |
-| `ayuda` | Lista los comandos |
-
-### Comportamiento
-
-- Captura en QVGA (320 × 240) para detectar; recorta la cara más grande (la de mayor área) con la fórmula de `contratos/api-dispositivo.md` y la envía en JPEG de calidad 80.
-- Después de cada respuesta espera al menos 1 s, contado desde que la recibe, antes de enviar otro recorte. Tras `permitido`, `denegado` o `desconocido` espera 3 s.
-- Si el servidor no responde (tiempo de espera 5 s), reintenta con espera creciente de 1, 2, 4 y hasta 10 s, y lo muestra por el monitor serial.
-- MQTT: se conecta con su código como client id (la ACL lo exige), se suscribe a `accesia/{codigo}/puerta/set`, publica el estado de la puerta, su estado general cada 60 s y su disponibilidad con último deseo (`contratos/mqtt.md`).
+Sus binarios auxiliares, `diagnostico` (chip, flash, PSRAM y sensor de cualquier placa) y `respaldo` (`GET /capture` para el modo extraer, RF-10 · C4), quedan para cuando vuelva el S3 o llegue un ESP32-CAM.
 
 ## Simulador
 
 - Cumple `contratos/api-dispositivo.md` y la parte de la cámara en `contratos/mqtt.md`, con su código como client id. No puede estar conectado a la vez que una cámara con el mismo código.
 - Dos modos: webcam (detecta con YuNet, recorta con la misma fórmula y envía) y carpeta de fotos de `datos/` (para pruebas repetibles). Los dos pasan los casos de `contratos/casos-recorte.json`.
 - Modo «como la cámara», que se combina con los dos anteriores: reduce cada imagen a 320 × 240 y la comprime en JPEG de calidad 80 antes de detectar, para que los recortes se parezcan a los del ESP32-S3. Se usa para calibrar el umbral (RNF-07).
+  - Una imagen que no es 4:3 se recorta primero al centro, al rectángulo 4:3 más grande, y después se reduce. Así la cara no se deforma y la escala es la misma en los dos ejes.
+  - Ejemplo: una webcam de 1280 × 720 (16:9) pasa a 960 × 720, perdiendo 160 px de cada lado, y después a 320 × 240.
+  - Una foto vertical pierde arriba y abajo: las fotos del modo carpeta se toman horizontales.
 - Simula la puerta: al recibir `ABRIR` muestra «PUERTA ABIERTA» 3 s y publica su estado.
 - Se registra como un dispositivo de tipo `simulador`.
 
 ## Red y despliegue
 
-- Red propia: la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg` en NetworkManager, porque el ESP32-S3 no usa 5 GHz) y queda en `10.42.0.1`. La cámara apunta a `http://10.42.0.1:8000` y a `mqtt://10.42.0.1:1883`.
-- Plan B de red: la red del salón o el hotspot de un celular; la cámara se reconfigura por consola serial.
+- Red de la demo (D-21): el hotspot de Windows del portátil, en 2,4 GHz, porque el C6 no usa 5 GHz. El portátil queda en una IP que no cambia, que suele ser `192.168.137.1`: la placa apunta a `http://192.168.137.1:8000` y a `mqtt://192.168.137.1:1883`, y Home Assistant OS se conecta al broker en esa dirección. El firewall de Windows tiene que dejar entrar, en esa red, el 1883 (MQTT) y los puertos que usa la Pi: el 8001 (`mcp`) y el 11434 (`ollama`).
+- Escenario 1: la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg` en NetworkManager) y queda en `10.42.0.1`.
+- Plan B de red: la red del salón o el hotspot de un celular; la placa se reconfigura por consola serial.
 
 | Escenario | Qué trae la Raspberry | Dónde corre cada cosa |
 | --- | --- | --- |
 | 1 | Raspberry Pi OS | Todo en la Raspberry con `infra/compose.yaml` |
-| 2 | Home Assistant OS | Home Assistant en la Raspberry (se restaura nuestra copia de seguridad); el resto en un portátil con `compose.escenario2.yaml` |
+| 2 | Home Assistant OS | Home Assistant en la Raspberry (se restaura nuestra copia de seguridad); el resto en un portátil con `compose.escenario2.yaml`. Es el de la demo (D-21) |
 | 3 | Nada | Raspberry Pi OS en una memoria USB y se sigue como en el escenario 1. Pi 5: arranca desde USB sin configurar nada; Pi 4: solo si su bootloader ya lo permite |
 
 Si la Raspberry tiene 2 GB o menos, Home Assistant queda en la Raspberry y el resto en un portátil. Los pasos completos están en `docs/guia-dia-de-clase.md`.

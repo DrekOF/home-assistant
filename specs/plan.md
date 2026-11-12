@@ -4,7 +4,7 @@ Descripción: Plan de AccesIA por días, frentes e hitos, con el corte mínimo.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Plan
@@ -30,12 +30,12 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | 1 | B | Docker Compose base, esquema de la base con migraciones, esqueleto del servidor y CI del servidor (`servidor.yml`) | `tareas/dia-1/B-cristhian-compose-y-base.md` |
 | 1 | C | Skills de frontend con commits fijos, web con inicio de sesión y Personas, y CI de la web (`web.yml`) | `tareas/dia-1/C-jhon-skills-y-web.md` |
 | 2 | A | Simulador con la webcam: detecta con YuNet, recorta y envía como el ESP32-S3, con el modo «como la cámara» | se escribe al cerrar el Día 1 |
-| 2 | B | Sesión y primer administrador; API de personas, consentimiento, horarios y cámaras, con el comando `crear-camara`; reconocimiento (YuNet + SFace + pgvector), reglas R1 a R4 y R7, e inscripción (R9) | se escribe al cerrar el Día 1 |
+| 2 | B | Sesión y primer administrador; API de personas, consentimiento, horarios por bloques (D-20) y cámaras, con el comando `crear-camara`; reconocimiento (YuNet + SFace + pgvector), reglas R1 a R4 y R7, e inscripción (R9) | se escribe al cerrar el Día 1 |
 | 2 | C | Pantallas Personas (con consentimiento), Inscripción y Cámaras conectadas a la API | se escribe al cerrar el Día 1 |
 | 2 | Todos | **Hito 1:** el simulador inscribe y reconoce a alguien de punta a punta | — |
 | 3 | A | Firmware: cámara, detección, recorte JPEG, envío por HTTP y puerta por MQTT | — |
 | 3 | B | Asistencia (R5) y su registro manual por la API, alertas (R6), eventos y descubrimiento por MQTT, servidor MCP y comando `semilla agente` | — |
-| 3 | C | Home Assistant: MQTT, panel, automatizaciones y Assist con Ollama y MCP; primera medición de las 10 preguntas del agente en el portátil; pantallas Accesos y Asistencia, con el botón de registro manual | — |
+| 3 | C | Home Assistant: MQTT, panel, automatizaciones y Assist con Ollama y MCP; primera medición de las 10 preguntas del agente en el portátil; pantallas Accesos, Asistencia (con el botón de registro manual) y Horarios (RF-13) | — |
 | 3 | Todos | **Hito 2:** con el simulador, Home Assistant abre la puerta y Assist dice quién llegó tarde | — |
 | 4 | A | Perfiles de placa, firmware de diagnóstico (arranca en cualquier placa) y de respaldo, compilación y pruebas del firmware en GitHub Actions (`firmware.yml`) y calibración del umbral | — |
 | 4 | B | Modo extraer, pruebas de las reglas completas y evaluación del agente con 10 preguntas | — |

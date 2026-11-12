@@ -4,14 +4,14 @@ Descripción: Web de administración de AccesIA (frente C).
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Web de administración · frente C
 
-React + Vite + TypeScript, servida por el servidor. Pantallas: Personas (con consentimiento), Inscripción, Accesos, Asistencia y Cámaras.
+React + Vite + TypeScript, servida por el servidor. Pantallas: Personas (con consentimiento), Inscripción, Accesos, Asistencia, Cámaras y Horarios.
 
-- Specs: `specs/requisitos.md` (RF-02, RF-03, RF-05, RF-06, RF-09 y RF-10), `specs/consentimiento.md` y `specs/contratos/openapi.yaml`.
+- Specs: `specs/requisitos.md` (RF-02, RF-03, RF-05, RF-06, RF-09, RF-10 y RF-13), `specs/consentimiento.md` y `specs/contratos/openapi.yaml`.
 - Usa los skills de `.claude/skills/` (se traen con `scripts/preparar-skills.ps1`) y se verifica con Playwright.
 - La crea la tarea `tareas/dia-1/C-jhon-skills-y-web.md`.
 

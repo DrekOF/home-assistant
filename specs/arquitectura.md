@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Arquitectura
@@ -25,7 +25,7 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Broker MQTT | Mensajes entre servidor, cámara y Home Assistant | Mosquitto 2 | B | `infra/mosquitto/` |
 | Home Assistant | Panel, automatizaciones (puerta y avisos) y Assist | Home Assistant Container | C | `homeassistant/` |
 | Ollama | Modelo del agente | Ollama con qwen2.5:3b o qwen2.5:1.5b | C | `infra/` |
-| Web | Administración: personas, inscripción, accesos, asistencia y cámaras | React + Vite + TypeScript, servida por el servidor | C | `web/` |
+| Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
 
 Modelos de cara del servidor (de `opencv/opencv_zoo`, se descargan al construir la imagen): `face_detection_yunet_2023mar.onnx` (YuNet, licencia MIT) y `face_recognition_sface_2021dec.onnx` (SFace, licencia Apache 2.0).
 

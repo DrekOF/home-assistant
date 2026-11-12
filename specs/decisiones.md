@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Decisiones
@@ -40,6 +40,12 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | D-18 | La cámara envía los recortes por HTTP y usa MQTT solo para la puerta, su estado y su disponibilidad. El servidor publica los eventos y el descubrimiento. | HTTP da la respuesta al instante a la cámara; MQTT es lo que Home Assistant entiende. |
 | D-19 | Home Assistant corre en la red de Docker, no en modo host: llega a `mosquitto`, `ollama` y `mcp` por su nombre. Excepciones: el escenario 2 publica `mcp` y `ollama` en la red del portátil, y si Ollama va al portátil (RNF-03 · C3), `infra/compose.ollama-portatil.yaml` lo publica en la red propia. | Funciona igual en Windows con Docker Desktop y en la Raspberry, y no expone Ollama ni el MCP. |
 
+## Decisiones del equipo durante el proyecto
+
+| Código | Decisión | Por qué |
+| --- | --- | --- |
+| D-20 | Horarios por bloques: cada horario tiene un nombre y bloques de día, hora de inicio y tolerancia en minutos, con un bloque por día como máximo porque la llegada es una por día. Una persona sigue teniendo un horario o ninguno. R5 usa el bloque del día de la llegada; si ese día no hay bloque, la llegada es `sin_horario`. | Una misma clase puede empezar a horas distintas según el día (por ejemplo, el lunes a las 07:00 y el miércoles a las 18:00), y con una sola hora por horario no se podía representar. |
+
 ## Registro de cambios
 
 | Fecha | Decisión | Cambio |
@@ -64,3 +70,5 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-11 | Arquitectura y tareas | Imagen del servidor con la raíz del repositorio como contexto (2.4); un solo proceso de Uvicorn (3.5); modo «como la cámara» del simulador y recalibración en clase (3.2); versión de ESP-DL compatible con ESP-IDF 5.4 (2.6); pruebas del firmware con CMake y doctest en WSL (2.5); volumen de PostgreSQL 18, `listener 1883`, `ADMIN_CORREO` y `tzdata` (3.9); puertos reservados de Windows y `.ps1` con BOM (3.8). |
 | 2026-11-11 | Texto del consentimiento | «Qué datos» nombra el registro de entradas. Sigue siendo la versión 1.0 del texto porque nadie la había aceptado (1.4). |
 | 2026-11-11 | Repositorio | `.gitignore` ignora `firmware/build-*/` y ya no ignora `dependencies.lock`; la rama de cambios de contratos usa el prefijo `b/` (1.12). |
+| 2026-11-11 | D-20 | Horarios por bloques: tabla `horario_bloque`, R5 con el bloque del día de la llegada, requisito RF-13 y pantalla Horarios en el Día 3 de C. |
+| 2026-11-11 | Contratos 1.2 | `base-de-datos.sql`, `openapi.yaml` y `mcp-agente.md` pasan a 1.2 por D-20. El esquema `Horario` cambia de campos, así que rompe la 1.1; según `contratos/README.md` eso sería 2.0, pero se dejó en 1.2 porque todavía no hay código que lo use. |

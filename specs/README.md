@@ -4,7 +4,7 @@ Descripción: Índice de las specs de AccesIA y orden de lectura.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Specs de AccesIA
@@ -16,7 +16,7 @@ Aquí está qué se construye y con qué reglas. Se leen antes de cada tarea. Si
 | # | Archivo | Para qué sirve |
 | --- | --- | --- |
 | 1 | [enunciado.md](enunciado.md) | Lo que pidió el docente y dónde se cumple cada parte |
-| 2 | [decisiones.md](decisiones.md) | Por qué el sistema es así (D-01 a D-19) |
+| 2 | [decisiones.md](decisiones.md) | Por qué el sistema es así (D-01 a D-20) |
 | 3 | [arquitectura.md](arquitectura.md) | Piezas, flujos, servicios, puertos, configuración y despliegue |
 | 4 | [requisitos.md](requisitos.md) | Qué debe hacer (RF y RNF) y cómo se comprueba (criterios C) |
 | 5 | [reglas.md](reglas.md) | Reglas de negocio R1 a R9 con sus casos de prueba |

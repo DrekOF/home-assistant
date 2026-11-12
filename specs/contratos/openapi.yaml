@@ -3,11 +3,11 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-11
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 openapi: 3.1.0
 info:
   title: API de AccesIA
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     API del servidor de AccesIA. La web de administración usa la cookie de sesión y las cámaras
     usan su token. Fechas y horas en ISO 8601 con la zona de Colombia (-05:00). Todos los errores
@@ -599,7 +599,8 @@ paths:
     post:
       tags: [Horarios]
       operationId: crearHorario
-      summary: Crea un horario
+      summary: Crea un horario con sus bloques (D-20)
+      description: Al menos un bloque y uno por día como máximo; un día repetido responde 422 validacion.
       requestBody:
         required: true
         content:
@@ -622,6 +623,7 @@ paths:
       tags: [Horarios]
       operationId: editarHorario
       summary: Cambia un horario
+      description: Si viene bloques, reemplaza la lista completa de bloques del horario.
       requestBody:
         required: true
         content:
@@ -1153,51 +1155,51 @@ components:
           items: { $ref: "#/components/schemas/FilaAsistencia" }
         ausentes:
           type: array
-          description: Personas activas cuyo horario incluye ese día y que no llegaron
+          description: Personas activas cuyo horario tiene bloque ese día y que no llegaron
           items: { $ref: "#/components/schemas/PersonaCorta" }
         total_llegadas: { type: integer, minimum: 0 }
 
+    HorarioBloque:
+      type: object
+      description: La hora de entrada de un día (R5, D-20)
+      required: [dia, hora_inicio, tolerancia_min]
+      properties:
+        dia: { type: integer, minimum: 1, maximum: 7, description: 1 = lunes ... 7 = domingo }
+        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$", example: "07:00" }
+        tolerancia_min: { type: integer, minimum: 0, maximum: 120, example: 10 }
+
+    BloquesHorario:
+      type: array
+      description: >-
+        Al menos un bloque y uno por día como máximo, ordenados por día. Un día repetido responde
+        422 validacion.
+      minItems: 1
+      maxItems: 7
+      items: { $ref: "#/components/schemas/HorarioBloque" }
+
     Horario:
       type: object
-      required: [id, nombre, hora_inicio, tolerancia_min, dias]
+      required: [id, nombre, bloques]
       properties:
         id: { type: string, format: uuid }
         nombre: { type: string }
-        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$", example: "07:00" }
-        tolerancia_min: { type: integer, minimum: 0, maximum: 120 }
-        dias:
-          type: array
-          description: 1 = lunes ... 7 = domingo
-          minItems: 1
-          uniqueItems: true
-          items: { type: integer, minimum: 1, maximum: 7 }
+        bloques: { $ref: "#/components/schemas/BloquesHorario" }
 
     HorarioNuevo:
       type: object
-      required: [nombre, hora_inicio]
+      required: [nombre, bloques]
       properties:
         nombre: { type: string, minLength: 2, maxLength: 60 }
-        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
-        tolerancia_min: { type: integer, minimum: 0, maximum: 120, default: 10 }
-        dias:
-          type: array
-          minItems: 1
-          uniqueItems: true
-          items: { type: integer, minimum: 1, maximum: 7 }
-          default: [1, 2, 3, 4, 5]
+        bloques: { $ref: "#/components/schemas/BloquesHorario" }
 
     HorarioCambios:
       type: object
       minProperties: 1
       properties:
         nombre: { type: string, minLength: 2, maxLength: 60 }
-        hora_inicio: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
-        tolerancia_min: { type: integer, minimum: 0, maximum: 120 }
-        dias:
-          type: array
-          minItems: 1
-          uniqueItems: true
-          items: { type: integer, minimum: 1, maximum: 7 }
+        bloques:
+          $ref: "#/components/schemas/BloquesHorario"
+          description: Reemplaza la lista completa de bloques del horario
 
     Configuracion:
       type: object

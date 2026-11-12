@@ -4,7 +4,7 @@ Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criteri
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Requisitos
@@ -57,7 +57,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 - C1 La primera entrada permitida del día crea la asistencia con su hora de llegada y su estado (R5).
 - C2 Las entradas siguientes del mismo día no cambian la llegada.
-- C3 El reporte del día separa a tiempo, tarde, sin horario y ausentes (personas activas con horario ese día y sin llegada).
+- C3 El reporte del día separa a tiempo, tarde, sin horario y ausentes (personas activas cuyo horario tiene bloque ese día y sin llegada).
 - C4 Exportar a CSV por rango de fechas (extra).
 - C5 Registro manual: un administrador registra la llegada de una persona a una hora dada (`POST /api/v1/asistencia`). Se aplica R5 a esa hora y responde 409 `asistencia_duplicada` si ya tiene llegada ese día. La llegada queda con origen `manual` y con quién la registró. Sirve para quien no dio consentimiento y como plan B si la cámara falla.
 
@@ -79,7 +79,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 ### RF-09 Web de administración · frente C
 
 - C1 Inicio de sesión de administradores; las demás pantallas piden sesión.
-- C2 Pantallas: Personas (con consentimiento), Inscripción (avance en vivo), Accesos, Asistencia (con registro manual) y Cámaras.
+- C2 Pantallas: Personas (con consentimiento), Inscripción (avance en vivo), Accesos, Asistencia (con registro manual), Cámaras y Horarios (RF-13).
 - C3 Hecha con los skills de frontend y verificada con Playwright: se ve y funciona como se planeó.
 - C4 Textos en español; fechas y horas en hora de Colombia.
 
@@ -102,6 +102,14 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 - C1 Borrar todas las huellas de una persona.
 - C2 Borrar una persona: se borran sus huellas, consentimientos, inscripciones y asistencia; sus eventos quedan sin persona.
 - C3 Ver qué datos hay de una persona en su ficha, sin mostrar las huellas: sus datos, sus consentimientos (el vigente y los revocados), cuántas muestras tiene, sus accesos y su asistencia (`GET /api/v1/personas/{persona_id}/asistencia`).
+
+### RF-13 Horarios · frentes B y C
+
+- C1 Crear, ver, editar y borrar horarios. Cada horario tiene un nombre y bloques: día (1 = lunes … 7 = domingo), hora de inicio y tolerancia en minutos, con al menos un bloque y uno por día como máximo (D-20).
+- C2 Editar los bloques de un horario reemplaza la lista completa.
+- C3 Un horario en uso no se puede borrar (409, código `horario_en_uso`).
+- C4 Una persona tiene un horario o ninguno, y R5 califica cada llegada con el bloque del día.
+- C5 La web tiene la pantalla Horarios: la lista y un formulario con un renglón por día (activo, hora y tolerancia).
 
 ## Requisitos no funcionales
 

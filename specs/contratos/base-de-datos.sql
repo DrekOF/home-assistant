@@ -3,7 +3,7 @@
 -- Fecha de creación: 2026-11-11
 -- Actualización: 2026-11-11
 -- Autor: Equipo AccesIA
--- Versión: 1.1
+-- Versión: 1.2
 --
 -- La primera migración del servidor crea exactamente este esquema.
 -- Requiere PostgreSQL 18 (uuidv7) y las extensiones vector (pgvector) y unaccent.
@@ -22,15 +22,21 @@ CREATE TABLE administrador (
     creado      timestamptz NOT NULL DEFAULT now()
 );
 
--- Horas de entrada (R5). dias: 1 = lunes ... 7 = domingo (isodow).
+-- Horarios de entrada (R5, D-20). Cada horario tiene bloques, uno por día como máximo.
 CREATE TABLE horario (
-    id              uuid PRIMARY KEY DEFAULT uuidv7(),
-    nombre          text NOT NULL UNIQUE,
+    id      uuid PRIMARY KEY DEFAULT uuidv7(),
+    nombre  text NOT NULL UNIQUE,
+    creado  timestamptz NOT NULL DEFAULT now()
+);
+
+-- Un bloque por horario y día. dia: 1 = lunes ... 7 = domingo (isodow). Se borra con su horario.
+-- Que cada horario tenga al menos un bloque lo valida la API.
+CREATE TABLE horario_bloque (
+    horario_id      uuid NOT NULL REFERENCES horario (id) ON DELETE CASCADE,
+    dia             smallint NOT NULL CHECK (dia BETWEEN 1 AND 7),
     hora_inicio     time NOT NULL,
     tolerancia_min  integer NOT NULL DEFAULT 10 CHECK (tolerancia_min BETWEEN 0 AND 120),
-    dias            smallint[] NOT NULL DEFAULT '{1,2,3,4,5}'
-                    CHECK (cardinality(dias) > 0 AND dias <@ '{1,2,3,4,5,6,7}'::smallint[]),
-    creado          timestamptz NOT NULL DEFAULT now()
+    PRIMARY KEY (horario_id, dia)
 );
 
 -- Quién puede entrar.
@@ -154,7 +160,9 @@ SELECT p.nombre,
        p.rol,
        p.activa,
        h.nombre AS horario,
-       h.dias   AS dias_horario
+       (SELECT array_agg(b.dia ORDER BY b.dia)
+        FROM horario_bloque b
+        WHERE b.horario_id = h.id) AS dias_horario
 FROM persona p
 LEFT JOIN horario h ON h.id = p.horario_id;
 
@@ -188,6 +196,11 @@ $$;
 GRANT USAGE ON SCHEMA public TO accesia_agente;
 GRANT SELECT ON v_persona_agente, v_asistencia_agente, v_acceso_agente TO accesia_agente;
 
--- Datos iniciales: el horario de ejemplo de R5 (se ajusta a la hora real de la clase).
-INSERT INTO horario (nombre, hora_inicio, tolerancia_min, dias)
-VALUES ('Clase IA', '07:00', 10, '{1,2,3,4,5}');
+-- Datos iniciales: el horario de ejemplo de R5, con un bloque de lunes a viernes a las 07:00
+-- y 10 min de tolerancia (se ajusta a la hora real de la clase).
+WITH h AS (
+    INSERT INTO horario (nombre) VALUES ('Clase IA') RETURNING id
+)
+INSERT INTO horario_bloque (horario_id, dia, hora_inicio, tolerancia_min)
+SELECT h.id, d, '07:00', 10
+FROM h, generate_series(1, 5) AS d;

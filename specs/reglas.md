@@ -4,7 +4,7 @@ Descripción: Reglas de negocio R1 a R9 de AccesIA con sus casos de prueba.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Reglas de negocio
@@ -17,7 +17,7 @@ Las reglas viven en el servidor y se prueban primero (pruebas unitarias con pyte
 | R2 | Cuenta la muestra más parecida | — | — |
 | R3 | Inactiva o sin consentimiento vigente: denegado | — | — |
 | R4 | La misma persona, cámara y resultado cuenta una vez dentro de la ventana | `VENTANA_REPETIDO_S` | 60 s |
-| R5 | La primera entrada permitida del día, o la llegada registrada a mano, es la llegada; tarde si pasa la hora de inicio más la tolerancia | horario de la persona | 07:00 + 10 min (ejemplo) |
+| R5 | La primera entrada permitida del día, o la llegada registrada a mano, es la llegada; tarde si pasa la hora de inicio del bloque de ese día más su tolerancia | bloques del horario de la persona (D-20) | 07:00 + 10 min, de lunes a viernes (ejemplo) |
 | R6 | Varios desconocidos seguidos generan una alerta | `ALERTA_DESCONOCIDOS`, `ALERTA_VENTANA_S` | 3 en 60 s |
 | R7 | Calidad mínima de una muestra para inscribir, y tamaño mínimo para reconocer | `CARA_MIN_PX`, `NITIDEZ_MIN`, `UMBRAL_SIMILITUD` | 80 px (el servidor descarta por debajo de 64 px), 60, 0,363 |
 | R8 | Todo en hora de Colombia | `ZONA_HORARIA` | America/Bogota |
@@ -80,13 +80,15 @@ Las reglas viven en el servidor y se prueban primero (pruebas unitarias con pyte
 ## R5 · Llegada y tardanza
 
 - La primera entrada permitida del día (fecha local, R8) es la llegada.
-- `sin_horario` si la persona no tiene horario o su horario no incluye ese día (1 = lunes … 7 = domingo).
-- `a_tiempo` si la llegada es menor o igual que la hora de inicio más la tolerancia; `tarde` si es mayor. Se compara con segundos.
-- `minutos_tarde` son los minutos completos entre la hora de inicio y la llegada; solo existe si es `tarde`.
+- La llegada se califica con el bloque del horario de la persona para el día de la llegada: el día de la semana de la fecha local (R8), 1 = lunes … 7 = domingo (D-20).
+- `sin_horario` si la persona no tiene horario o su horario no tiene bloque ese día.
+- `a_tiempo` si la llegada es menor o igual que la hora de inicio del bloque más su tolerancia; `tarde` si es mayor. Se compara con segundos.
+- `minutos_tarde` son los minutos completos entre la hora de inicio del bloque y la llegada; solo existe si es `tarde`.
+- Ausentes del día: personas activas cuyo horario tiene bloque ese día y que no llegaron (RF-06 · C3).
 - Un administrador puede registrar la llegada a mano (RF-06 · C5): se aplica esta misma regla a la hora que da, y la fecha es la fecha local de esa hora (R8). Si la persona ya tiene llegada ese día, la API responde 409 `asistencia_duplicada`.
 - La primera llegada del día cuenta, venga de la cámara o sea manual: una entrada permitida posterior no la cambia.
 
-Ejemplo: horario «Clase IA», lunes a viernes, 07:00, tolerancia 10 min. Fechas del viernes 20 de noviembre de 2026.
+Ejemplo: horario «Clase IA», con un bloque de lunes a viernes a las 07:00 y 10 min de tolerancia. Fechas del viernes 20 de noviembre de 2026.
 
 | Caso | Entrada | Esperado |
 | --- | --- | --- |
@@ -102,6 +104,14 @@ Ejemplo: horario «Clase IA», lunes a viernes, 07:00, tolerancia 10 min. Fechas
 | R5 · manual tarde | Llegada registrada a mano a las 07:25:30 | `tarde`, 25 minutos, origen `manual` |
 | R5 · manual con llegada | Entra por la cámara a las 06:55 y después se registra a mano | 409 `asistencia_duplicada` |
 | R5 · cámara después de manual | Llegada manual a las 07:05 y entrada permitida por la cámara a las 07:20 | La llegada sigue siendo la manual de las 07:05 |
+
+Ejemplo con bloques distintos: horario «Lunes y miércoles», con un bloque el lunes a las 07:00 y 10 min de tolerancia, y otro el miércoles a las 18:00 y 15 min. Fechas de la semana del lunes 16 de noviembre de 2026.
+
+| Caso | Entrada | Esperado |
+| --- | --- | --- |
+| R5 · bloque a tiempo | Llega el miércoles 18 a las 18:12 | `a_tiempo` (límite 18:15) |
+| R5 · bloque tarde | Llega el miércoles 18 a las 18:20 | `tarde`, 20 minutos |
+| R5 · día sin bloque | Llega el martes 17 a las 07:05 | `sin_horario` |
 
 ## R6 · Alerta de desconocidos
 

@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Bitácora
@@ -22,6 +22,23 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-11 · Día 1 · Horarios por bloques (D-20, contratos 1.2)
+
+- Quién: el frente B.
+- Qué: cada horario tiene ahora un nombre y bloques por día (día, hora de inicio y tolerancia), uno por día como máximo. Los contratos `base-de-datos.sql`, `openapi.yaml` y `mcp-agente.md` pasan a 1.2. También cambiaron D-20, R5 (con tres casos nuevos), RF-06 · C3, RF-09 · C2, el requisito nuevo RF-13, el modelo de datos, el plan (Día 2 de B y Día 3 de C), las tareas B y C del Día 1 y `web/README.md`.
+- Cómo: el equipo decidió D-20 y Claude Code aplicó el cambio en la rama `b/horarios-1-2`, sin escribir código. Antes de seguir con la tarea B, Claude Code verificó el contrato.
+- Decisiones menores al aplicar:
+  - `horario_bloque` tiene como clave primaria `(horario_id, dia)`, sin un id propio, porque la API reemplaza la lista completa de bloques.
+  - El mínimo de un bloque lo valida la API, no la base.
+  - En la API, cada bloque pide su tolerancia; en la base, la tolerancia por defecto sigue siendo 10.
+  - Un día repetido responde 422 `validacion`, y la lista admite como máximo 7 bloques.
+  - El «por qué» de D-20 sale del ejemplo de lunes a las 07:00 y miércoles a las 18:00.
+  - El horario de los casos nuevos de R5 se llama «Lunes y miércoles», con fechas de la semana del lunes 16 de noviembre de 2026.
+  - En la tarea C, el horario de la persona se elige de la lista de horarios.
+- Pruebas: `openapi.yaml` 1.2 pasa `openapi-spec-validator`. `base-de-datos.sql` 1.2 cargó en PostgreSQL 18.6 con pgvector, y pasaron las comprobaciones de los bloques, de la vista del agente y de los tres casos nuevos de R5. Se revisaron las referencias cruzadas.
+- Cambios de contrato o de specs: los tres contratos pasan a 1.2 (registro de cambios en `specs/decisiones.md`). El esquema `Horario` cambia de campos, así que rompe la 1.1. Según `specs/contratos/README.md` eso sería 2.0, pero se dejó en 1.2 porque todavía no hay código que lo use.
+- Pendiente: el plan de la tarea B, ajustado a los bloques; las preguntas 1 a 5 y 11 de la tarea 00.
 
 ## 2026-11-11 · Día 1 · AccesIA como raíz del repositorio
 

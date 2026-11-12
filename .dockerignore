@@ -1,0 +1,30 @@
+# Nombre: .dockerignore
+# Descripción: Lo que no entra al contexto de las imágenes de AccesIA, que se construyen desde la raíz del repositorio.
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+
+# Git, editores y Claude Code
+.git
+.github
+.claude
+.vscode
+
+# Fotos de prueba, kit y claves: nunca van en una imagen
+datos/
+kit/
+infra/.env
+infra/mosquitto/claves/
+
+# Dependencias y cachés locales
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+
+# Firmware compilado
+firmware/build-*/
+firmware/**/build/
+firmware/**/managed_components/

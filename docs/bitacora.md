@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Bitácora
@@ -22,6 +22,31 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-11 · Día 1 · Tarea B · Docker Compose, base de datos y esqueleto del servidor
+
+- Quién: el frente B.
+- Qué: con `docker compose -f infra/compose.yaml up -d --build` quedan sanos `postgres` (PostgreSQL 18 + pgvector), `mosquitto` y `servidor`, con el esquema del contrato 1.2 migrado y `/api/v1/salud` respondiendo. También quedaron los scripts `generar-env` y `crear-claves-mqtt` (`.ps1` con BOM y `.sh`), 24 pruebas con pytest y la CI en `.github/workflows/servidor.yml`.
+- Cómo: se le pidió a Claude Code un plan corto, ajustado a los horarios por bloques (D-20), y el equipo lo aprobó con un cambio: la ACL de Mosquitto se comprueba con una prueba automática (`contrato MQTT · acl`) y no con un paso manual. Claude Code instaló uv con winget, escribió el código y lo verificó. Para confirmar que las pruebas de la ACL no pasan siempre, rompió la ACL a propósito tres veces: quitó la línea `deny`, abrió el estado de todas las cámaras y permitió el acceso anónimo. Cada vez falló justo la prueba que correspondía, y después dejó los archivos como estaban.
+- Decisiones:
+  - La migración ejecuta el SQL con el cursor de psycopg, sin parámetros, dentro de la transacción de Alembic. La imagen copia el SQL a la misma ruta relativa que en el repositorio, y la migración lo busca subiendo carpetas. Si el usuario `agente` ya existe, le actualiza la clave.
+  - El 405 se responde con `no_encontrado`, porque el contrato no tiene un código para «método no permitido».
+  - FastAPI no publica su propio OpenAPI: el contrato es `specs/contratos/openapi.yaml`.
+  - El paquete arranca en la versión `0.1.0`. `config.py` solo exige `DATABASE_URL`; las reglas tienen los valores de `arquitectura.md` por defecto.
+  - Cada prueba lleva `@pytest.mark.marca("…")`: pytest no corre si alguna no la tiene, y al final muestra un resumen por marca.
+  - El healthcheck de Mosquitto entra con el usuario `servidor` usando `mosquitto_sub -E`.
+  - `mosquitto_passwd -c` no sobrescribe un archivo existente, así que los scripts borran `passwd` antes de crearlo. Ese error salió al correrlos dos veces.
+- Pruebas:
+  - `uv run pytest`: 24 en verde. Por marca: esquema 1, vector 1, horarios 5, RF-08 · C4 7, salud 1, error 3 y ACL de MQTT 6.
+  - Compose: los tres servicios sanos; PostgreSQL publicado solo en `127.0.0.1:5434`, con los datos en `/var/lib/postgresql/18/docker`; migración `0001` aplicada una sola vez, incluso tras reiniciar.
+  - El usuario `agente` entra con la clave de `infra/.env`.
+  - Los cuatro scripts funcionan y se pueden correr varias veces.
+  - La imagen también compila para `linux/arm64`.
+- Cambios de contrato o de specs: ninguno. `CLAUDE.md` tiene ahora la sección «Comandos».
+- Pendiente:
+  - Ver la CI en verde en el PR (C7).
+  - Starlette avisa que `TestClient` con `httpx` está en desuso y pide `httpx2`; la tarea nombra `httpx`, así que se dejó así.
+  - Fijar las versiones exactas de las imágenes el Día 4.
 
 ## 2026-11-11 · Día 1 · Horarios por bloques (D-20, contratos 1.2)
 

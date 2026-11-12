@@ -1,0 +1,82 @@
+# Nombre: compose.yaml
+# Descripción: Servicios de AccesIA con Docker Compose: PostgreSQL 18 + pgvector, Mosquitto y el servidor.
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Las variables salen de infra/.env (se crea con infra/scripts/generar-env.ps1 o .sh).
+# homeassistant, ollama y mcp llegan el Día 3 (specs/plan.md).
+
+name: accesia
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Solo en este equipo y nunca en el 5432 (CLAUDE.md).
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+    volumes:
+      # PostgreSQL 18 guarda los datos en /var/lib/postgresql/18/docker.
+      - datos-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    environment:
+      # Solo para el healthcheck, que entra con el usuario servidor.
+      MQTT_SERVIDOR_CLAVE: ${MQTT_SERVIDOR_CLAVE}
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/acl:/mosquitto/config/acl:ro
+      - ./mosquitto/claves:/mosquitto/config/claves
+      - datos-mosquitto:/mosquitto/data
+    healthcheck:
+      # -E sale con 0 cuando el broker acepta la conexión y la suscripción.
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u servidor -P \"$${MQTT_SERVIDOR_CLAVE}\" -i salud-broker -t accesia/servidor/disponible -E -W 3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  servidor:
+    build:
+      # La raíz del repositorio es el contexto: la imagen copia specs/contratos/base-de-datos.sql.
+      context: ..
+      dockerfile: servidor/Dockerfile
+    image: accesia-servidor
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MQTT_URL: mqtt://servidor:${MQTT_SERVIDOR_CLAVE}@mosquitto:1883
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/salud', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  datos-postgres:
+  datos-mosquitto:

@@ -4,11 +4,12 @@ Descripción: Arma datos directamente en la base para las pruebas del servidor: 
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import math
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import Connection, text
@@ -29,27 +30,42 @@ def persona(conexion: Connection, documento: str = "1075000001", nombre: str = "
     ).scalar_one()
 
 
-def consentimiento(conexion: Connection, persona_id: UUID) -> UUID:
+def consentimiento(conexion: Connection, persona_id: UUID, aceptado_en: datetime | None = None) -> UUID:
+    """Un consentimiento vigente; sin aceptado_en, con la hora de la base (now() de la transacción)."""
+    if aceptado_en is None:
+        return conexion.execute(
+            text("INSERT INTO consentimiento (persona_id, version_texto) VALUES (:persona_id, '1.0') RETURNING id"),
+            {"persona_id": persona_id},
+        ).scalar_one()
     return conexion.execute(
-        text("INSERT INTO consentimiento (persona_id, version_texto) VALUES (:persona_id, '1.0') RETURNING id"),
-        {"persona_id": persona_id},
+        text(
+            "INSERT INTO consentimiento (persona_id, version_texto, aceptado_en) "
+            "VALUES (:persona_id, '1.0', :aceptado_en) RETURNING id"
+        ),
+        {"persona_id": persona_id, "aceptado_en": aceptado_en},
     ).scalar_one()
 
 
 def camara(
-    conexion: Connection, codigo: str = "entrada", tipo: str = "simulador", ultimo_contacto: datetime | None = None
+    conexion: Connection,
+    codigo: str = "entrada",
+    tipo: str = "simulador",
+    ultimo_contacto: datetime | None = None,
+    token_hash: str = "0" * 64,
+    activo: bool = True,
 ) -> str:
     conexion.execute(
         text(
-            "INSERT INTO dispositivo (codigo, nombre, tipo, token_hash, ultimo_contacto) "
-            "VALUES (:codigo, :nombre, :tipo, :token_hash, :ultimo_contacto)"
+            "INSERT INTO dispositivo (codigo, nombre, tipo, token_hash, ultimo_contacto, activo) "
+            "VALUES (:codigo, :nombre, :tipo, :token_hash, :ultimo_contacto, :activo)"
         ),
         {
             "codigo": codigo,
             "nombre": codigo.capitalize(),
             "tipo": tipo,
-            "token_hash": "0" * 64,
+            "token_hash": token_hash,
             "ultimo_contacto": ultimo_contacto,
+            "activo": activo,
         },
     )
     return codigo
@@ -73,13 +89,17 @@ def inscripcion(
     ).scalar_one()
 
 
-def rostro(conexion: Connection, persona_id: UUID, inscripcion_id: UUID | None = None) -> UUID:
+def rostro(
+    conexion: Connection, persona_id: UUID, inscripcion_id: UUID | None = None, huella: Sequence[float] | None = None
+) -> UUID:
+    """Una huella de la persona; sin huella, la de prueba (HUELLA)."""
+    texto = HUELLA if huella is None else "[" + ",".join(format(float(valor), ".9g") for valor in huella) + "]"
     return conexion.execute(
         text(
             "INSERT INTO rostro (persona_id, inscripcion_id, huella, fuente) "
             "VALUES (:persona_id, :inscripcion_id, CAST(:huella AS vector), 'simulador') RETURNING id"
         ),
-        {"persona_id": persona_id, "inscripcion_id": inscripcion_id, "huella": HUELLA},
+        {"persona_id": persona_id, "inscripcion_id": inscripcion_id, "huella": texto},
     ).scalar_one()
 
 
@@ -109,3 +129,31 @@ def contar(conexion: Connection, tabla: str, persona_id: UUID) -> int:
     return conexion.execute(
         text(f"SELECT count(*) FROM {tabla} WHERE persona_id = :persona_id"), {"persona_id": persona_id}
     ).scalar_one()
+
+
+def inscrita(
+    conexion: Connection,
+    nombre: str,
+    documento: str,
+    *huellas: Sequence[float],
+    activa: bool = True,
+    con_consentimiento: bool = True,
+) -> UUID:
+    """Una persona con sus huellas ya guardadas y, si se pide, con consentimiento vigente."""
+    persona_id = persona(conexion, documento=documento, nombre=nombre, activa=activa)
+    if con_consentimiento:
+        # Una hora antes: revocar por la API usa ahora() sin microsegundos y no puede quedar antes de aceptado_en.
+        consentimiento(conexion, persona_id, aceptado_en=datetime.now(UTC) - timedelta(hours=1))
+    for huella in huellas:
+        rostro(conexion, persona_id, huella=huella)
+    return persona_id
+
+
+def eventos(conexion: Connection) -> list:
+    """Los eventos de acceso guardados, del más antiguo al más reciente."""
+    return conexion.execute(
+        text(
+            "SELECT id, fecha_hora, dispositivo_codigo, persona_id, resultado, motivo, similitud "
+            "FROM evento_acceso ORDER BY fecha_hora, id"
+        )
+    ).all()

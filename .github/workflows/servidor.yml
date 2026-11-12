@@ -1,9 +1,9 @@
 # Nombre: servidor.yml
-# Descripción: CI del servidor de AccesIA: corre pytest con PostgreSQL 18 + pgvector y Mosquitto en contenedores (RNF-06 · C3).
+# Descripción: CI del servidor de AccesIA: corre pytest con PostgreSQL 18 + pgvector y Mosquitto en contenedores (RNF-06 · C3), con los modelos de cara en caché.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-11
+# Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 #
 # Es solo del servidor: la web tiene web.yml (tarea C) y el firmware se suma el Día 4.
 
@@ -35,6 +35,16 @@ jobs:
 
       - name: Instalar dependencias
         run: uv sync --locked
+
+      # YuNet y SFace van a datos/modelos/ (Git los ignora). La llave cambia si cambia el commit o un SHA-256.
+      - name: Caché de los modelos de cara
+        uses: actions/cache@v4
+        with:
+          path: datos/modelos
+          key: modelos-cara-${{ hashFiles('servidor/accesia/modelos.py') }}
+
+      - name: Descargar los modelos de cara (comprueba su SHA-256)
+        run: uv run accesia descargar-modelos
 
       - name: Correr las pruebas
         run: uv run pytest

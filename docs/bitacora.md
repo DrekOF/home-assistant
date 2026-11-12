@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.10
+Versión: 1.11
 -->
 
 # Bitácora
@@ -39,7 +39,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - `accesia_vision`: el punto de extensión de la cámara (fuente de cuadros y detector), sin código de cámara ni de TinyML.
   - `infra/mosquitto/acl` 1.1, con las tres líneas de `mqtt.md` 1.2, y sus casos en `test_mqtt_acl.py`.
   - `.github/workflows/firmware.yml`, adelantado del Día 4: compila con la imagen `espressif/idf:v5.4.4`, revisa el lockfile y corre las pruebas de la lógica pura.
-  - `firmware/README.md` 1.2, con la prueba con la placa: hotspot, firewall, broker, integración MQTT de Home Assistant y consola. `CLAUDE.md` 1.4 suma los comandos del firmware.
+  - `firmware/README.md` 1.2, con la prueba con la placa: hotspot, firewall, broker, integración MQTT de Home Assistant y consola. `CLAUDE.md` 1.5 suma los comandos del firmware.
 - Cómo:
   - Claude Code escribió el firmware con el plan que aprobó el equipo. Separó la lógica pura en `accesia_logica` (mensajes, puerta, ambiente, LED y pines) para probarla sin placa; los componentes de ESP-IDF solo la conectan con el hardware.
   - Decisiones de implementación:
@@ -51,7 +51,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
     - `puerta` rechaza los pines de la flash, el USB, UART0, el sensor, la antena y BOOT.
   - Se corrigió un error: GCC 14 de ESP-IDF marcó dos `strncpy` del Wi-Fi como posible truncado (`-Werror=stringop-truncation`). Se cambiaron por `memcpy`, con los largos que ya limita la consola.
   - La prueba con la placa se hace con el equipo, con los pasos del README.
-  - Mientras tanto se fusionó en `main` el PR #9 (simulador). La rama se actualizó y se conservaron los dos lados: `CLAUDE.md` 1.4 lleva los comandos del simulador y del firmware, y la bitácora, las dos entradas.
+  - Mientras tanto se fusionaron en `main` el PR #9 (simulador) y el PR #10 (B2). La rama se actualizó con cada uno y se conservaron todos los lados: `CLAUDE.md` 1.5 lleva los comandos del simulador, de `descargar-modelos` y del firmware, y la bitácora, todas las entradas. El contrato de la cámara 1.2 solo aclara que 100 KB son 102 400 bytes: no cambia el recorte ni las esperas que trae el firmware.
 - Pruebas:
   - Lógica pura, en `ubuntu:24.04`, con el detector de comportamiento indefinido y `-Werror`: 41 casos y 200 comprobaciones en verde. Incluyen `contrato MQTT · ambiente`, `contrato MQTT · descubrimiento de la placa`, `contrato MQTT · estado`, `RF-14 · C2`, `C3`, `C5` y `C6`, y las del recorte.
   - `contrato MQTT · acl`: 8 en verde, con los casos nuevos de `ambiente` y del descubrimiento.
@@ -63,6 +63,110 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - Infra, por asignar: `compose.escenario2.yaml` como despliegue principal, el `model` del dispositivo en el servidor, la limpieza del descubrimiento en el servidor y la copia de seguridad de Home Assistant OS.
   - Cuando la placa envíe recortes, el firewall también tendrá que dejar entrar desde el hotspot el 8000 del servidor.
   - P-03: el módulo de cámara.
+
+## 2026-11-12 · Día 2 · Tarea B2 · Reconocimiento e inscripción
+
+- Quién: el frente B.
+- Qué:
+  - `POST /api/v1/dispositivos/{codigo}/rostros` (`enviarRostro`) según `api-dispositivo.md`. Comprueba, en este orden:
+    - el token (SHA-256 comparado con `hmac.compare_digest`; los tres casos del 401 responden igual);
+    - la cámara desactivada;
+    - el tipo;
+    - el tamaño (102 400 bytes);
+    - el ritmo (429 en memoria, con `Retry-After: 1`);
+    - la imagen.
+  - Con token válido guarda `ultimo_contacto`, aunque la petición falle después.
+  - Visión solo en memoria, detrás de una interfaz que las pruebas reemplazan: YuNet con puntaje 0,9, SFace normalizada y la nitidez de R7.
+    - Los modelos se cargan una vez, al arrancar; sin ellos el servidor no arranca.
+    - `recortar_cara_mas_grande` (detectar en un cuadro completo, elegir la cara de mayor área y recortar con la fórmula del contrato) queda lista para cuando una cámara envíe cuadros completos y para el modo extraer.
+  - Reconocer: la búsqueda central de pgvector, R1 (con tolerancia de 1e-6), R2, R3, R4 y R7 al reconocer. El evento se guarda con la hora de `accesia.tiempo.ahora()`.
+  - Inscripción:
+    - `abrirInscripcion`, `verInscripcion` y `cancelarInscripcion`;
+    - los seis pasos de R7, en orden, con la inscripción bloqueada mientras se procesa la muestra;
+    - completada al llegar a las requeridas, y vencida si pasa su hora.
+  - Modelos fijos del commit `48b10fa505aeb51fbd127fc60a5c660040e823b7` de `opencv/opencv_zoo`:
+    - YuNet: SHA-256 `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`, 232 589 bytes, el mismo archivo del simulador;
+    - SFace: SHA-256 `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79`, 38 696 353 bytes;
+    - OpenCV: `opencv-python-headless` 4.14.0.94, la misma versión del simulador.
+    - El comando `accesia descargar-modelos` los baja a `datos/modelos/` y comprueba su hash. La imagen los baja al construir en una etapa propia, y `servidor.yml` los guarda en caché.
+  - Los avisos INFO del paquete `accesia` salen en el registro del contenedor, con la hora de Colombia. Cada recorte deja una línea con cámara, modo, resultado, motivo, similitud, calidad, persona y milisegundos, sin imagen y sin decir a quién se parece un desconocido. Resuelve el pendiente de B1.
+- Cómo:
+  - Claude Code trabajó en un worktree aparte (`AccesIA-b2`, rama `b/reconocimiento` desde `3a3e020`), con `infra/.env` y las claves de MQTT copiadas. Otras sesiones seguían el simulador y el firmware del C6, y esta fue la única que levantó Compose.
+  - Propuso el plan y el equipo lo aprobó con estos ajustes:
+    - el mismo commit de opencv_zoo y el mismo SHA-256 de YuNet que el simulador;
+    - OpenCV 4.14.0.94, la última 4.x estable;
+    - 422 `validacion` para una cámara desactivada;
+    - aclarar en el contrato 1.2 que 100 KB son 102 400 bytes;
+    - anotar la tolerancia de R1 en `reglas.md`;
+    - no esperar las fotos de prueba.
+  - Pruebas primero: las de las reglas y del contrato se escribieron antes del código y fallaron porque `accesia.rostros` no existía.
+  - Se rompió el código a propósito, y cada vez falló la prueba que correspondía:
+    - R1 sin tolerancia;
+    - la ventana de R4 con `>=`;
+    - el paso 5 sin excluir a la persona;
+    - el paso 6 comparando con la última muestra;
+    - un 429 que mueve el reloj;
+    - R3 con el orden al revés;
+    - los errores lanzados como excepción, que deshacen el último contacto;
+    - la inscripción sin pasar a `completada`;
+    - no vencer la inscripción antes de decidir el modo.
+  - La primera versión de «R1 · igual al umbral» no detectaba la falta de tolerancia, porque con esos números pgvector daba 0,363 o más. Se sumó el caso de 0,363 menos un paso de float32.
+  - Una prueba falló por el ayudante, no por el servidor. `armar.consentimiento` guardaba `aceptado_en` con `now()` de la base, que tiene microsegundos, y revocar usa `ahora()`, que no los tiene; dentro del mismo segundo, `revocado_en` quedaba antes de `aceptado_en`. Por la API no pasa, porque las dos horas salen de `ahora()`. Ahora el ayudante registra el consentimiento una hora antes.
+  - Se trajo `main` con los PR #8 (D-21) y #9 (simulador). Conflictos resueltos conservando las dos ramas:
+    - en `arquitectura.md`, la tabla de modelos del simulador, con su fila de YuNet, suma la de SFace;
+    - en `contratos/README.md` quedan las dos secciones;
+    - en `decisiones.md`, todas las filas del registro.
+  - Las pruebas con caras reales usan la misma carpeta del modo carpeta del simulador: fotos `<persona>-<n>` en `datos/prueba/`, sin las que `esperado.json` marca como no enviadas.
+- Decisiones donde el contrato no decía nada:
+  - los mensajes de `mensaje`, que no dependen del género (`servidor/README.md`);
+  - abrir una inscripción en una cámara desactivada responde 422 `validacion`;
+  - el orden de las comprobaciones de `enviarRostro`;
+  - el 429 cuenta desde el último recorte aceptado;
+  - una repetición de R4 lleva la similitud del recorte nuevo;
+  - el cuerpo debe empezar como un JPEG (`FF D8 FF`);
+  - un tope de 4096 × 4096 píxeles al decodificar, para que un JPEG pequeño no llene la memoria de la Raspberry;
+  - el hash de los modelos también se comprueba al arrancar;
+  - una persona inactiva puede inscribirse, porque R9 no lo impide;
+  - `ultimo_motivo` no se borra al aceptar una muestra: es el motivo del último rechazo.
+- Pruebas:
+  - `uv run pytest`: 278 en verde y 2 saltadas (las de caras reales, porque no hay `datos/prueba/`), con su resumen por marca. Ruff (`F`, `E9` y `B`) sin observaciones.
+  - Por marca: los 15 casos de R7 más `R7 · orden`; R1 a R4; los 7 de R9 que faltaban y `revoca a mitad` con la cara siguiente; cada fila de `contrato cámara`; `contrato recorte`; `contrato API` de las inscripciones; RF-02 · C4; RF-04 · C1 y C4; RF-05 · C1 y C2; RNF-01 · C1 y C3; `modelos · SHA-256` y `registro · INFO`.
+  - Compose con la imagen nueva:
+    - salud con `base: ok`;
+    - el registro muestra «Modelos de cara cargados … (115 ms)»;
+    - una cámara de medición creada con `crear-camara`;
+    - 401, 415, 413, 429 con `Retry-After: 1` y 422;
+    - 40 recortes sintéticos sin cara;
+    - la inscripción por la API: 422 sin consentimiento, 201, 409, `muestra_rechazada` con `sin_cara`, el avance y `inscripcion_activa`, cancelar con 204 y después 409;
+    - el registro no muestra imágenes ni base64, y los datos de prueba se borraron.
+  - `docker buildx build --platform linux/amd64,linux/arm64`: la etapa de los modelos corre una vez, en la plataforma que construye, con «SHA-256 comprobado». La imagen arm64, emulada, carga los modelos con su hash, y SFace da 128 números con norma 1.
+  - La CI del PR corre `servidor.yml`, `web.yml` y `simulador.yml`; el PR se fusiona con las tres en verde.
+- Tiempo de respuesta (RF-04 · C5 y RNF-03 · C1, meta de 1 s), en el portátil con Docker Desktop:
+  - Por etapas, dentro del contenedor:
+    - decodificar el JPEG: 0,09 ms;
+    - YuNet en un recorte de 120 × 150: 0,7 ms;
+    - SFace (alinear, huella y nitidez): 6,5 ms;
+    - pgvector entre 15 muestras: 0,17 ms;
+    - guardar el evento: 0,17 ms.
+  - El servidor registra de 3 a 4 ms por recorte sin cara (token, último contacto, imagen, YuNet, inscripción y confirmación). Con cara se suma SFace: unos 10 a 11 ms.
+  - De punta a punta, desde Windows: 7,5 ms de mediana con un envío por conexión.
+  - Con httpx y la conexión reutilizada, como un cliente que manda seguido: 48,5 ms de mediana (p95 51,4 ms).
+    - httpx envía las cabeceras y el cuerpo por separado, y el ACK retardado de TCP retiene el cuerpo unos 40 ms.
+    - Es del cliente, no del servidor, y sigue lejos de 1 s.
+  - La medición con caras reales queda para el Hito 1.
+- Cambios de contrato o de specs:
+  - `api-dispositivo.md` 1.2 (100 KB son 102 400 bytes) y `contratos/README.md` 1.5;
+  - `reglas.md` 1.3 (tolerancia de R1);
+  - `arquitectura.md` 1.6 (SFace en la tabla de modelos, OpenCV del servidor y la función de recorte para cuando llegue el módulo de cámara);
+  - `decisiones.md` 1.8;
+  - `servidor/README.md` 1.3, `infra/README.md` 1.3 y `CLAUDE.md` 1.4 (`descargar-modelos`).
+- Pendiente:
+  - Las pruebas con caras reales y el tiempo de punta a punta con una cara: en el Hito 1, con `datos/prueba/`.
+  - MQTT del evento, la repetición publicada, la asistencia (R5) y las alertas (R6): Día 3.
+  - Calibrar `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` (RNF-07): Día 4. El registro ya muestra la `calidad` de cada muestra.
+  - Si la cámara del C6 envía cuadros completos, el contrato cambia en su propio PR; `recortar_cara_mas_grande` ya está.
+  - El modo extraer (RF-10 · C4): Día 4.
+  - Starlette sigue avisando que `TestClient` con httpx está en desuso.
 
 ## 2026-11-12 · Día 2 · Tarea A · Simulador de la cámara
 

@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Decisiones
@@ -97,3 +97,7 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-12 | RF-14 · RNF-06 | Requisito nuevo de la placa del punto de acceso (RF-14). `firmware.yml` se adelanta: compila el binario del C6 y corre las pruebas de la lógica pura (RNF-06 · C3). |
 | 2026-11-12 | D-11 · RNF-06 | El simulador entra a GitHub Actions desde el Día 2, con `simulador.yml`: pytest del simulador con el modelo YuNet en caché. Lo pidió el equipo en la tarea A del Día 2, porque `servidor.yml` y `web.yml` no corren esas pruebas y sin ellas «CI en verde» no decía nada del simulador. RNF-06 · C3 suma el workflow, junto al `firmware.yml` que adelantó D-21. |
 | 2026-11-12 | Arquitectura | YuNet queda fijo, igual para el simulador y para el servidor: commit `48b10fa` de `opencv/opencv_zoo` y su SHA-256, en Piezas. En el modo «como la cámara», una imagen que no es 4:3 se recorta al centro a 4:3 antes de reducirla a 320 × 240, para no deformar la cara. Tarea A del Día 2. |
+| 2026-11-12 | Contrato cámara 1.2 | `api-dispositivo.md` aclara que 100 KB son 102 400 bytes: el servidor responde 413 `imagen_grande` desde 102 401 bytes. Solo aclara; el simulador ya envía como máximo 100 000 bytes. Tarea B2 del Día 2. |
+| 2026-11-12 | R1 | La comparación con el umbral tolera 1e-6, porque pgvector calcula en float32 y una similitud de 0,363 puede salir 0,36299998. Vale también en los pasos 5 y 6 de R7. Tarea B2 del Día 2. |
+| 2026-11-12 | Arquitectura | SFace se suma a la tabla de YuNet en Piezas: mismo commit `48b10fa` de `opencv/opencv_zoo`, con su SHA-256. El servidor usa `opencv-python-headless` 4.14.0.94, la misma versión del simulador, y guarda los modelos en `datos/modelos/` desde la raíz del repositorio (en la imagen, `/app/datos/modelos`), sin variable nueva. Tarea B2 del Día 2. |
+| 2026-11-12 | Tarea B2 | Donde el contrato no decía nada: mensajes de la respuesta que no dependen del género; abrir una inscripción en una cámara desactivada responde 422 `validacion`; `enviarRostro` comprueba en este orden: token (401), cámara desactivada (403), tipo (415), tamaño (413), ritmo (429) e imagen (422); un 429 no mueve el reloj del ritmo; una repetición de R4 lleva el resultado, el motivo y el evento originales, con la similitud del recorte nuevo. |

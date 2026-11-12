@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Arquitectura
@@ -28,17 +28,22 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Ollama | Modelo del agente | Ollama con qwen2.5:3b o qwen2.5:1.5b | C | `infra/` |
 | Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
 
-Modelos de cara del servidor (de `opencv/opencv_zoo`, se descargan al construir la imagen): `face_detection_yunet_2023mar.onnx` (YuNet, licencia MIT) y `face_recognition_sface_2021dec.onnx` (SFace, licencia Apache 2.0).
-
 Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un commit fijo de `opencv/opencv_zoo` y se comprueban con su SHA-256; en el PC quedan en `datos/modelos/`, que Git y Docker ignoran:
 
 | Modelo | Commit de `opencv/opencv_zoo` | SHA-256 | Bytes |
 | --- | --- | --- | --- |
 | `face_detection_yunet_2023mar.onnx` | `48b10fa505aeb51fbd127fc60a5c660040e823b7` | `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4` | 232 589 |
+| `face_recognition_sface_2021dec.onnx` | `48b10fa505aeb51fbd127fc60a5c660040e823b7` | `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79` | 38 696 353 |
 
 - URL de YuNet: `https://github.com/opencv/opencv_zoo/raw/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_detection_yunet/face_detection_yunet_2023mar.onnx`.
+- URL de SFace, que solo usa el servidor: `https://github.com/opencv/opencv_zoo/raw/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_recognition_sface/face_recognition_sface_2021dec.onnx`.
+- Licencias: YuNet, MIT; SFace, Apache 2.0.
 - opencv_zoo guarda los modelos con Git LFS: `raw.githubusercontent.com` devuelve el puntero de LFS y no el modelo. La URL de `github.com/…/raw/…` redirige al modelo.
-- YuNet 2023mar pide OpenCV 4.8 o más reciente. El simulador usa `opencv-python` 4.14.0.94, la última 4.x estable.
+- YuNet 2023mar pide OpenCV 4.8 o más reciente. El simulador usa `opencv-python` 4.14.0.94, la última 4.x estable; el servidor, `opencv-python-headless` 4.14.0.94, la misma versión sin ventanas.
+- En el servidor:
+  - en el PC y en la CI los baja `uv run accesia descargar-modelos` (desde `servidor/`) a `datos/modelos/`, desde la raíz del repositorio;
+  - la imagen los baja al construir, a `/app/datos/modelos`, y si el tamaño o el SHA-256 no coinciden, la construcción falla;
+  - se cargan una vez, al arrancar; sin ellos, el servidor no arranca.
 
 ## Flujos
 
@@ -190,6 +195,7 @@ El firmware del C6 deja un punto de extensión, sin código de cámara ni de Tin
   - Un cuadro QVGA en JPEG (10 a 20 KB) cabe en la SRAM.
   - ESP-DL no trae modelos de caras para el C6 y, sin PSRAM, no cabrían. El TinyML sería un clasificador int8 de TensorFlow Lite Micro (`espressif/esp-tflite-micro`, como su ejemplo `person_detection`, de 96 × 96 en grises). Dice si hay alguien, pero no dónde está la cara.
   - Sin cajas, el C6 no puede recortar ni medir `cara_min`. Enviaría el cuadro completo, y el servidor lo trataría como en el modo extraer: YuNet, la cara de mayor área, la misma fórmula y `CARA_MIN_PX`.
+  - Esa parte del servidor ya existe: `recortar_cara_mas_grande` en `servidor/accesia/vision.py` (tarea B2) detecta con YuNet, elige la cara de mayor área y recorta con la fórmula del contrato; se prueba con `casos-recorte.json`.
   - Eso cambia `api-dispositivo.md` y `openapi.yaml`, en su propio PR.
 - **Placa con cámara aparte:**
   - Si es un ESP32-S3 con cámara, vuelve el firmware de referencia y el contrato no cambia.

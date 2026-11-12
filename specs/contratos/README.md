@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Contratos
@@ -14,10 +14,10 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | Contrato | Archivo | Versión | Dueño | Lo usan |
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.1 | B | A (firmware y simulador) |
-| API REST | [openapi.yaml](openapi.yaml) | 1.1 | B | C (web), A (simulador) |
+| API REST | [openapi.yaml](openapi.yaml) | 1.2 | B | C (web), A (simulador) |
 | MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.1 | B | A (cámara), C (Home Assistant) |
-| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.1 | B | C (Home Assistant) |
-| Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.1 | B | B (servidor y MCP) |
+| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.2 | B | C (Home Assistant) |
+| Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
 ## Cómo cambia un contrato
 
@@ -35,6 +35,19 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Web: los tipos se generan desde `openapi.yaml`; si el contrato cambia y la web no, TypeScript no compila.
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## Versión 1.2 (2026-11-11)
+
+Horarios por bloques (D-20) en `base-de-datos.sql`, `openapi.yaml` y `mcp-agente.md`. `api-dispositivo.md` y `mqtt.md` siguen en 1.1.
+
+- `openapi.yaml` 1.2 pasa `openapi-spec-validator` (OpenAPI 3.1).
+- `base-de-datos.sql` 1.2 cargó en PostgreSQL 18.6 con pgvector, y pasaron estas comprobaciones:
+  - «Clase IA» queda con cinco bloques;
+  - solo puede haber un bloque por horario y día, y el día va de 1 a 7;
+  - un horario en uso no se borra, y al borrar uno se borran sus bloques;
+  - `v_persona_agente` saca los días de los bloques, y el usuario `agente` no lee `horario_bloque`;
+  - los tres casos nuevos de R5 dan el resultado esperado.
+- Borrar un horario en uso falla con `restrict_violation` (SQLSTATE 23001), no con `foreign_key_violation`: el servidor debe traducirlo a 409 `horario_en_uso`.
 
 ## Versión 1.1 (2026-11-11)
 

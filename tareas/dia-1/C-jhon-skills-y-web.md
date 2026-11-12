@@ -4,7 +4,7 @@ Descripción: Tarea del Día 1 del frente C: skills de frontend y web base con i
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 1 · Frente C · Skills de frontend y web base
@@ -43,7 +43,8 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
      - Inicio de sesión.
      - Personas: lista con búsqueda y paginación, crear, editar, activar y desactivar.
      - Ficha de la persona con su consentimiento: el texto viene de la API (`specs/consentimiento.md`) y dice que es opcional. Sin consentimiento, la asistencia se registra a mano en la pantalla Asistencia (el botón llega el Día 3, RF-06 · C5); la ficha lo explica. Permite registrar el consentimiento (con la fecha del papel si el medio es papel) y revocarlo con una confirmación que avisa que se borran las huellas y se cancela su inscripción activa. Muestra qué versión del texto aceptó (`GET /api/v1/personas/{persona_id}/consentimientos`). `GET /api/v1/personas/{persona_id}/consentimiento` responde `null` si no hay uno vigente.
-   - Navegación con Personas, Inscripción, Accesos, Asistencia y Cámaras. Las que aún no existen muestran «Próximamente».
+   - Navegación con Personas, Inscripción, Accesos, Asistencia, Cámaras y Horarios. Las que aún no existen muestran «Próximamente».
+   - En el formulario de la persona, el horario se elige de la lista de horarios. Los horarios tienen bloques por día (D-20) y su pantalla llega el Día 3.
    - Diseño con los skills (taste completo, impeccable, Emil Kowalski y frontend-design). Antes de diseñar, propón una dirección visual corta (tipografía, color y densidad) y espera confirmación.
    - Textos en español; fechas y horas con `es-CO` y `America/Bogota`.
    - Accesibilidad: etiquetas en los formularios, foco visible, todo usable con teclado y contraste AA.

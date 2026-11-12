@@ -4,7 +4,7 @@ Descripción: Tarea del Día 1 del frente B: Docker Compose base, esquema de la 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 1 · Frente B · Docker Compose, base de datos y esqueleto del servidor
@@ -32,7 +32,7 @@ Que con un comando se levanten PostgreSQL 18 + pgvector, Mosquitto y el servidor
    - Dependencias: FastAPI, Uvicorn, pydantic-settings, SQLAlchemy 2, psycopg 3, pgvector, Alembic y `tzdata` (para que `America/Bogota` no dependa de la imagen base). Para pruebas: pytest, httpx y testcontainers.
    - `accesia/config.py` (variables de `arquitectura.md`), `accesia/db.py`, `accesia/main.py` y `accesia/api/salud.py`.
    - Todos los errores con el esquema `Error` de `openapi.yaml` (`detalle` y `codigo`), incluidos los de validación (`codigo: validacion`).
-   - Migración inicial de Alembic que ejecuta tal cual `specs/contratos/base-de-datos.sql` (versión 1.1) y luego crea el usuario `agente` con `AGENTE_DB_PASSWORD`. La clave va como literal escapado, nunca concatenada a mano.
+   - Migración inicial de Alembic que ejecuta tal cual `specs/contratos/base-de-datos.sql` (versión 1.2, con los horarios por bloques de D-20) y luego crea el usuario `agente` con `AGENTE_DB_PASSWORD`. La clave va como literal escapado, nunca concatenada a mano.
    - Al arrancar, el contenedor aplica las migraciones y luego inicia la API con un solo proceso de Uvicorn (sin `--workers`): R6, el control del 429 y MQTT vivirán en memoria.
    - `GET /api/v1/salud` según `openapi.yaml`. Hasta el Día 3, `mqtt` responde `sin_conexion` y `estado` es `degradado`.
    - `Dockerfile` multietapa con uv y un usuario sin privilegios, que construya para `linux/amd64` y `linux/arm64`. Se construye con la raíz del repositorio como contexto (`docker build -f servidor/Dockerfile .`) para copiar `specs/contratos/base-de-datos.sql` y, desde el Día 2, el texto de `specs/consentimiento.md`. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/`, `node_modules/` y lo que la imagen no necesita. Los modelos ONNX se agregan el Día 2.

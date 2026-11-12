@@ -4,10 +4,10 @@ Descripción: Contrato del agente de AccesIA: servidor MCP, herramientas de solo
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
-# Contrato del agente · versión 1.1
+# Contrato del agente · versión 1.2
 
 Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (frente C).
 
@@ -68,7 +68,7 @@ Dice quién llegó a tiempo, quién llegó tarde (con minutos), quién llegó si
 }
 ```
 
-Ausentes: personas activas cuyo horario incluye ese día de la semana y que no tienen llegada. Las llegadas registradas a mano (RF-06 · C5) cuentan igual que las de la cámara.
+Ausentes: personas activas cuyo horario tiene bloque ese día de la semana (D-20) y que no tienen llegada. Las llegadas registradas a mano (RF-06 · C5) cuentan igual que las de la cámara.
 
 ### `llegadas_tarde`
 
@@ -148,7 +148,7 @@ No reveles documentos de identidad ni datos de contacto.
 
 ## Evaluación (10 preguntas)
 
-Datos de prueba: los crea el comando de semilla del servidor (`semilla agente`), con fechas relativas a hoy. Horario «Clase todos los días»: lunes a domingo, 07:00, tolerancia 10 min. Todos tienen consentimiento vigente y la cámara es `entrada`.
+Datos de prueba: los crea el comando de semilla del servidor (`semilla agente`), con fechas relativas a hoy. Horario «Clase todos los días»: siete bloques, de lunes a domingo, a las 07:00 con 10 min de tolerancia. Todos tienen consentimiento vigente y la cámara es `entrada`.
 
 | Persona | Rol | Horario | Activa |
 | --- | --- | --- | --- |

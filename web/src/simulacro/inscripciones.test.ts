@@ -153,7 +153,8 @@ describe('RF-03 · C5 · una sola activa por cámara, y cancelar', () => {
     expect(await ver(id)).toMatchObject({ estado: 'cancelada', muestras: 2 })
     const otraVez = await api.DELETE('/api/v1/inscripciones/{inscripcion_id}', rutaInscripcion(id))
     expect(otraVez.response.status).toBe(409)
-    expect(otraVez.error?.codigo).toBe('inscripcion_terminada')
+    // El mismo texto del servidor (tarea B2).
+    expect(otraVez.error).toEqual({ codigo: 'inscripcion_terminada', detalle: 'La inscripción ya terminó: no se puede cancelar.' })
     const noExiste = await api.GET('/api/v1/inscripciones/{inscripcion_id}', rutaInscripcion('00000000-0000-4000-8000-999999999999'))
     expect(noExiste.response.status).toBe(404)
   })

@@ -586,7 +586,7 @@ export const manejadores = [
     const ahora = Date.now()
     alDia(guardada, ahora)
     if (guardada.estado !== 'activa') {
-      return error(409, 'inscripcion_terminada', 'Esa inscripción ya terminó: no se puede cancelar.')
+      return error(409, 'inscripcion_terminada', 'La inscripción ya terminó: no se puede cancelar.')
     }
     // Las muestras aceptadas se conservan (RF-03 · C4).
     guardada.estado = 'cancelada'

@@ -3,7 +3,7 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-11
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 
 # Claves y entorno: nunca en el repositorio
 infra/.env
@@ -35,6 +35,8 @@ node_modules/
 web/dist/
 web/playwright-report/
 web/test-results/
+# Capturas de Playwright: se revisan en el equipo y no se suben
+web/capturas/
 
 # Firmware (ESP-IDF): se siguen los sdkconfig.defaults y dependencies.lock
 firmware/**/build/

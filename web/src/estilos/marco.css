@@ -1,0 +1,211 @@
+/**
+ * Nombre: marco.css
+ * Descripción: Marco de la web de AccesIA: barra lateral con la navegación, cinta del simulacro y área de contenido.
+ * Fecha de creación: 2026-11-11
+ * Actualización: 2026-11-11
+ * Autor: Equipo AccesIA
+ * Versión: 1.0
+ */
+
+.marco {
+  display: grid;
+  grid-template-columns: var(--ancho-lateral) minmax(0, 1fr);
+  min-height: 100dvh;
+  /* La columna lateral se pinta entera aunque la página sea más alta que la barra fija. */
+  background: linear-gradient(
+    90deg,
+    var(--color-lateral) calc(var(--ancho-lateral) - 1px),
+    var(--color-divisor) calc(var(--ancho-lateral) - 1px) var(--ancho-lateral),
+    transparent var(--ancho-lateral)
+  );
+}
+
+.lateral {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+  height: 100dvh;
+  padding: var(--e-4) var(--e-3);
+  border-right: 1px solid var(--color-divisor);
+  background: var(--color-lateral);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0 var(--e-2);
+  color: var(--color-texto);
+  font-size: var(--texto-l);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.marca svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.navegacion ul {
+  display: grid;
+  gap: var(--e-1);
+  padding: 0;
+  list-style: none;
+}
+
+.navegacion a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: var(--alto-control);
+  padding: 0 0.75rem;
+  border-radius: var(--radio-s);
+  color: var(--color-texto);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--t-medio) ease;
+}
+
+.navegacion a svg {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-texto-2);
+}
+
+.navegacion a:hover {
+  background: rgb(255 255 255 / 0.65);
+}
+
+.navegacion a[aria-current='page'] {
+  background: var(--color-superficie);
+  color: var(--color-acento);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgb(17 26 34 / 0.08);
+}
+
+.navegacion a[aria-current='page'] svg {
+  color: var(--color-acento);
+}
+
+.navegacion__pronto {
+  margin-left: auto;
+  font-size: var(--texto-s);
+  font-weight: 400;
+  color: var(--color-texto-2);
+}
+
+.lateral__pie {
+  display: grid;
+  gap: var(--e-2);
+  margin-top: auto;
+  padding: var(--e-3) var(--e-2) 0;
+  border-top: 1px solid #c9d3dc;
+}
+
+.lateral__usuario {
+  display: grid;
+  font-size: var(--texto-s);
+  color: var(--color-texto-2);
+  overflow-wrap: anywhere;
+}
+
+.lateral__usuario strong {
+  font-size: var(--texto-m);
+  color: var(--color-texto);
+}
+
+.lateral__pie .boton {
+  justify-self: start;
+  margin-left: calc(var(--e-2) * -1);
+}
+
+.principal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cinta-simulacro {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding: var(--e-2) var(--e-6);
+  border-bottom: 1px solid #efd29a;
+  background: var(--color-aviso-fondo);
+  color: var(--color-texto);
+  font-size: var(--texto-s);
+}
+
+.cinta-simulacro svg {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--color-aviso);
+}
+
+.contenido {
+  width: 100%;
+  max-width: calc(var(--ancho-contenido) + 2 * var(--e-6));
+  padding: var(--e-5) var(--e-6) var(--e-7);
+}
+
+.contenido:focus {
+  outline: none;
+}
+
+@media (max-width: 64rem) {
+  .contenido,
+  .cinta-simulacro {
+    padding-left: var(--e-5);
+    padding-right: var(--e-5);
+  }
+}
+
+/* En pantallas angostas la navegación pasa arriba. */
+@media (max-width: 48rem) {
+  .marco {
+    grid-template-columns: minmax(0, 1fr);
+    background: none;
+  }
+
+  .lateral {
+    position: static;
+    height: auto;
+    gap: var(--e-3);
+    padding: var(--e-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-divisor);
+  }
+
+  .navegacion ul {
+    display: flex;
+    gap: var(--e-1);
+    overflow-x: auto;
+  }
+
+  .navegacion a {
+    white-space: nowrap;
+  }
+
+  .navegacion__pronto {
+    display: none;
+  }
+
+  .lateral__pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0;
+    padding: var(--e-2) 0 0;
+  }
+
+  .contenido,
+  .cinta-simulacro {
+    padding-left: var(--e-3);
+    padding-right: var(--e-3);
+  }
+}

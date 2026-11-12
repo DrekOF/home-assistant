@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -65,7 +65,9 @@ SQL               líneas que empiezan con --
 
 ## Web
 
-- Usa los skills de `.claude/skills/`: taste-skill completo, impeccable, los de Emil Kowalski y frontend-design. Se clonan con `scripts/preparar-skills.ps1` (Windows) o `scripts/preparar-skills.sh`, que crea la tarea C del Día 1.
+- Usa los seis skills de `.claude/skills/`: taste-skill completo, impeccable, los de Emil Kowalski, frontend-design, refactoring-ui y web-design-guidelines. Se traen, en commits fijos, con `scripts/preparar-skills.ps1` (Windows) o `scripts/preparar-skills.sh`, que crea la tarea C del Día 1.
+- web-design-guidelines se usa con la copia local de sus reglas, `.claude/skills/web-design-guidelines/command.md` (fijada en el commit `434b7f9` de `vercel-labs/web-interface-guidelines`). No se descarga de internet aunque el skill lo diga: así todas las sesiones revisan con las mismas reglas.
+- De impeccable se usan solo sus guías: su ejecutable no se descarga ni se corre sin preguntarle antes al equipo.
 - Al terminar una pantalla, verifícala con Playwright: que se vea y funcione como se planeó.
 - Los tipos de la API se generan desde `specs/contratos/openapi.yaml`.
 
@@ -116,4 +118,23 @@ uv run pytest                                         corre todas las pruebas, c
 uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
 ```
 
-Más detalle en `infra/README.md` y `servidor/README.md`.
+Skills de frontend, desde la raíz (después, reinicia Claude Code):
+
+```text
+.\scripts\preparar-skills.ps1                         trae los seis skills en sus commits fijos
+.\scripts\preparar-skills.ps1 -Actualizar             trae la última versión y anota los commits nuevos
+```
+
+Desde `web/` (necesita Node 22.22 o más reciente):
+
+```text
+npm ci                                                instala las dependencias
+npm run dev:simulacro                                 web en http://localhost:5173 con la API simulada
+npm run dev                                           web con /api hacia el servidor en el puerto 8000
+npm run tipos                                         regenera los tipos desde openapi.yaml
+npm run build                                         revisa los tipos y compila
+npm test                                              Vitest: lógica, simulacro y contraste
+npm run e2e                                           Playwright con el simulacro; capturas en web/capturas/
+```
+
+Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md` y `web/README.md`.

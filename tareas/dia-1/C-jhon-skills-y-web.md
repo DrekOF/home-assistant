@@ -4,7 +4,7 @@ Descripción: Tarea del Día 1 del frente C: skills de frontend y web base con i
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Día 1 · Frente C · Skills de frontend y web base
@@ -28,8 +28,10 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
      | `https://github.com/pbakaus/impeccable` | `.claude/skills/impeccable` |
      | `https://github.com/emilkowalski/skills` | Todas las carpetas de `skills/` |
      | `https://github.com/anthropics/skills` | `skills/frontend-design` |
+     | `https://github.com/wondelai/skills` | `refactoring-ui` (la carpeta que tiene `SKILL.md`) |
+     | `https://github.com/vercel-labs/agent-skills` | `skills/web-design-guidelines` |
 
-   - La primera vez se fijan los commits vigentes de los cuatro repositorios, después de revisar lo que traen.
+   - La primera vez se fijan los commits vigentes de los seis repositorios, después de revisar lo que traen.
    - Sin opciones, el script nunca cambia de commit: todos los integrantes tienen los mismos skills. Con `-Actualizar` (PowerShell) o `--actualizar` (Bash) trae la última versión de cada repositorio, muestra qué commits cambiaron y actualiza la tabla del script; ese cambio se revisa y se sube en un PR.
    - Si una ruta cambió, el script busca la carpeta que tiene `SKILL.md`, avisa y no copia a ciegas.
    - Se puede correr varias veces: reemplaza lo anterior, anota en `.claude/skills/VERSIONES.txt` el commit de cada repositorio y muestra un resumen.
@@ -45,7 +47,8 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
      - Ficha de la persona con su consentimiento: el texto viene de la API (`specs/consentimiento.md`) y dice que es opcional. Sin consentimiento, la asistencia se registra a mano en la pantalla Asistencia (el botón llega el Día 3, RF-06 · C5); la ficha lo explica. Permite registrar el consentimiento (con la fecha del papel si el medio es papel) y revocarlo con una confirmación que avisa que se borran las huellas y se cancela su inscripción activa. Muestra qué versión del texto aceptó (`GET /api/v1/personas/{persona_id}/consentimientos`). `GET /api/v1/personas/{persona_id}/consentimiento` responde `null` si no hay uno vigente.
    - Navegación con Personas, Inscripción, Accesos, Asistencia, Cámaras y Horarios. Las que aún no existen muestran «Próximamente».
    - En el formulario de la persona, el horario se elige de la lista de horarios. Los horarios tienen bloques por día (D-20) y su pantalla llega el Día 3.
-   - Diseño con los skills (taste completo, impeccable, Emil Kowalski y frontend-design). Antes de diseñar, propón una dirección visual corta (tipografía, color y densidad) y espera confirmación.
+   - Diseño con los seis skills (taste completo, impeccable, Emil Kowalski, frontend-design, refactoring-ui y web-design-guidelines).
+   - Dirección visual que pidió el equipo: sobria y clara, tipo panel de trabajo, pensada para verse en el portátil y en un proyector durante la demo. Movimiento sutil: transiciones cortas y una barra de avance en la inscripción (3 de 5). Sobre esa base, antes de diseñar, propón una dirección visual corta (tipografía, color, densidad y con qué skills la apoyas) y espera confirmación.
    - Textos en español; fechas y horas con `es-CO` y `America/Bogota`.
    - Accesibilidad: etiquetas en los formularios, foco visible, todo usable con teclado y contraste AA.
 3. Pruebas:

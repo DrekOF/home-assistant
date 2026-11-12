@@ -1,0 +1,49 @@
+# Nombre: web.yml
+# Descripción: CI de la web de AccesIA: tipos al día con openapi.yaml, compilación y pruebas con Vitest (RNF-06 · C3).
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Es solo de la web: el servidor tiene servidor.yml (tarea B) y el firmware se suma el Día 4.
+# Playwright corre en el equipo con el simulacro (npm run e2e); en la CI se suma el Día 4.
+
+name: Web
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: Compilación y pruebas de la web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar que los tipos estén al día con openapi.yaml
+        run: |
+          npm run tipos
+          git diff --exit-code -- src/api/esquema.d.ts
+
+      - name: Compilar
+        run: npm run build
+
+      - name: Correr las pruebas
+        run: npm test

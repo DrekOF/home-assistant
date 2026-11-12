@@ -1,6 +1,6 @@
 <!--
 Nombre: B1-cristhian-sesion-y-api.md
-Descripción: Tarea B1 del Día 2 del frente B: sesión y primer administrador; API de personas, consentimiento, horarios y cámaras; comando crear-camara; contrato 1.3 con metodo_no_permitido.
+Descripción: Tarea B1 del Día 2 del frente B: sesión y primer administrador; API de personas, consentimiento, horarios y cámaras; comando crear-camara; contrato 1.3 con metodo_no_permitido e inscripcion_activa.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
@@ -15,12 +15,15 @@ Versión: 1.0
 
 ## Objetivo
 
-La web puede iniciar sesión y trabajar contra el servidor real con personas, consentimiento, horarios y cámaras. El comando `crear-camara` registra una cámara sin pasar por la web. El contrato de la API pasa a 1.3 con el código `metodo_no_permitido` para el 405.
+La web puede iniciar sesión y trabajar contra el servidor real con personas, consentimiento, horarios y cámaras. El comando `crear-camara` registra una cámara sin pasar por la web. El contrato de la API pasa a 1.3: el código `metodo_no_permitido` para el 405 y el campo `inscripcion_activa` de las cámaras, para que la web encuentre la inscripción activa de una cámara aunque haya perdido su id.
 
 ## Hacer
 
 1. Contrato 1.3, primero, porque cambia un contrato (`specs/contratos/README.md`):
-   - En `openapi.yaml`, agrega `metodo_no_permitido` al enum `codigo` de `Error` y sube la versión a 1.3 (encabezado e `info.version: 1.3.0`). Solo agrega algo, así que es compatible.
+   - En `openapi.yaml`:
+     - Agrega `metodo_no_permitido` al enum `codigo` de `Error`.
+     - Agrega a `Dispositivo` el campo `inscripcion_activa`: la inscripción activa de la cámara como `InscripcionCorta`, o `null` si no tiene. Va en `required`, como los demás campos de `Dispositivo`, y `DispositivoConToken` lo hereda. `modo` es `inscribir` si y solo si `inscripcion_activa` no es `null`.
+     - Sube la versión a 1.3 (encabezado e `info.version: 1.3.0`). Los dos cambios solo agregan: nada de lo que ya existe cambia.
    - Anota el cambio en el registro de `specs/decisiones.md`, en la tabla de `specs/contratos/README.md` y en una sección «Versión 1.3» de ese README.
    - En `accesia/errores.py`, el 405 responde `metodo_no_permitido` y `CodigoError` suma el código.
    - Regenera los tipos de la web con `npm run tipos` en `web/` y súbelos en este PR: `web.yml` falla si `esquema.d.ts` no coincide con el contrato. No toques nada más de `web/`.
@@ -56,7 +59,7 @@ La web puede iniciar sesión y trabajar contra el servidor real con personas, co
    - `GET` y `POST /api/v1/dispositivos`; `GET` y `PATCH /api/v1/dispositivos/{codigo}`; `POST /api/v1/dispositivos/{codigo}/token`.
    - El token tiene 32 bytes aleatorios. Se guarda su SHA-256 en hexadecimal y se muestra una sola vez: al crear la cámara y al cambiarlo. Nunca va en los registros.
    - El código `servidor`, o el tipo `respaldo` sin `url_captura`: 422 `validacion`. Código repetido: 409 `codigo_duplicado`.
-   - Antes de listar o ver cámaras, vence las inscripciones activas que ya pasaron su hora (R9) y calcula `modo`. Deja esa función lista para que B2 la use.
+   - Antes de listar o ver cámaras, vence las inscripciones activas que ya pasaron su hora (R9) y calcula `modo` e `inscripcion_activa`. Deja esa función lista para que B2 la use.
    - `en_linea`: hasta que llegue MQTT (Día 3), solo cuenta «un contacto en los últimos 2 minutos». `estado` es `null` hasta el Día 3.
 7. Comando `crear-camara` (RF-10 · C5): un comando `accesia` del paquete, con esta forma, que es la que usa el guion del Hito 1:
 
@@ -73,6 +76,7 @@ La web puede iniciar sesión y trabajar contra el servidor real con personas, co
    | --- | --- |
    | `contrato API · <operationId>` | Cada operación de esta tarea responde con su esquema y con los códigos de error del contrato |
    | `contrato API · error` | Suma el 405 con `metodo_no_permitido` |
+   | `contrato API · inscripcion_activa` | Con una inscripción activa armada en la base, `listarCamaras` y `verCamara` la muestran en `inscripcion_activa` y `modo` es `inscribir`; si ya pasó su hora, la vencen y el campo queda en `null` (R9) |
    | `RNF-02 · C2` | Cookie con `HttpOnly`, `SameSite=Strict` y `Path=/`; la clave guardada es Argon2id |
    | `RNF-02 · C5` | Cada ruta protegida responde 401 `sin_sesion` sin cookie |
    | `RF-02 · C1`, `C2` y `C5` | Personas con documento único; consentimiento con versión, medio, autor y fecha; revocación |
@@ -90,17 +94,17 @@ La web puede iniciar sesión y trabajar contra el servidor real con personas, co
 - Nada de reconocimiento, de la API de inscripciones ni de `POST …/rostros`: son de B2.
 - Nada de MQTT, asistencia ni `semilla agente`: son del Día 3.
 - No cambies la web: solo se regenera `esquema.d.ts`.
-- No cambies otros contratos ni agregues campos. Si falta algo, propónlo en el PR.
+- Fuera de los dos cambios del contrato 1.3, no cambies contratos ni agregues campos. Si falta algo, propónlo en el PR.
 - No publiques el OpenAPI de FastAPI: el contrato es `openapi.yaml`.
 - No dejes claves ni tokens en el repositorio, en las pruebas ni en los registros.
 
 ## Criterios de aceptación
 
-- C1 (contrato API 1.3) `openapi.yaml` 1.3 pasa `openapi-spec-validator` (`uvx openapi-spec-validator specs/contratos/openapi.yaml`). El 405 responde `metodo_no_permitido`. `decisiones.md` y `contratos/README.md` lo anotan, y `npm run tipos` no deja cambios.
+- C1 (contrato API 1.3) `openapi.yaml` 1.3 pasa `openapi-spec-validator` (`uvx openapi-spec-validator specs/contratos/openapi.yaml`). El 405 responde `metodo_no_permitido` y `Dispositivo` trae `inscripcion_activa`. `decisiones.md` y `contratos/README.md` lo anotan, y `npm run tipos` no deja cambios.
 - C2 (RNF-02 · C2 y C5) Con `docker compose -f infra/compose.yaml up -d --build`, el administrador de `infra/.env` entra, y sin sesión todo responde 401.
 - C3 (RF-02 · C1, C2 y C5; R9 · revoca a mitad) Personas y consentimiento cumplen el contrato, y revocar borra las huellas y cancela la inscripción activa en la misma transacción.
 - C4 (RF-13 · C1 a C3) Los horarios por bloques funcionan con sus errores.
-- C5 (RF-10 · C1, C2, C3 y C5) Las cámaras se crean por la API y por `crear-camara`; el token se muestra una vez y se guarda como hash.
+- C5 (RF-10 · C1, C2, C3 y C5; R9) Las cámaras se crean por la API y por `crear-camara`; el token se muestra una vez y se guarda como hash; cada cámara muestra su inscripción activa.
 - C6 (RF-12 · C2) Borrar una persona cumple el contrato.
 - C7 La web, con `npm run dev` y el servidor en Compose, entra y crea una persona con su consentimiento. Es una prueba a mano; la de Playwright es de C.
 - C8 (RNF-06 · C3) `uv run pytest` en verde en el equipo y en `servidor.yml`, y `web.yml` en verde en el PR.

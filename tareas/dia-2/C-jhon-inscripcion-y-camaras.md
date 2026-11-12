@@ -22,6 +22,7 @@ Personas y consentimiento funcionan contra el servidor real. La web suma la pant
 - Si no tienes los skills, corre `.\scripts\preparar-skills.ps1` y reinicia Claude Code. Se usan los seis; web-design-guidelines, con su copia local `command.md`, y de impeccable solo sus guías.
 - Las pantallas nuevas se hacen primero contra el simulacro. Se prueban contra el servidor real cuando B1 (sesión, personas, consentimiento y cámaras) y B2 (inscripción) estén en `main`.
 - Cuando B1 llegue a `main`, actualiza tu rama: B1 ya regeneró `esquema.d.ts` con el contrato 1.3, así que `npm run tipos` no debe dejar cambios.
+- El campo `inscripcion_activa` de las cámaras llega con ese contrato 1.3. Lo que lo usa (el simulacro de cámaras, el 409 de Inscripción y la columna de Cámaras) se programa después de traer B1 a tu rama: antes, el campo no está en los tipos, y los tipos no se escriben a mano.
 - Propón en el plan cómo se ven las dos pantallas, apoyado en `web/DESIGN.md` y en los skills, y espera confirmación.
 
 ## Hacer
@@ -35,6 +36,7 @@ Personas y consentimiento funcionan contra el servidor real. La web suma la pant
      - La CI sigue con el simulacro.
 2. Simulacro al día (MSW):
    - Suma `/api/v1/dispositivos` (listar, crear, ver, editar y cambiar el token) y `/api/v1/inscripciones` (abrir, ver y cancelar), con los errores del contrato.
+   - Cada cámara trae `modo` e `inscripcion_activa` de acuerdo con las inscripciones del simulacro.
    - La inscripción del simulacro avanza sola cada pocos segundos, con algún rechazo, para ver la barra sin cámara.
    - Sus pruebas de Vitest comprueban que responde como dice `openapi.yaml`, igual que las del Día 1.
 3. Pantalla Inscripción (RF-03 · C1, C5 y C6; R7; R9):
@@ -48,11 +50,12 @@ Personas y consentimiento funcionan contra el servidor real. La web suma la pant
    - Al terminar, dice cómo quedó: `completada` (con enlace a la ficha), `vencida` (las muestras aceptadas se conservan y se puede abrir otra) o `cancelada`.
    - Errores:
      - 422 `sin_consentimiento`;
-     - 409 `inscripcion_activa`: la cámara ya tiene una. Vence sola a los 2 minutos; el contrato no tiene cómo encontrarla para cancelarla desde otra pestaña;
+     - 409 `inscripcion_activa`: la cámara ya tiene una. La pantalla la toma de `inscripcion_activa` de la cámara (`GET /api/v1/dispositivos/{codigo}`), dice de quién es y ofrece verla (sigue su avance como si se hubiera abierto aquí) o cancelarla (con confirmación) para abrir la nueva;
      - 404.
    - Accesibilidad: el avance y el motivo se anuncian cuando cambian, no cada segundo.
 4. Pantalla Cámaras (RF-09 · C2; RF-10 · C1 a C3):
    - Lista con código, nombre, tipo, si está activa, si está en línea, modo (reconocer o inscribir) y último contacto en hora de Colombia. Se refresca sola cada pocos segundos.
+   - Si una cámara tiene una inscripción activa (`inscripcion_activa`), la lista la muestra: muestras de las requeridas y cuánto falta para que venza, con un enlace para verla en Inscripción.
    - Crear: código (`^[a-z0-9-]{3,32}$`, sin `servidor`), nombre, tipo y URL de captura, obligatoria si el tipo es `respaldo`.
    - Editar nombre, tipo y URL, y activar o desactivar.
    - Errores 409 `codigo_duplicado` y 422 junto al campo que falló.
@@ -67,6 +70,8 @@ Personas y consentimiento funcionan contra el servidor real. La web suma la pant
      - abrir una inscripción y ver «Muestra n de 5» hasta `completada`;
      - un rechazo con su motivo;
      - cancelar;
+     - un 409 `inscripcion_activa`: ver la inscripción que ya estaba y cancelarla;
+     - una cámara con inscripción activa la muestra en Cámaras;
      - crear una cámara y ver el token una sola vez;
      - cambiar el token;
      - el código `servidor`, rechazado.
@@ -86,8 +91,8 @@ Personas y consentimiento funcionan contra el servidor real. La web suma la pant
 ## Criterios de aceptación
 
 - C1 (RF-02 · C1 a C5; RF-09 · C1) Personas y consentimiento funcionan contra el servidor real, con Playwright contra el servidor en verde.
-- C2 (RF-03 · C1, C5 y C6) Inscripción abre, muestra «Muestra n de 5» y el último motivo, y cancela: contra el simulacro y, con B2 en `main`, contra el servidor real.
-- C3 (RF-10 · C1 a C3) Cámaras crea, edita, activa y desactiva, y cambia el token, que se muestra una sola vez.
+- C2 (RF-03 · C1, C5 y C6) Inscripción abre, muestra «Muestra n de 5» y el último motivo, y cancela; ante un 409 `inscripcion_activa`, ofrece ver o cancelar la que ya estaba. Funciona contra el simulacro y, con B2 en `main`, contra el servidor real.
+- C3 (RF-10 · C1 a C3) Cámaras crea, edita, activa y desactiva, y cambia el token, que se muestra una sola vez; también muestra la inscripción activa de cada cámara.
 - C4 (RF-09 · C2 a C4) Playwright con el simulacro en verde, capturas revisadas, textos en español y horas en `es-CO` y `America/Bogota`.
 - C5 (RNF-06 · C3) `npm run build` y `npm test` en verde, `npm run tipos` sin cambios y `web.yml` en verde en el PR.
 - C6 `web/README.md`, `web/DESIGN.md` y la bitácora al día.

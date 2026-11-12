@@ -29,10 +29,10 @@ Que las cuatro tareas del Día 2 avancen sin bloquearse y que al final del día 
 ## Orden recomendado
 
 1. A, B1 y C empiezan a la vez, cada una en su rama desde `main`. A prueba con un servidor falso y C con el simulacro de la web.
-2. B1 se fusiona primero. Trae la sesión, el primer administrador, personas, consentimiento, horarios, cámaras, el comando `crear-camara` y el contrato de la API 1.3, con `metodo_no_permitido`.
+2. B1 se fusiona primero. Trae la sesión, el primer administrador, personas, consentimiento, horarios, cámaras, el comando `crear-camara` y el contrato de la API 1.3, con `metodo_no_permitido` y el campo `inscripcion_activa` de las cámaras.
 3. Con B1 en `main`:
    - B2 sale de `main` actualizado.
-   - C actualiza su rama y prueba Personas, consentimiento y Cámaras contra el servidor real. `npm run tipos` no debe dejar cambios, porque B1 ya regeneró los tipos.
+   - C actualiza su rama, prueba Personas, consentimiento y Cámaras contra el servidor real, y programa lo que usa `inscripcion_activa`. `npm run tipos` no debe dejar cambios, porque B1 ya regeneró los tipos.
 4. B2 se fusiona: reconocimiento, R1 a R4, R7 e inscripción.
 5. Con B2 en `main`, A envía recortes al servidor real y C prueba Inscripción con una inscripción real.
 6. Con A, B1 y B2 en `main` (C es deseable, no obligatoria), el Hito 1.
@@ -41,7 +41,7 @@ Si una misma persona hace varias tareas el mismo día, este orden evita bloqueos
 
 ## Acuerdos para no pisarse
 
-- Contrato: B1 sube `openapi.yaml` a 1.3. A y C lo aprueban en el PR de B1, porque usan ese contrato. Nadie más cambia un contrato hoy sin proponerlo antes (`specs/contratos/README.md`).
+- Contrato: B1 sube `openapi.yaml` a 1.3, con `metodo_no_permitido` y `Dispositivo.inscripcion_activa`. A y C lo aprueban en el PR de B1, porque usan ese contrato. Nadie más cambia un contrato hoy sin proponerlo antes (`specs/contratos/README.md`).
 - Modelo YuNet: A y B2 usan el mismo archivo, de la misma URL y con el mismo SHA-256. La primera tarea que lo descargue anota la URL y el hash en `specs/arquitectura.md` (Piezas, modelos de cara); la otra usa esos.
 - Modelos y fotos fuera del repositorio:
   - Los ONNX no se suben: en el PC quedan en `datos/modelos/`, y la imagen del servidor los descarga al construir.
@@ -165,7 +165,7 @@ Qué se demuestra: una persona del equipo da su consentimiento, el simulador la 
 | `muestra_rechazada` con `borrosa` una y otra vez | `NITIDEZ_MIN` en `infra/.env` (D-14). Anota los valores de `calidad` que se ven: se recalibra el Día 4 |
 | `distinta_de_la_primera` | La primera muestra salió mal o pasó otra persona: cancela y abre otra inscripción |
 | Nunca sale `permitido`, o la similitud queda cerca del umbral | Inscribir y reconocer en el mismo modo (`--como-camara` en los dos); ver el riesgo 3.2 de la revisión |
-| 409 `inscripcion_activa` | Ya hay una abierta en `entrada`: vence sola a los 2 minutos |
+| 409 `inscripcion_activa` | Ya hay una abierta en `entrada`. La pantalla Inscripción ofrece verla o cancelarla, y Cámaras la muestra. Sin la pantalla, su id está en `inscripcion_activa` de `GET /api/v1/dispositivos/entrada` |
 
 Si un cambio de `infra/.env` hace falta para pasar el hito, se anota en la bitácora con el valor anterior y el nuevo.
 

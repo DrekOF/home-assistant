@@ -31,7 +31,7 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | 1 | C | Skills de frontend con commits fijos, web con inicio de sesión y Personas, y CI de la web (`web.yml`) | `tareas/dia-1/C-jhon-skills-y-web.md` |
 | 2 | Todos | Orden entre las tareas del día y guion del Hito 1 | `tareas/dia-2/00-todos-orden-e-hito-1.md` |
 | 2 | A | Simulador con la webcam y con una carpeta de fotos: detecta con YuNet, recorta y envía como el ESP32-S3, con el modo «como la cámara» | `tareas/dia-2/A-julian-simulador.md` |
-| 2 | B1 | Sesión y primer administrador; API de personas, consentimiento, horarios por bloques (D-20) y cámaras, con el comando `crear-camara`; contrato de la API 1.3 con `metodo_no_permitido` | `tareas/dia-2/B1-cristhian-sesion-y-api.md` |
+| 2 | B1 | Sesión y primer administrador; API de personas, consentimiento, horarios por bloques (D-20) y cámaras, con el comando `crear-camara`; contrato de la API 1.3 con `metodo_no_permitido` e `inscripcion_activa` | `tareas/dia-2/B1-cristhian-sesion-y-api.md` |
 | 2 | B2 | Reconocimiento (YuNet + SFace + pgvector), reglas R1 a R4 y R7, e inscripción (R9) | `tareas/dia-2/B2-cristhian-reconocimiento-e-inscripcion.md` |
 | 2 | C | Personas (con consentimiento) contra la API real, y pantallas Inscripción y Cámaras | `tareas/dia-2/C-jhon-inscripcion-y-camaras.md` |
 | 2 | Todos | **Hito 1:** el simulador inscribe y reconoce a alguien de punta a punta | `tareas/dia-2/00-todos-orden-e-hito-1.md` |

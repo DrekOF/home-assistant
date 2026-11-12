@@ -1,0 +1,67 @@
+/**
+ * Nombre: tokens.css
+ * Descripción: Tokens de diseño de la web de AccesIA: color, tipografía, espacio, tamaños y movimiento (ver web/DESIGN.md).
+ * Fecha de creación: 2026-11-11
+ * Actualización: 2026-11-11
+ * Autor: Equipo AccesIA
+ * Versión: 1.0
+ */
+
+:root {
+  /* Color: claro y sobrio, para un salón con luz y un proyector. Contraste AA probado en contraste.test.ts. */
+  --color-fondo: #f3f6f8;
+  --color-superficie: #ffffff;
+  --color-lateral: #e6ecf1;
+  --color-texto: #111a22;
+  --color-texto-2: #44525f;
+  --color-acento: #0b5e78;
+  --color-acento-oscuro: #084a5f;
+  --color-acento-suave: #dcecf2;
+  --color-sobre-acento: #ffffff;
+  --color-sobre-acento-2: #d9ebf1;
+  --color-borde: #7a8795;
+  --color-marcador: #5f6c78;
+  --color-divisor: #d5dde4;
+  --color-ok: #17663a;
+  --color-ok-fondo: #e2f2e8;
+  --color-aviso: #7a4a00;
+  --color-aviso-fondo: #fcefd4;
+  --color-error: #a61b12;
+  --color-error-oscuro: #8a160f;
+  --color-error-fondo: #fce5e3;
+  --color-neutro: #44525f;
+  --color-neutro-fondo: #e6ecf1;
+
+  /* Tipografía: Atkinson Hyperlegible Next, hecha para leerse bien de lejos. */
+  --fuente: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+  --fuente-mono: 'Atkinson Hyperlegible Mono Variable', ui-monospace, monospace;
+  --texto-s: 0.875rem; /* 14 px */
+  --texto-m: 1rem; /* 16 px */
+  --texto-l: 1.1875rem; /* 19 px */
+  --texto-xl: 1.4375rem; /* 23 px */
+  --texto-xxl: 1.75rem; /* 28 px */
+
+  /* Espacio: rejilla de 8 px (con 4 px para los ajustes finos). */
+  --e-1: 0.25rem; /* 4 */
+  --e-2: 0.5rem; /* 8 */
+  --e-3: 1rem; /* 16 */
+  --e-4: 1.5rem; /* 24 */
+  --e-5: 2rem; /* 32 */
+  --e-6: 3rem; /* 48 */
+  --e-7: 4rem; /* 64 */
+
+  /* Tamaños */
+  --ancho-lateral: 14rem; /* 224 */
+  --ancho-contenido: 75rem; /* 1200 */
+  --alto-control: 2.75rem; /* 44: filas, botones y campos */
+  --radio-s: 6px;
+  --radio-m: 8px;
+  --radio-l: 12px;
+  --sombra-flotante: 0 1px 2px rgb(17 26 34 / 0.08), 0 16px 40px rgb(17 26 34 / 0.18);
+
+  /* Movimiento: corto y con salida rápida. Nada se mueve solo. */
+  --curva-salida: cubic-bezier(0.23, 1, 0.32, 1);
+  --t-rapido: 120ms;
+  --t-medio: 150ms;
+  --t-lento: 200ms;
+}

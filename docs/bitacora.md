@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Bitácora
@@ -22,6 +22,56 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-11 · Día 1 · Tarea C · Skills de frontend y web base
+
+- Quién: el frente C.
+- Qué:
+  - `scripts/preparar-skills.ps1` y `.sh` traen los seis skills de frontend a `.claude/skills/`, cada uno en su commit fijo. También traen la copia local de las reglas de web-design-guidelines (`command.md`, commit `434b7f9` de `vercel-labs/web-interface-guidelines`). Tienen la opción `-Actualizar` (`--actualizar` en Bash), anotan cada commit en `VERSIONES.txt` y no cambian nada si algo falla.
+  - `web/` queda con React 19, Vite 8, React Router 8, TanStack Query 5 y `openapi-fetch`, con los tipos generados desde `openapi.yaml`. Tiene el simulacro de la API con MSW 3 y estas pantallas:
+    - Inicio de sesión.
+    - Personas: búsqueda sin tildes, filtro y paginación guardados en la dirección, y activar o desactivar con «Deshacer».
+    - Formulario para crear y editar: el horario se elige de la lista, con el resumen de sus bloques, y avisa antes de salir con cambios sin guardar.
+    - Ficha con el consentimiento: texto de la API, aviso de que es opcional, registro en web o en papel, revocación confirmada e historial. «Inscribir» solo se habilita con consentimiento vigente.
+    - «Próximamente» en las otras cinco secciones.
+  - La CI de la web quedó en `.github/workflows/web.yml`.
+- Cómo:
+  - Claude Code propuso el plan y la dirección visual. El equipo la aprobó con lucide-react para los íconos y con las reglas de web-design-guidelines fijadas en `434b7f9`. De impeccable se usaron solo sus guías; su ejecutable no se corrió.
+  - Skills: se revisó qué trae cada repositorio antes de fijar su commit. El script se probó en PowerShell 5.1 y en Git Bash: los dos dejan los mismos 1.727 archivos, byte a byte. En copias del script se probó `--actualizar` con commits viejos simulados y también una ruta que cambió: avisa dónde quedó la carpeta, sale con código 1 y no toca nada.
+  - Errores que aparecieron y se corrigieron:
+    - En Bash, `grep -q` dentro de una tubería con `pipefail` daba SIGPIPE en los repositorios grandes. Se cambió a here-strings.
+    - En Git Bash, `sed` y `awk` quitan los CR del `.ps1`. La tabla se actualiza con Bash puro.
+    - `openapi-typescript` volvía obligatorios los campos con valor por defecto (`activa`, `medio`). Se genera con `--default-non-nullable false`.
+    - Se usa TypeScript 5.9, porque `openapi-typescript` 7 pide TypeScript 5.
+    - En MSW 3, `onUnhandledRequest` pasó a llamarse `onUnhandledFrame`.
+    - El simulacro entraba al paquete de producción. Ahora una constante de compilación (`__SIMULACRO__`) lo saca.
+    - Playwright encontró un error real: si el filtro cambiaba mientras la búsqueda esperaba, el filtro se perdía.
+    - La prueba de teclado encontró otro: después de entrar, el foco quedaba perdido.
+    - Los espacios duros (U+00A0) que escribía la herramienta llegaban al código como caracteres invisibles. Se dejaron como secuencias de escape, que se ven.
+  - Revisión visual: Claude Code revisó las capturas de cada pantalla a 1280×720 y 1440×900. Se corrigieron estos problemas:
+    - la columna Datos era angosta;
+    - salían el punto doble «a. m..» y la hora partida entre «a.» y «m.»;
+    - una insignia larga aplastaba el historial;
+    - la barra lateral se veía cortada en las capturas de página completa;
+    - la tabla tenía subrayados de más.
+  - Accesibilidad: revisión con la copia local de `command.md`. Se cambió la paginación a enlaces, se pusieron espacios duros en «10 min», se agregó `autocomplete` y se escribió una prueba automática del contraste AA.
+- Decisiones:
+  - El script de skills es todo o nada: si un repositorio falla, no se cambia ninguno.
+  - El simulacro vive en la memoria de la pestaña, con datos ficticios. Sus credenciales de prueba (`admin@example.com` y `simulacro`) solo existen en él.
+  - «Inscribir» es un botón y no un enlace, porque debe poder deshabilitarse (RF-02 · C4).
+  - Los títulos y botones van en mayúscula solo en la primera palabra, como se escribe en español, aunque web-design-guidelines pide *Title Case*.
+  - Los tokens, los componentes y el skill que apoya cada decisión quedan en `web/DESIGN.md`.
+- Pruebas:
+  - `npm test` (Vitest): 68 en verde, entre fechas en hora de Colombia, validaciones, horarios, texto, el simulacro contra el contrato y el contraste AA.
+  - `npm run e2e` (Playwright con el simulacro): 9 en verde, incluidas la prueba de teclado y las capturas.
+  - `npm run build` en verde, sin el simulacro en el paquete. `npm run tipos` regenera los tipos sin cambios.
+  - Script de skills: cinco corridas manuales. Instalación normal y `--actualizar` en PowerShell 5.1 y en Bash, más una ruta que cambió.
+- Cambios de contrato o de specs: ninguno en los contratos. Antes de empezar, D-11 pasó a seis skills, y se actualizaron la tarea C, `CLAUDE.md` (sección Web) y el extra de `plan.md`. Al terminar, `CLAUDE.md` sumó los comandos de los skills y de la web.
+- Pendiente:
+  - Ver `web.yml` en verde en el PR (C7).
+  - Llevar Playwright a la CI el Día 4.
+  - Conectar la web con el servidor real cuando la tarea B del Día 2 tenga sesión y personas.
+  - `public/mockServiceWorker.js` también se copia a `dist/`. No se registra sin simulacro, pero se puede excluir cuando el servidor sirva la web.
 
 ## 2026-11-11 · Día 1 · Tarea B · Docker Compose, base de datos y esqueleto del servidor
 

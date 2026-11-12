@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Decisiones
@@ -25,7 +25,7 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | D-08 | Red propia: la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (el ESP32-S3 no usa 5 GHz) con IP fija 10.42.0.1. Plan B: la red del salón o un hotspot, configurando el ESP32-S3 por consola serial. | No depender del portal ni de las restricciones de la red de la universidad. |
 | D-09 | Kit listo antes de la clase en un portátil (copia en una memoria USB si hay): imágenes arm64, modelo de Ollama, configuración y copia de seguridad de HA, binarios del firmware por placa y scripts. No depende de tener una microSD propia. | En clase solo se flashea, se copia y se inscribe, con lo que traiga la Raspberry. |
 | D-10 | Un simulador con la webcam del portátil cumple el mismo contrato del ESP32-S3: detecta, recorta y envía. | Permite desarrollar sin hardware y es el plan C de la demo. |
-| D-11 | Método: specs, CLAUDE.md y Claude Code; una rama por tarea; pruebas primero en las reglas. La web usa los skills de frontend (taste completo, impeccable, Emil Kowalski y frontend-design) y se verifica con Playwright. | Es el método que ya funcionó en InspectIA, en versión corta. |
+| D-11 | Método: specs, CLAUDE.md y Claude Code; una rama por tarea; pruebas primero en las reglas. La web usa seis skills de frontend (taste completo, impeccable, Emil Kowalski, frontend-design, refactoring-ui y web-design-guidelines) y se verifica con Playwright. | Es el método que ya funcionó en InspectIA, en versión corta. |
 
 ## Decisiones del kit (propuestas; se aceptan en la tarea 00 del Día 1)
 
@@ -72,3 +72,4 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-11 | Repositorio | `.gitignore` ignora `firmware/build-*/` y ya no ignora `dependencies.lock`; la rama de cambios de contratos usa el prefijo `b/` (1.12). |
 | 2026-11-11 | D-20 | Horarios por bloques: tabla `horario_bloque`, R5 con el bloque del día de la llegada, requisito RF-13 y pantalla Horarios en el Día 3 de C. |
 | 2026-11-11 | Contratos 1.2 | `base-de-datos.sql`, `openapi.yaml` y `mcp-agente.md` pasan a 1.2 por D-20. El esquema `Horario` cambia de campos, así que rompe la 1.1; según `contratos/README.md` eso sería 2.0, pero se dejó en 1.2 porque todavía no hay código que lo use. |
+| 2026-11-11 | D-11 | Los skills de frontend pasan a seis: se suman refactoring-ui (`wondelai/skills`) y web-design-guidelines (`vercel-labs/agent-skills`), con commit fijo como los demás. |

@@ -4,7 +4,7 @@ Descripción: Plan de AccesIA por días, frentes e hitos, con el corte mínimo.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Plan
@@ -55,7 +55,7 @@ Obligatorio para la demo:
 6. Firmware TinyML que detecta y envía, más el simulador.
 7. Kit del día de clase y un ensayo general.
 
-Extras, si sobra tiempo: resumen diario del agente como notificación, exportar la asistencia a CSV y registrar la salida, foto del desconocido en Home Assistant sin guardarla, chat del agente en la web y varias cámaras.
+Extras, si sobra tiempo: resumen diario del agente como notificación, exportar la asistencia a CSV y registrar la salida, foto del desconocido en Home Assistant sin guardarla, chat del agente en la web, varias cámaras y una página de presentación con scroll storytelling para la sustentación, que cuente el recorrido: Ana llega, la cámara la detecta, el servidor la reconoce, Home Assistant abre la puerta y el agente responde.
 
 ## Corte mínimo (si solo hay 2 o 3 días)
 

@@ -1,0 +1,433 @@
+/**
+ * Nombre: pantallas.css
+ * Descripción: Estilos propios de cada pantalla de la web de AccesIA: inicio de sesión, Personas, formulario, ficha y Próximamente.
+ * Fecha de creación: 2026-11-11
+ * Actualización: 2026-11-11
+ * Autor: Equipo AccesIA
+ * Versión: 1.0
+ */
+
+/* Encabezado de cada pantalla */
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--e-3) var(--e-4);
+  margin-bottom: var(--e-4);
+}
+
+.encabezado__texto {
+  display: grid;
+  gap: var(--e-1);
+  min-width: 0;
+}
+
+.encabezado__resumen {
+  color: var(--color-texto-2);
+}
+
+.miga {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  margin-bottom: var(--e-2);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.miga svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.miga:hover {
+  text-decoration: underline;
+}
+
+/* La región de estado siempre existe (los lectores de pantalla la vigilan), pero vacía no ocupa espacio. */
+.estado-accion {
+  margin-bottom: var(--e-3);
+}
+
+.estado-accion:empty {
+  margin-bottom: 0;
+}
+
+.encabezado--arriba {
+  align-items: flex-start;
+}
+
+/* Inicio de sesión: un panel de color con la marca y el formulario al lado. */
+.entrada {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  min-height: 100dvh;
+}
+
+.entrada__marca {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--e-5);
+  padding: var(--e-6) var(--e-6) var(--e-5);
+  background: var(--color-acento);
+  color: var(--color-sobre-acento);
+}
+
+.entrada__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: var(--texto-xl);
+  font-weight: 700;
+}
+
+.entrada__logo svg {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.entrada__lema {
+  max-width: 22ch;
+  font-size: var(--texto-xxl);
+  line-height: 1.25;
+}
+
+.entrada__pie {
+  max-width: 44ch;
+  color: var(--color-sobre-acento-2);
+}
+
+.entrada__formulario {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: var(--e-6) var(--e-5);
+}
+
+.entrada__panel {
+  display: grid;
+  gap: var(--e-4);
+  width: min(100%, 26rem);
+}
+
+.entrada__panel form {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.entrada__panel .boton {
+  width: 100%;
+  margin-top: var(--e-2);
+}
+
+.credenciales-demo {
+  display: grid;
+  gap: var(--e-1);
+}
+
+.credenciales-demo dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0 var(--e-2);
+}
+
+.credenciales-demo dt {
+  font-weight: 600;
+}
+
+@media (max-width: 52rem) {
+  .entrada {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .entrada__marca {
+    padding: var(--e-4) var(--e-3);
+  }
+
+  .entrada__lema {
+    font-size: var(--texto-xl);
+  }
+}
+
+/* Personas */
+.herramientas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e-3);
+  padding: var(--e-3);
+  border-bottom: 1px solid var(--color-divisor);
+}
+
+.herramientas .campo:first-child {
+  flex: 1 1 18rem;
+}
+
+.herramientas .campo:nth-child(2) {
+  flex: 0 1 12rem;
+}
+
+.buscador {
+  position: relative;
+}
+
+.buscador svg {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-texto-2);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.buscador .control {
+  padding-left: 2.75rem;
+}
+
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2) var(--e-3);
+  padding: var(--e-2) var(--e-3);
+  border-top: 1px solid var(--color-divisor);
+  color: var(--color-texto-2);
+}
+
+.paginacion .botones {
+  gap: var(--e-2);
+}
+
+/* Formulario de persona */
+.formulario {
+  display: grid;
+  gap: var(--e-4);
+  max-width: 44rem;
+}
+
+.formulario__rejilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-3) var(--e-4);
+  padding: var(--e-4);
+}
+
+.formulario__rejilla .campo--ancho {
+  grid-column: 1 / -1;
+}
+
+.formulario__pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-3);
+}
+
+@media (max-width: 40rem) {
+  .formulario__rejilla {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--e-3);
+  }
+}
+
+/* Ficha de la persona */
+.ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--e-4);
+  align-items: start;
+}
+
+.ficha__columna {
+  display: grid;
+  gap: var(--e-4);
+}
+
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-4);
+}
+
+.seccion__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2) var(--e-3);
+}
+
+.seccion__cabeza h2 {
+  font-size: var(--texto-l);
+}
+
+.inscribir {
+  display: grid;
+  justify-items: end;
+  gap: var(--e-1);
+  max-width: 24rem;
+  text-align: right;
+}
+
+.inscribir__motivo {
+  font-size: var(--texto-s);
+  color: var(--color-texto-2);
+}
+
+.texto-legal {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--color-divisor);
+  border-radius: var(--radio-s);
+  background: #fbfcfd;
+  overscroll-behavior: contain;
+}
+
+.texto-legal p {
+  max-width: 68ch;
+}
+
+.texto-legal__titulo {
+  font-size: var(--texto-s);
+  font-weight: 600;
+  color: var(--color-texto-2);
+}
+
+.consentimiento-form {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.consentimiento-form fieldset {
+  display: grid;
+  gap: var(--e-2);
+  padding: 0;
+  border: 0;
+}
+
+.consentimiento-form legend {
+  margin-bottom: var(--e-1);
+  font-size: var(--texto-s);
+  font-weight: 600;
+  color: var(--color-texto-2);
+}
+
+.medios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-2);
+}
+
+.vigente {
+  display: grid;
+  gap: var(--e-2);
+}
+
+.historial {
+  display: grid;
+  gap: var(--e-2);
+}
+
+.historial h3 {
+  font-size: var(--texto-m);
+}
+
+.historial__lista {
+  display: grid;
+  padding: 0;
+  border: 1px solid var(--color-divisor);
+  border-radius: var(--radio-s);
+  list-style: none;
+}
+
+.historial__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--e-1) var(--e-3);
+  padding: 0.75rem var(--e-3);
+  border-bottom: 1px solid var(--color-divisor);
+}
+
+.historial__item:last-child {
+  border-bottom: 0;
+}
+
+.historial__item > p {
+  grid-column: 1;
+}
+
+.historial__estado {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+@media (max-width: 40rem) {
+  .historial__item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .historial__estado {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 70rem) {
+  .ficha {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .medios {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inscribir {
+    justify-items: start;
+    text-align: left;
+  }
+}
+
+/* Próximamente */
+.proximamente {
+  display: grid;
+  gap: var(--e-4);
+  max-width: 44rem;
+  padding: var(--e-5);
+}
+
+.proximamente h2 {
+  margin-bottom: var(--e-2);
+  font-size: var(--texto-l);
+}
+
+.proximamente__lista {
+  display: grid;
+  gap: var(--e-2);
+  padding-left: 1.25rem;
+}
+
+.proximamente__muestra {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-4);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio-m);
+  background: var(--color-fondo);
+}
+
+.proximamente__muestra-titulo {
+  font-size: var(--texto-s);
+  font-weight: 600;
+  color: var(--color-texto-2);
+}

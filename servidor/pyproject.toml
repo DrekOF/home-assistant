@@ -3,7 +3,7 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 
 [project]
 name = "accesia"
@@ -17,6 +17,8 @@ dependencies = [
     "email-validator>=2.3.0",
     "fastapi>=0.115",
     "itsdangerous>=2.2.0",
+    "numpy>=2.2",
+    "opencv-python-headless==4.14.0.94",
     "pgvector>=0.3",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",

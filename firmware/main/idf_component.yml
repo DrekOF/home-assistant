@@ -1,0 +1,21 @@
+# Nombre: idf_component.yml
+# Descripción: Dependencias del firmware en el ESP Component Registry, con versiones fijas y reglas por target.
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Cada target tiene su lock: firmware/dependencies.lock.esp32c6 (en Git) fija también las dependencias de estas.
+# esp-idf-lib/dht 1.2.0 declara soporte para esp32c6 (D-21). Su ayuda va fija en la versión de la misma época,
+# porque la dht la pide con «*» y si no subiría sola a la más nueva.
+
+dependencies:
+  idf: ">=5.4.4,<5.5"
+  esp-idf-lib/dht:
+    version: "1.2.0"
+    rules:
+      - if: "target == esp32c6"
+  esp-idf-lib/esp_idf_lib_helpers:
+    version: "1.4.0"
+    rules:
+      - if: "target == esp32c6"

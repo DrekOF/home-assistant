@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Decisiones
@@ -95,3 +95,5 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-12 | D-21 | Hardware real de la clase y escenario 2: XIAO ESP32-C6 y Raspberry Pi 5 con Home Assistant OS, hotspot de Windows del portátil y broker en el portátil. Cambian D-01, D-02, D-04, D-05, D-06, D-08, D-09, D-10, D-16, D-17, D-18 y D-19 (tabla de arriba). |
 | 2026-11-12 | Contrato MQTT 1.2 | Tema `accesia/{codigo}/ambiente` con la temperatura y la humedad, cada 30 s y retenido; la placa publica el descubrimiento de esos dos sensores; la ACL de `camara` suma tres líneas; `EstadoCamara` suma `sensor` y `antena`, opcionales; el broker de la demo es el del portátil. Solo agrega. |
 | 2026-11-12 | RF-14 · RNF-06 | Requisito nuevo de la placa del punto de acceso (RF-14). `firmware.yml` se adelanta: compila el binario del C6 y corre las pruebas de la lógica pura (RNF-06 · C3). |
+| 2026-11-12 | D-11 · RNF-06 | El simulador entra a GitHub Actions desde el Día 2, con `simulador.yml`: pytest del simulador con el modelo YuNet en caché. Lo pidió el equipo en la tarea A del Día 2, porque `servidor.yml` y `web.yml` no corren esas pruebas y sin ellas «CI en verde» no decía nada del simulador. RNF-06 · C3 suma el workflow, junto al `firmware.yml` que adelantó D-21. |
+| 2026-11-12 | Arquitectura | YuNet queda fijo, igual para el simulador y para el servidor: commit `48b10fa` de `opencv/opencv_zoo` y su SHA-256, en Piezas. En el modo «como la cámara», una imagen que no es 4:3 se recorta al centro a 4:3 antes de reducirla a 320 × 240, para no deformar la cara. Tarea A del Día 2. |

@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.9
+Versión: 1.10
 -->
 
 # Bitácora
@@ -39,7 +39,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - `accesia_vision`: el punto de extensión de la cámara (fuente de cuadros y detector), sin código de cámara ni de TinyML.
   - `infra/mosquitto/acl` 1.1, con las tres líneas de `mqtt.md` 1.2, y sus casos en `test_mqtt_acl.py`.
   - `.github/workflows/firmware.yml`, adelantado del Día 4: compila con la imagen `espressif/idf:v5.4.4`, revisa el lockfile y corre las pruebas de la lógica pura.
-  - `firmware/README.md` 1.2, con la prueba con la placa: hotspot, firewall, broker, integración MQTT de Home Assistant y consola. `CLAUDE.md` 1.3 suma los comandos del firmware.
+  - `firmware/README.md` 1.2, con la prueba con la placa: hotspot, firewall, broker, integración MQTT de Home Assistant y consola. `CLAUDE.md` 1.4 suma los comandos del firmware.
 - Cómo:
   - Claude Code escribió el firmware con el plan que aprobó el equipo. Separó la lógica pura en `accesia_logica` (mensajes, puerta, ambiente, LED y pines) para probarla sin placa; los componentes de ESP-IDF solo la conectan con el hardware.
   - Decisiones de implementación:
@@ -51,17 +51,91 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
     - `puerta` rechaza los pines de la flash, el USB, UART0, el sensor, la antena y BOOT.
   - Se corrigió un error: GCC 14 de ESP-IDF marcó dos `strncpy` del Wi-Fi como posible truncado (`-Werror=stringop-truncation`). Se cambiaron por `memcpy`, con los largos que ya limita la consola.
   - La prueba con la placa se hace con el equipo, con los pasos del README.
+  - Mientras tanto se fusionó en `main` el PR #9 (simulador). La rama se actualizó y se conservaron los dos lados: `CLAUDE.md` 1.4 lleva los comandos del simulador y del firmware, y la bitácora, las dos entradas.
 - Pruebas:
   - Lógica pura, en `ubuntu:24.04`, con el detector de comportamiento indefinido y `-Werror`: 41 casos y 200 comprobaciones en verde. Incluyen `contrato MQTT · ambiente`, `contrato MQTT · descubrimiento de la placa`, `contrato MQTT · estado`, `RF-14 · C2`, `C3`, `C5` y `C6`, y las del recorte.
   - `contrato MQTT · acl`: 8 en verde, con los casos nuevos de `ambiente` y del descubrimiento.
   - Compilación para el `esp32c6` con ESP-IDF 5.4.4: `accesia.bin` mide 1,05 MB, el 34 % de la partición, y los componentes de AccesIA no dan avisos.
-  - La CI del PR corre la web, el servidor y, por primera vez, el firmware.
+  - La CI del PR corre la web, el servidor, el simulador y, por primera vez, el firmware.
 - Cambios de contrato o de specs: ninguno. La ACL y sus pruebas siguen a `mqtt.md` 1.2.
 - Pendiente:
   - La prueba con la placa, con el equipo: RF-14 · C2 a C6 y la lista «Por verificar» del README (el nivel del LED, la antena, la consola por los dos puertos y el DHT).
   - Infra, por asignar: `compose.escenario2.yaml` como despliegue principal, el `model` del dispositivo en el servidor, la limpieza del descubrimiento en el servidor y la copia de seguridad de Home Assistant OS.
   - Cuando la placa envíe recortes, el firewall también tendrá que dejar entrar desde el hotspot el 8000 del servidor.
   - P-03: el módulo de cámara.
+
+## 2026-11-12 · Día 2 · Tarea A · Simulador de la cámara
+
+- Quién: el frente A.
+- Qué:
+  - Proyecto `simulador/` con uv y Python 3.13: `opencv-python` 4.14.0.94 (con ventanas), `numpy` y `httpx`, y `pytest` para las pruebas. El comando `simulador` tiene tres modos: `webcam`, `carpeta` y `modelo`.
+  - YuNet fijo, el mismo que usará el servidor:
+    - `face_detection_yunet_2023mar.onnx` del commit `48b10fa505aeb51fbd127fc60a5c660040e823b7` de `opencv/opencv_zoo`.
+    - SHA-256 `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`, 232 589 bytes.
+    - Se descarga la primera vez a `datos/modelos/` y se comprueba con el hash. Con el modelo ya descargado no usa la red.
+    - Queda anotado en `arquitectura.md` (Piezas). B2 sacará SFace del mismo commit.
+  - Detectar y recortar:
+    - YuNet con puntaje mínimo 0,9.
+    - Se descartan las caras de menos de `--cara-min` (80) y se elige la de mayor área.
+    - Se recorta con la fórmula del contrato y se comprime en JPEG 80.
+    - Un recorte de más de 100 000 bytes no se envía y se avisa en la consola.
+  - Envío:
+    - Lleva las cuatro cabeceras del contrato y el token sale de `TOKEN_CAMARA`.
+    - Las esperas del contrato se cuentan desde que llega la respuesta, y cada respuesta sale en una línea de la consola.
+  - Modo «como la cámara»: 4:3 al centro, 320 × 240 y JPEG 80, en memoria. Una imagen de 1280 × 720 pasa a 960 × 720 y después a 320 × 240, sin deformarse.
+  - Modo webcam:
+    - Muestra una ventana con la caja de la cara y el último mensaje del servidor.
+    - Envía en otro hilo, para que la ventana no se congele.
+    - Se cierra con q o Esc y no guarda nada.
+  - Modo carpeta: envía las fotos en orden por nombre, las compara con `esperado.json`, muestra un resumen y termina con código 0, 1 o 2.
+  - CI propia: `.github/workflows/simulador.yml`, con el modelo en caché.
+- Cómo:
+  - Claude Code trabajó en un worktree aparte (`AccesIA-a`, rama `a/simulador`):
+    - En paralelo había otra sesión con B2 (`AccesIA-b2`) y otra con las specs del C6 en la carpeta principal.
+    - Copió `infra/.env` y el `passwd` de Mosquitto, que no están en Git.
+    - No levantó Docker Compose: probó contra el contrato con dobles de prueba (un detector falso, un servidor falso con `httpx.MockTransport`, un reloj falso, y webcam y ventana falsas).
+  - Leyó la tarea y las specs, propuso el plan y el equipo lo aprobó con estas decisiones:
+    - YuNet del commit `48b10fa`, el `main` de opencv_zoo. El hash salió del puntero de LFS y se comprobó al descargar. El archivo no cambia desde `f12e127` (2023-06).
+    - Una imagen que no es 4:3 se recorta al centro a 4:3 y después se reduce a 320 × 240. Con bandas negras, la cara quedaría más pequeña que en la cámara.
+    - El formato de `esperado.json` está en `simulador/README.md`.
+    - «Máximo 100 KB» se lee como 100 000 bytes, la lectura más estricta, para no recibir nunca un 413.
+    - Esperas que el contrato no fija:
+      - Ante fallas: 1, 2, 4, 8 y después 10 s. La cuenta vuelve a empezar con cualquier respuesta HTTP que no sea 5xx.
+      - Un 429 sin `Retry-After` válido, y las otras respuestas (413, 415, 422): 1 s.
+    - En el modo carpeta, cada foto se envía una vez. Con 401 o 403 se detiene con código 2.
+    - Primero se descartan las caras pequeñas y después se elige la de mayor área.
+    - Hay una sola carpeta `datos/`, en la raíz. La ruta de `carpeta` también se busca desde la raíz, para que el comando de la guía del Hito 1 funcione desde `simulador/`.
+  - Ajustes del equipo al aprobar el plan:
+    - `opencv-python` en la última 4.x estable, la misma que use B2 en el servidor.
+    - Una CI propia, `simulador.yml`. La tarea decía que el frente A entraba a la CI el Día 4, pero sin ella «CI en verde» no decía nada del simulador.
+  - Pedido del equipo: el paso de detectar y recortar queda aparte (`recortador.py`).
+    - La placa real es una XIAO ESP32-C6 sin cámara (D-21). Más adelante el simulador quizá tenga que imitar a una cámara que envía el cuadro completo.
+    - No se programó esa variante ni se cambió el contrato: se siguió `api-dispositivo.md` 1.1 y `mqtt.md` 1.1.
+  - Revisión después de las primeras pruebas:
+    - Un error inesperado en el hilo de envío de la webcam ahora cuenta como falla y espera; antes se habría reintentado en cada cuadro.
+    - Ctrl+C durante la descarga del modelo ya no muestra la traza.
+  - Mientras tanto se fusionó en `main` el PR #8 (D-21). La rama se actualizó antes del PR y se conservaron los cambios de los dos lados:
+    - RNF-06 · C3 nombra `simulador.yml` y el `firmware.yml` que adelantó D-21.
+    - En `decisiones.md` van las filas de D-21 y después las de esta tarea.
+    - Las versiones suben encima de las de `main`.
+- Pruebas:
+  - `uv run pytest` en `simulador/`: 79 bien y 2 saltadas. Las saltadas son las de `datos/prueba/`, que no existe en este equipo.
+  - Marcas: `contrato recorte · dos caras` y `· en el borde`; `RF-01 · C6 · cara mínima`, `· espera`, `· YuNet` y `· fotos reales`; `contrato cámara · cabeceras`, `· respuestas` y `· modo carpeta`; `RNF-07 · como la cámara`; `RNF-01 · C1`; `RNF-04 · C3 · modelo`.
+  - Prueba de humo del comando con el YuNet real y tres imágenes sintéticas sin caras: no envió nada y el resumen terminó con 0.
+  - En el PR corren `servidor.yml`, `web.yml` y, por primera vez, `simulador.yml`.
+- Cambios de contrato o de specs:
+  - Ningún contrato.
+  - `arquitectura.md` 1.5: YuNet fijo en Piezas y el recorte a 4:3 del modo «como la cámara».
+  - `requisitos.md` 1.4: RNF-06 · C3 suma `simulador.yml`.
+  - `decisiones.md` 1.7: registro de los dos cambios.
+  - `CLAUDE.md` 1.3: los comandos del simulador.
+- Pendiente:
+  - C7: con B2 en `main`, probar contra el servidor real con la cámara `entrada` de tipo `simulador` y recibir `permitido`, `desconocido` y `muestra_aceptada`. Se hace a más tardar en el Hito 1. Antes de levantar Docker Compose, avisar a la sesión de B2.
+  - Fotos de prueba en `datos/prueba/`, con el permiso de quien aparece y su `esperado.json`, para que corran las pruebas con fotos reales y el modo carpeta del Hito.
+  - Si B2 fija otra versión de OpenCV, igualarlas en el PR que se fusione de segundo.
+  - Probar el modo webcam con una webcam real: se probó solo con dobles.
+  - Día 3: MQTT y la puerta (`paho-mqtt`, `mqtt.md`). El simulador muestra «PUERTA ABIERTA» 3 s al recibir `ABRIR`.
+  - Día 4: calibrar el umbral con el modo carpeta y `--como-camara` (RNF-07).
 
 ## 2026-11-12 · Día 2 · Hardware real: specs de la XIAO ESP32-C6 (D-21)
 

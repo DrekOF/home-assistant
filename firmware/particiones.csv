@@ -1,0 +1,15 @@
+# Nombre: particiones.csv
+# Descripción: Tabla de particiones del firmware: cabe en 4 MB de flash (arquitectura.md).
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# nvs       24 KB  configuración de la consola
+# phy_init   4 KB  calibración de la radio
+# factory    3 MB  el programa con el modelo de caras; de 0x10000 a 0x310000, y quedan 960 KB libres
+#
+# Nombre,  Tipo, Subtipo, Desplazamiento, Tamaño, Banderas
+nvs,       data, nvs,     0x9000,         0x6000,
+phy_init,  data, phy,     0xf000,         0x1000,
+factory,   app,  factory, 0x10000,        3M,

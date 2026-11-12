@@ -2,9 +2,9 @@
 Nombre: CLAUDE.md
 Descripción: Reglas e instrucciones para Claude Code en el repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -137,4 +137,11 @@ npm test                                              Vitest: lógica, simulacro
 npm run e2e                                           Playwright con el simulacro; capturas en web/capturas/
 ```
 
-Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md` y `web/README.md`.
+Firmware, desde la raíz (ESP-IDF 5.4.4 instalado con EIM; en PowerShell, no en Git Bash):
+
+```text
+.\firmware\scripts\compilar-binarios.ps1              compila los binarios octal y quad en firmware/build-*/
+.\firmware\scripts\probar-logica.ps1                  pruebas de la lógica pura en ubuntu:24.04 (Docker Desktop abierto)
+```
+
+Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md`, `web/README.md` y `firmware/README.md`.

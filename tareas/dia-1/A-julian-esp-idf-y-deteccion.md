@@ -2,9 +2,9 @@
 Nombre: A-julian-esp-idf-y-deteccion.md
 Descripción: Tarea del Día 1 del frente A: proyecto ESP-IDF de la cámara con detección TinyML, perfiles de placa y consola.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 1 · Frente A · ESP-IDF y detección TinyML
@@ -21,7 +21,7 @@ Dejar el proyecto ESP-IDF de la cámara compilando con la detección de caras de
 
 - Instalar ESP-IDF v5.4 con la extensión ESP-IDF de VS Code (Espressif) en Windows.
 - Buscar en el ESP Component Registry la última versión de `espressif/human_face_detect` (y de `espressif/esp-dl`) que declare soporte para ESP-IDF 5.4, y comprobar la instalación compilando su ejemplo para `esp32s3`. Si ninguna versión sirve con 5.4, subir ESP-IDF a la versión que pidan. La versión elegida queda fija en `idf_component.yml` y anotada en la bitácora.
-- Instalar WSL (Ubuntu), donde corren las pruebas de la lógica pura (paso 3).
+- Tener Docker Desktop abierto: las pruebas de la lógica pura corren en un contenedor `ubuntu:24.04` (paso 3). Cambio del 2026-11-12: antes decía instalar WSL con Ubuntu; el equipo decidió usar el contenedor y no instalarlo.
 
 ## Hacer
 
@@ -43,11 +43,11 @@ Dejar el proyecto ESP-IDF de la cámara compilando con la detección de caras de
    - Tabla de particiones que cabe en 4 MB.
    - `main`: arranca, lee la configuración, inicia la cámara y en un bucle detecta y muestra por el monitor serial cada cara (caja y puntaje) y el recorte que enviaría (tamaño en píxeles y en bytes). El envío por HTTP y la puerta por MQTT son del Día 3.
 2. `firmware/scripts/compilar-binarios.ps1`: compila los dos binarios, en `firmware/build-octal/` y `firmware/build-quad/` (Git ignora `firmware/build-*/`). El `.ps1` va en UTF-8 con BOM, como pide `.editorconfig`: sin BOM, Windows PowerShell 5.1 lee mal las tildes.
-3. Pruebas de la lógica pura, sin placa, con CMake y doctest. Corren en WSL, porque el target `linux` de ESP-IDF no funciona en Windows; desde el Día 4 también en GitHub Actions. Cubren:
+3. Pruebas de la lógica pura, sin placa, con CMake y doctest. Corren en un contenedor `ubuntu:24.04` de Docker Desktop (`firmware/scripts/probar-logica.ps1`), porque el target `linux` de ESP-IDF no funciona en Windows; desde el Día 4, en GitHub Actions. Cubren:
    - Los casos de `specs/contratos/casos-recorte.json`, leídos del archivo (marca `contrato recorte · <caso>`): la cara de mayor área, el margen y el ajuste a los bordes.
    - El descarte de caras menores que `cara_min`.
    - La espera entre recortes: al menos 1 s desde que llega la respuesta, y 3 s tras `permitido`, `denegado` o `desconocido`.
-4. `firmware/README.md`: instalación, compilar, flashear cuando haya placa, elegir el perfil, comandos de la consola y cómo correr las pruebas en WSL.
+4. `firmware/README.md`: instalación, compilar, flashear cuando haya placa, elegir el perfil, comandos de la consola y cómo correr las pruebas en el contenedor.
 
 ## No hacer
 
@@ -61,7 +61,7 @@ Dejar el proyecto ESP-IDF de la cámara compilando con la detección de caras de
 - C1 (RF-01 · C5) `idf.py build` pasa para los dos binarios, `octal` y `quad`, y el script compila los dos.
 - C2 (RF-01 · C1) La detección usa `espressif/human_face_detect` (MSR + MNP, int8).
 - C3 (RF-01 · C4) La consola tiene los comandos de `arquitectura.md` y los guarda en NVS.
-- C4 (RF-01 · C2, C3 y C6) Las pruebas pasan en WSL: los casos de `casos-recorte.json`, nada si la cara mide menos de `cara_min` y la espera entre recortes.
+- C4 (RF-01 · C2, C3 y C6) Las pruebas pasan en el contenedor `ubuntu:24.04` (antes decía WSL; cambio del 2026-11-12): los casos de `casos-recorte.json`, nada si la cara mide menos de `cara_min` y la espera entre recortes.
 - C5 La bitácora y `firmware/README.md` están al día.
 
 ## Al terminar

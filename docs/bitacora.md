@@ -2,9 +2,9 @@
 Nombre: bitacora.md
 Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el método con IA) y qué quedó pendiente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Bitácora
@@ -22,6 +22,69 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 1 · Tarea A · Firmware del ESP32-S3 con detección TinyML (referencia)
+
+- Quién: el frente A.
+- Qué:
+  - `firmware/` es un proyecto ESP-IDF 5.4.4 para el ESP32-S3. Sus dos binarios de D-17 compilan: `octal` (1,56 MB) y `quad` (1,55 MB). Cada uno ocupa la mitad de la partición `factory` de 3 MB, en una tabla que cabe en 4 MB.
+  - Componentes:
+    - `accesia_config`: la configuración en NVS, con los valores por defecto de `arquitectura.md`.
+    - `accesia_consola`: los 12 comandos, leídos por UART0 y por el USB nativo a la vez.
+    - `accesia_perfiles`: los cinco perfiles, con la fuente oficial de cada pin y marcados «por verificar con la placa».
+    - `accesia_camara`: captura en QVGA y RGB565, y el JPEG de calidad 80 del recorte, solo en memoria.
+    - `accesia_deteccion`: `HumanFaceDetect` con el modelo `MSRMNP_S8_V1`.
+    - `accesia_recorte`: la lógica pura. Elige la cara de mayor área, aplica la fórmula con enteros, revisa `cara_min` y calcula la espera entre recortes.
+  - `main` detecta una vez por segundo y muestra cada cara y el recorte que enviaría. Todavía no envía nada.
+  - Scripts:
+    - `compilar-binarios.ps1` compila los dos binarios y, si hace falta, activa ESP-IDF con lo que dejó EIM en `eim_idf.json`.
+    - `probar-logica.ps1` corre las pruebas en un contenedor `ubuntu:24.04`.
+    - `probar-logica.sh` corre las pruebas en Linux; lo usará la CI del Día 4.
+- Cómo:
+  - Claude Code propuso el plan y el equipo lo aprobó con dos ajustes:
+    - Las pruebas corren en un contenedor `ubuntu:24.04` de Docker Desktop, en lugar de instalar Ubuntu en WSL. C4 se da por cumplido con esa corrida, y desde el Día 4 corren en GitHub Actions.
+    - La consola secundaria de ESP-IDF solo envía texto. Por eso los comandos los leen dos tareas propias, una por el driver de UART y otra por el de USB Serial/JTAG, y los pasan a `esp_console_run`.
+  - Instalación:
+    - ESP-IDF v5.4.4 se instaló con EIM v0.20.1, el instalador oficial de Espressif, que es el mismo que usa la extensión de VS Code. No se usó la v0.21.0 porque salió ese mismo día sin los archivos para Windows.
+    - Antes de correr el ejecutable se comprobaron su huella SHA-256 y su firma de Espressif, y se apagó su telemetría.
+    - Quedó en `C:\esp\v5.4.4`, con las herramientas en `C:\Espressif\tools`. También se instaló la extensión ESP-IDF 2.3.0 de VS Code.
+  - Versiones:
+    - Se compiló el ejemplo `human_face_detect` de ESP-DL con `human_face_detect` 0.5.2 y `esp-dl` 3.3.14, en una carpeta con un espacio en la ruta: tardó 200 s, no dio advertencias y el binario midió 1,49 MB. Así se confirmó también que la ruta del repositorio («Inteligencia artificial») sirve.
+    - Se fijó `esp-dl` 3.3.14 y no la 3.3.15, que se publicó seis días antes sin notas y con 35 commits que cambian los kernels del S3.
+    - Se fijó `esp32-camera` 2.1.9 porque descarta los cuadros que la PSRAM del S3 no recibió completos.
+  - Revisión del código instalado de ESP-IDF y de ESP-DL:
+    - El driver de USB Serial/JTAG solo activa la interrupción de recepción, así que puede leer mientras la consola secundaria escribe.
+    - Esa consola solo vacía su FIFO con cada salto de línea, así que el eco lo vacía a mano.
+    - ESP-DL entrega las caras de mayor a menor puntaje.
+  - Errores que aparecieron y se corrigieron:
+    - En C++, `CONFIG_ESP_CONSOLE_UART_NUM` (un entero) no se convierte solo a `uart_port_t`. Ahora se pasa una constante con el tipo del driver.
+    - Cuando la salida se redirige a un archivo, Windows PowerShell 5.1 convierte en errores las líneas que los programas escriben por stderr, y con `$ErrorActionPreference = 'Stop'` los dos scripts se cortaban. Ahora decide el código de salida.
+    - `| Out-Host` se saltaba la redirección del registro de compilación.
+    - doctest mostraba «DEEPEST SUBCASE STACK REACHED» por los subcasos dentro de un bucle. Ahora los casos del JSON se recorren cada uno con su marca.
+    - Desde Git Bash, `idf.py` detecta MSYS y no hace nada. El script quita esa marca, y el README pide PowerShell.
+- Decisiones:
+  - La placa arranca sin perfil y no inicia la cámara hasta que alguien usa el comando `perfil`. En los perfiles genéricos se rechazan los GPIO de la flash, la PSRAM, el USB nativo y UART0.
+  - Se elige la cara de mayor área, y si mide menos de `cara_min` de alto no se envía nada. Con empate de área gana la primera, que es la de mayor puntaje.
+  - La orientación va en cada perfil. El EYE voltea la imagen, según su BSP; el Freenove la voltea y la refleja, según su sketch con el sensor OV2640.
+  - Los valores por defecto de la consola salen de `arquitectura.md`: Wi-Fi «AccesIA», servidor y MQTT en 10.42.0.1, usuario `camara`, `cara_min` de 80 px y puerta de 3 s.
+  - `estado` no muestra las claves ni el token, que quedan sin cifrar en NVS.
+- Pruebas:
+  - `probar-logica.ps1` en `ubuntu:24.04`, con GCC 13.3, `-Werror` y el detector de comportamiento indefinido: 15 casos y 55 comprobaciones en verde.
+    - Incluyen `contrato recorte · dos caras`, `contrato recorte · en el borde`, `RF-01 · C3` y la espera (`RF-01 · C2` y `contrato cámara · espera 3 s`).
+    - C4 se da por cumplido con esta corrida, como se acordó.
+  - `compilar-binarios.ps1`: los dos binarios compilan con ESP-IDF 5.4.4 sin advertencias.
+  - Nada corrió en una placa.
+- Cambios de contrato o de specs: ninguno en los contratos ni en las specs. La tarea A pasó a 1.2, con las pruebas en el contenedor y no en WSL. `CLAUDE.md` pasó a 1.2, con los comandos del firmware.
+- C7 de las tareas B y C: ya se cumplió. La CI salió en verde en sus PR: `servidor.yml` en el #3, y `web.yml` y `servidor.yml` en el #4. Sus entradas, más abajo, todavía lo listan como pendiente.
+- Hardware: en clase no llegó un ESP32-S3 sino un Seeed Studio XIAO ESP32-C6, con 4 MB de flash, sin PSRAM y sin interfaz de cámara. Este firmware queda en un PR borrador, sin fusionar, como referencia por si se vuelve al S3 del enunciado. El firmware del C6 sigue en `a/firmware-c6`.
+- Pendiente:
+  - Con un S3:
+    - flashear la placa;
+    - verificar los pines, la orientación y la PSRAM;
+    - comprobar que la consola lea por los dos puertos;
+    - medir cuánto tarda la detección.
+  - El envío por HTTP y MQTT (Día 3).
+  - El diagnóstico, el respaldo y `firmware.yml` (Día 4).
 
 ## 2026-11-11 · Día 1 · Tarea C · Skills de frontend y web base
 

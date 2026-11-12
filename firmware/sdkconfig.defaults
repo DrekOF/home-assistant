@@ -1,0 +1,41 @@
+# Nombre: sdkconfig.defaults
+# Descripción: Configuración común de los dos binarios del firmware (octal y quad).
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Cada binario suma su archivo: sdkconfig.defaults.octal o sdkconfig.defaults.quad (D-17).
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# CPU a 240 MHz y optimización por rendimiento: la detección corre en la placa.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Flash de 4 MB y particiones propias: el mismo binario sirve en placas de 4, 8 y 16 MB (arquitectura.md).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="particiones.csv"
+
+# PSRAM a 80 MHz. El tipo, octal o quad, lo pone el archivo de cada binario.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Caché como en el ejemplo human_face_detect de ESP-DL, para que la inferencia lea rápido los pesos del modelo.
+CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+CONFIG_ESP32S3_DATA_CACHE_64KB=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+
+# Consola: UART0 principal y USB Serial/JTAG secundaria. La salida va por los dos; los comandos los leen
+# dos tareas propias (accesia_consola), porque la consola secundaria solo envía texto.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+
+# La detección y el JPEG del recorte corren en la tarea principal.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Modelo de caras: MSR + MNP en int8 (RF-01 · C1), guardado junto con el programa.
+CONFIG_FLASH_HUMAN_FACE_DETECT_MSRMNP_S8_V1=y
+CONFIG_HUMAN_FACE_DETECT_MSRMNP_S8_V1=y
+CONFIG_HUMAN_FACE_DETECT_MODEL_IN_FLASH_RODATA=y

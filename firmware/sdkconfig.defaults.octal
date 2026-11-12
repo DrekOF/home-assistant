@@ -1,0 +1,10 @@
+# Nombre: sdkconfig.defaults.octal
+# Descripción: Binario octal (D-17): perfiles esp32s3_eye, freenove_s3_cam, xiao_s3_sense y generico_octal.
+# Fecha de creación: 2026-11-12
+# Actualización: 2026-11-12
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Se suma a sdkconfig.defaults. Sin PSRAM octal, este binario no arranca: el binario diagnostico (Día 4) dice cuál usar.
+
+CONFIG_SPIRAM_MODE_OCT=y

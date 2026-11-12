@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prueban.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Contratos
@@ -14,7 +14,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | Contrato | Archivo | Versión | Dueño | Lo usan |
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.1 | B | A (firmware y simulador) |
-| API REST | [openapi.yaml](openapi.yaml) | 1.2 | B | C (web), A (simulador) |
+| API REST | [openapi.yaml](openapi.yaml) | 1.3 | B | C (web), A (simulador) |
 | MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.1 | B | A (cámara), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.2 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
@@ -35,6 +35,15 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Web: los tipos se generan desde `openapi.yaml`; si el contrato cambia y la web no, TypeScript no compila.
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## Versión 1.3 (2026-11-12)
+
+Dos agregados en `openapi.yaml`, propuestos en la tarea B1 del Día 2. Los demás contratos no cambian.
+
+- `Error.codigo` suma `metodo_no_permitido`: una ruta que existe, llamada con otro método, responde 405 con ese código. Antes respondía `no_encontrado`, que no describía el error.
+- `Dispositivo` suma `inscripcion_activa`, siempre presente: la inscripción activa de la cámara como `InscripcionCorta`, o `null`, después de vencer las que ya pasaron su hora (R9). Así la web la encuentra aunque haya perdido su id, por ejemplo ante un 409 `inscripcion_activa`. `modo` es `inscribir` si y solo si el campo no es `null`.
+- Los dos solo agregan: nada de lo que ya existía cambia, por eso es 1.3 y no 2.0.
+- `openapi.yaml` 1.3 pasa `openapi-spec-validator` (OpenAPI 3.1).
 
 ## Versión 1.2 (2026-11-11)
 

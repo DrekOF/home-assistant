@@ -2,12 +2,13 @@
 Nombre: errores.py
 Descripción: Errores de la API de AccesIA con el esquema Error de specs/contratos/openapi.yaml (detalle y codigo).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import logging
+from collections.abc import Mapping
 from typing import Literal
 
 from fastapi import FastAPI, Request
@@ -18,13 +19,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 registro = logging.getLogger(__name__)
 
-# Los mismos códigos del enum de Error en openapi.yaml 1.2.
+# Los mismos códigos del enum de Error en openapi.yaml 1.3.
 CodigoError = Literal[
     "sin_sesion",
     "credenciales_invalidas",
     "token_invalido",
     "dispositivo_inactivo",
     "no_encontrado",
+    "metodo_no_permitido",
     "documento_duplicado",
     "codigo_duplicado",
     "nombre_duplicado",
@@ -61,8 +63,12 @@ class ErrorAccesIA(Exception):
         self.detalle = detalle
 
 
-def respuesta_error(estado: int, codigo: CodigoError, detalle: str) -> JSONResponse:
-    return JSONResponse(status_code=estado, content=Error(detalle=detalle, codigo=codigo).model_dump())
+def respuesta_error(
+    estado: int, codigo: CodigoError, detalle: str, cabeceras: Mapping[str, str] | None = None
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=estado, content=Error(detalle=detalle, codigo=codigo).model_dump(), headers=cabeceras
+    )
 
 
 def _campo(error: dict) -> str:
@@ -91,9 +97,9 @@ def registrar_manejadores(app: FastAPI) -> None:
         if error.status_code == 404:
             return respuesta_error(404, "no_encontrado", "No existe.")
         if error.status_code == 405:
-            # El contrato no tiene un código para «método no permitido»: se trata como no encontrado.
-            return respuesta_error(405, "no_encontrado", "Esa ruta no acepta ese método.")
-        return respuesta_error(error.status_code, "error_interno", str(error.detail))
+            # Contrato 1.3: la ruta existe pero no con ese método. Se conserva la cabecera Allow.
+            return respuesta_error(405, "metodo_no_permitido", "Esa ruta no acepta ese método.", error.headers)
+        return respuesta_error(error.status_code, "error_interno", str(error.detail), error.headers)
 
     @app.exception_handler(Exception)
     async def error_interno(_: Request, error: Exception) -> JSONResponse:

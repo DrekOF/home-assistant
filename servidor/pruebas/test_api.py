@@ -1,10 +1,10 @@
 """
 Nombre: test_api.py
-Descripción: Pruebas «contrato API · salud» y «contrato API · error» contra specs/contratos/openapi.yaml.
+Descripción: Pruebas «contrato API · salud» y «contrato API · error» (incluido el 405) contra specs/contratos/openapi.yaml.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import pytest
@@ -51,6 +51,16 @@ def test_una_ruta_que_no_existe_usa_el_esquema_error() -> None:
     assert respuesta.status_code == 404
     validar("Error", respuesta.json())
     assert respuesta.json()["codigo"] == "no_encontrado"
+
+
+@pytest.mark.marca("contrato API · error")
+def test_un_metodo_que_la_ruta_no_acepta_responde_metodo_no_permitido() -> None:
+    respuesta = TestClient(crear_app()).delete("/api/v1/salud")
+
+    assert respuesta.status_code == 405
+    validar("Error", respuesta.json())
+    assert respuesta.json()["codigo"] == "metodo_no_permitido"
+    assert "GET" in respuesta.headers["allow"], "El 405 conserva la cabecera Allow con los métodos que sí acepta."
 
 
 @pytest.mark.marca("contrato API · error")

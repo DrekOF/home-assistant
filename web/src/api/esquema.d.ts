@@ -449,7 +449,7 @@ export interface components {
             /** @description Texto para personas, en español */
             detalle: string;
             /** @enum {string} */
-            codigo: "sin_sesion" | "credenciales_invalidas" | "token_invalido" | "dispositivo_inactivo" | "no_encontrado" | "documento_duplicado" | "codigo_duplicado" | "nombre_duplicado" | "consentimiento_vigente" | "version_texto_invalida" | "sin_consentimiento" | "inscripcion_activa" | "inscripcion_terminada" | "horario_en_uso" | "asistencia_duplicada" | "imagen_grande" | "tipo_no_soportado" | "imagen_invalida" | "demasiadas_peticiones" | "validacion" | "error_interno";
+            codigo: "sin_sesion" | "credenciales_invalidas" | "token_invalido" | "dispositivo_inactivo" | "no_encontrado" | "metodo_no_permitido" | "documento_duplicado" | "codigo_duplicado" | "nombre_duplicado" | "consentimiento_vigente" | "version_texto_invalida" | "sin_consentimiento" | "inscripcion_activa" | "inscripcion_terminada" | "horario_en_uso" | "asistencia_duplicada" | "imagen_grande" | "tipo_no_soportado" | "imagen_invalida" | "demasiadas_peticiones" | "validacion" | "error_interno";
         };
         Salud: {
             /** @enum {string} */
@@ -638,6 +638,8 @@ export interface components {
              * @enum {string}
              */
             modo: "reconocer" | "inscribir";
+            /** @description Inscripción activa de la cámara, después de vencer las que ya pasaron su hora (R9); null si no tiene. Sirve para encontrarla aunque se haya perdido su id. modo es inscribir si y solo si este campo no es null. */
+            inscripcion_activa: components["schemas"]["InscripcionCorta"] | null;
             /** Format: date-time */
             ultimo_contacto: string | null;
             estado: components["schemas"]["EstadoCamara"] | null;

@@ -18,5 +18,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "e2e", "e2e-servidor", "vite.config.ts", "playwright.config.ts", "playwright.servidor.config.ts"]
 }

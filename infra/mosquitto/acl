@@ -1,0 +1,27 @@
+# Nombre: acl
+# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.1).
+# Fecha de creación: 2026-11-11
+# Actualización: 2026-11-11
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# La comprueba la prueba «contrato MQTT · acl» (servidor/pruebas/test_mqtt_acl.py).
+
+user servidor
+topic readwrite accesia/#
+topic readwrite homeassistant/#
+
+user homeassistant
+topic readwrite homeassistant/#
+topic read accesia/#
+topic write accesia/+/puerta/set
+
+user camara
+topic deny accesia/servidor/#
+
+# %c es el client id. Mosquitto aplica las líneas pattern a todos los usuarios;
+# al usuario camara solo le dan acceso estas.
+pattern read accesia/%c/puerta/set
+pattern write accesia/%c/puerta/estado
+pattern write accesia/%c/estado
+pattern write accesia/%c/disponible

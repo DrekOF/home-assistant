@@ -97,4 +97,23 @@ AccesIA/
 
 ## Comandos
 
-Se completan a medida que existan.
+Se completan a medida que existan. Desde la raíz del repositorio, en PowerShell:
+
+```text
+.\infra\scripts\generar-env.ps1                       crea infra/.env con claves nuevas (una vez)
+.\infra\scripts\crear-claves-mqtt.ps1                 crea las claves de MQTT (una vez)
+docker compose -f infra/compose.yaml up -d --build    levanta postgres, mosquitto y servidor
+docker compose -f infra/compose.yaml ps               estado y healthchecks
+curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
+docker compose -f infra/compose.yaml down             baja todo y conserva los datos
+```
+
+Desde `servidor/` (necesita uv y Docker Desktop abierto):
+
+```text
+uv sync                                               instala las dependencias
+uv run pytest                                         corre todas las pruebas, con su resumen por marca
+uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
+```
+
+Más detalle en `infra/README.md` y `servidor/README.md`.

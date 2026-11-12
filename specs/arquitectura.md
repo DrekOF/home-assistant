@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Arquitectura
@@ -29,6 +29,16 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
 
 Modelos de cara del servidor (de `opencv/opencv_zoo`, se descargan al construir la imagen): `face_detection_yunet_2023mar.onnx` (YuNet, licencia MIT) y `face_recognition_sface_2021dec.onnx` (SFace, licencia Apache 2.0).
+
+Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un commit fijo de `opencv/opencv_zoo` y se comprueban con su SHA-256; en el PC quedan en `datos/modelos/`, que Git y Docker ignoran:
+
+| Modelo | Commit de `opencv/opencv_zoo` | SHA-256 | Bytes |
+| --- | --- | --- | --- |
+| `face_detection_yunet_2023mar.onnx` | `48b10fa505aeb51fbd127fc60a5c660040e823b7` | `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4` | 232 589 |
+
+- URL de YuNet: `https://github.com/opencv/opencv_zoo/raw/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_detection_yunet/face_detection_yunet_2023mar.onnx`.
+- opencv_zoo guarda los modelos con Git LFS: `raw.githubusercontent.com` devuelve el puntero de LFS y no el modelo. La URL de `github.com/…/raw/…` redirige al modelo.
+- YuNet 2023mar pide OpenCV 4.8 o más reciente. El simulador usa `opencv-python` 4.14.0.94, la última 4.x estable.
 
 ## Flujos
 
@@ -204,6 +214,9 @@ Sus binarios auxiliares, `diagnostico` (chip, flash, PSRAM y sensor de cualquier
 - Cumple `contratos/api-dispositivo.md` y la parte de la cámara en `contratos/mqtt.md`, con su código como client id. No puede estar conectado a la vez que una cámara con el mismo código.
 - Dos modos: webcam (detecta con YuNet, recorta con la misma fórmula y envía) y carpeta de fotos de `datos/` (para pruebas repetibles). Los dos pasan los casos de `contratos/casos-recorte.json`.
 - Modo «como la cámara», que se combina con los dos anteriores: reduce cada imagen a 320 × 240 y la comprime en JPEG de calidad 80 antes de detectar, para que los recortes se parezcan a los del ESP32-S3. Se usa para calibrar el umbral (RNF-07).
+  - Una imagen que no es 4:3 se recorta primero al centro, al rectángulo 4:3 más grande, y después se reduce. Así la cara no se deforma y la escala es la misma en los dos ejes.
+  - Ejemplo: una webcam de 1280 × 720 (16:9) pasa a 960 × 720, perdiendo 160 px de cada lado, y después a 320 × 240.
+  - Una foto vertical pierde arriba y abajo: las fotos del modo carpeta se toman horizontales.
 - Simula la puerta: al recibir `ABRIR` muestra «PUERTA ABIERTA» 3 s y publica su estado.
 - Se registra como un dispositivo de tipo `simulador`.
 

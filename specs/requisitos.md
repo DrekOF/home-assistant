@@ -4,7 +4,7 @@ Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criteri
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Requisitos
@@ -161,7 +161,7 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 - C1 Cada requisito y cada regla tiene pruebas que citan su código.
 - C2 Un PR se fusiona solo con las pruebas en verde.
-- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por frente para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). El firmware se suma con `.github/workflows/firmware.yml`, que D-21 adelanta: compila el binario de la XIAO ESP32-C6 y corre las pruebas de la lógica pura. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
+- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por pieza para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). Desde el Día 2 se suma `.github/workflows/simulador.yml` (pytest del simulador con el modelo YuNet en caché, tarea A). El firmware se suma con `.github/workflows/firmware.yml`, que D-21 adelanta: compila el binario de la XIAO ESP32-C6 y corre las pruebas de la lógica pura. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
 
 ### RNF-07 Precisión del reconocimiento (meta propuesta)
 

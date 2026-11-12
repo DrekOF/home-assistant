@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -121,6 +121,19 @@ uv run pytest                                         corre todas las pruebas, c
 uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
 ```
 
+Desde `simulador/` (necesita uv; para enviar, el servidor arriba y la cámara creada con `crear-camara`):
+
+```text
+uv sync                                               instala las dependencias
+uv run simulador modelo                               descarga YuNet a datos/modelos/ y comprueba su SHA-256 (una vez)
+$env:TOKEN_CAMARA = "<token>"                         token de la cámara, solo en esta terminal
+uv run simulador webcam --codigo entrada --como-camara
+                                                      detecta con la webcam y envía; q o Esc para salir
+uv run simulador carpeta datos/prueba --codigo entrada --como-camara
+                                                      envía las fotos y las compara con su esperado.json
+uv run pytest                                         corre las pruebas del simulador, con su resumen por marca
+```
+
 Skills de frontend, desde la raíz (después, reinicia Claude Code):
 
 ```text
@@ -140,4 +153,4 @@ npm test                                              Vitest: lógica, simulacro
 npm run e2e                                           Playwright con el simulacro; capturas en web/capturas/
 ```
 
-Más detalle en `infra/README.md`, `servidor/README.md`, `scripts/README.md` y `web/README.md`.
+Más detalle en `infra/README.md`, `servidor/README.md`, `simulador/README.md`, `scripts/README.md` y `web/README.md`.

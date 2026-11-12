@@ -1,9 +1,9 @@
 # Nombre: pyproject.toml
 # Descripción: Proyecto Python del servidor de AccesIA (frente B): dependencias, pruebas y empaquetado con uv.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-11
+# Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 
 [project]
 name = "accesia"
@@ -13,7 +13,10 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "alembic>=1.13",
+    "argon2-cffi>=25.1.0",
+    "email-validator>=2.3.0",
     "fastapi>=0.115",
+    "itsdangerous>=2.2.0",
     "pgvector>=0.3",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",
@@ -21,6 +24,10 @@ dependencies = [
     "tzdata>=2024.2",
     "uvicorn>=0.32",
 ]
+
+[project.scripts]
+# accesia crear-camara … (RF-10 · C5); el Día 3 suma semilla agente.
+accesia = "accesia.comandos:principal"
 
 [dependency-groups]
 dev = [

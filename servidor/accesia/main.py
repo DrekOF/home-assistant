@@ -1,17 +1,48 @@
 """
 Nombre: main.py
-Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso.
+Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO y crea el primer administrador.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 
 from accesia import __version__
-from accesia.api import salud
+from accesia.api import camaras, consentimiento, horarios, personas, salud, sesion
+from accesia.config import configuracion
+from accesia.db import transaccion
 from accesia.errores import registrar_manejadores
+from accesia.sesion import crear_primer_administrador
+
+registro = logging.getLogger(__name__)
+
+
+def preparar_arranque() -> None:
+    """Sin SESION_SECRETO el servidor no arranca. Si falta el primer administrador, lo crea."""
+    conf = configuracion()
+    if conf.sesion_secreto is None or not conf.sesion_secreto.get_secret_value():
+        raise RuntimeError("Falta SESION_SECRETO en infra/.env: el servidor no arranca sin ella.")
+    clave = conf.admin_clave_inicial.get_secret_value() if conf.admin_clave_inicial else None
+    try:
+        with transaccion() as conexion:
+            crear_primer_administrador(conexion, conf.admin_correo, clave)
+    except SQLAlchemyError:
+        # La API sigue arriba (salud dirá base: error); el administrador se crea en el próximo arranque.
+        registro.exception("No se pudo revisar el primer administrador: la base no respondió.")
+
+
+@asynccontextmanager
+async def ciclo_de_vida(_: FastAPI) -> AsyncIterator[None]:
+    await run_in_threadpool(preparar_arranque)
+    yield
 
 
 def crear_app() -> FastAPI:
@@ -22,9 +53,11 @@ def crear_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        lifespan=ciclo_de_vida,
     )
     registrar_manejadores(app)
-    app.include_router(salud.router)
+    for rutas in (salud, sesion, personas, consentimiento, horarios, camaras):
+        app.include_router(rutas.router)
     return app
 
 

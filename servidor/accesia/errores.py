@@ -72,9 +72,29 @@ def respuesta_error(
 
 
 def _campo(error: dict) -> str:
-    """Nombre del campo que falló, sin la parte (body, query, path) que agrega FastAPI."""
+    """Nombre del campo que falló, sin la parte (body, query, path) que agrega FastAPI; vacío si es todo el cuerpo."""
     ubicacion = [str(parte) for parte in error.get("loc", ())]
-    return ".".join(ubicacion[1:]) or ".".join(ubicacion)
+    return ".".join(ubicacion[1:])
+
+
+def explicar_validacion(errores: list[dict]) -> str:
+    """Un detalle en español: los campos que fallaron y las frases de las reglas propias (ValueError)."""
+    campos: set[str] = set()
+    frases: dict[str, None] = {}  # un dict conserva el orden y no repite
+    for error in errores:
+        tipo = error.get("type")
+        if tipo == "value_error":
+            frases[str(error.get("msg", "")).removeprefix("Value error, ")] = None
+        elif campo := _campo(error):
+            campos.add(campo)
+        elif tipo == "json_invalid":
+            frases["El cuerpo no es un JSON válido."] = None
+        else:
+            frases["Revisa el cuerpo de la petición."] = None
+    detalle = "Los datos no son válidos"
+    if campos:
+        detalle += ": revisa " + ", ".join(f"«{campo}»" for campo in sorted(campos))
+    return " ".join([detalle + ".", *frases])
 
 
 def registrar_manejadores(app: FastAPI) -> None:
@@ -86,11 +106,7 @@ def registrar_manejadores(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def error_de_validacion(_: Request, error: RequestValidationError) -> JSONResponse:
-        campos = sorted({_campo(detalle) for detalle in error.errors()})
-        detalle = "Los datos no son válidos"
-        if campos:
-            detalle += ": revisa " + ", ".join(f"«{campo}»" for campo in campos)
-        return respuesta_error(422, "validacion", detalle + ".")
+        return respuesta_error(422, "validacion", explicar_validacion(list(error.errors())))
 
     @app.exception_handler(StarletteHTTPException)
     async def error_http(_: Request, error: StarletteHTTPException) -> JSONResponse:

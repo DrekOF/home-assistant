@@ -2,9 +2,9 @@
 Nombre: arquitectura.md
 Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, firmware y despliegue.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Arquitectura
@@ -92,9 +92,9 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `POSTGRES_USER` | `accesia` | Dueño de la base, lo usa el servidor |
 | `POSTGRES_PASSWORD` | (clave) | Clave del dueño |
 | `AGENTE_DB_PASSWORD` | (clave) | Clave del usuario `agente`, de solo lectura (D-15) |
-| `SESION_SECRETO` | (64 caracteres al azar) | Firma de la cookie de sesión de la web |
-| `ADMIN_CORREO` | `admin@example.com` | Primer administrador, creado al arrancar si no existe. Con dominio no reservado: la validación de correos rechaza `.local`, `.test` o `.localhost` |
-| `ADMIN_CLAVE_INICIAL` | (clave) | Clave inicial de ese administrador |
+| `SESION_SECRETO` | (64 caracteres al azar) | Firma de la cookie de sesión de la web. Sin ella el servidor no arranca. La sesión dura 8 horas desde el último uso |
+| `ADMIN_CORREO` | `admin@example.com` | Primer administrador, creado al arrancar si no existe, con el nombre «Administrador». Con dominio no reservado: la validación de correos rechaza `.local`, `.test` o `.localhost` |
+| `ADMIN_CLAVE_INICIAL` | (clave) | Clave inicial de ese administrador, de al menos 8 caracteres. Si el administrador ya existe, no se toca su clave |
 | `MQTT_SERVIDOR_CLAVE` | (clave) | Usuario MQTT `servidor` |
 | `MQTT_HA_CLAVE` | (clave) | Usuario MQTT `homeassistant` |
 | `MQTT_CAMARA_CLAVE` | (clave) | Usuario MQTT `camara` (cámara y simulador) |

@@ -106,6 +106,8 @@ Se completan a medida que existan. Desde la raíz del repositorio, en PowerShell
 .\infra\scripts\crear-claves-mqtt.ps1                 crea las claves de MQTT (una vez)
 docker compose -f infra/compose.yaml up -d --build    levanta postgres, mosquitto y servidor
 docker compose -f infra/compose.yaml ps               estado y healthchecks
+docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador
+                                                      registra una cámara y muestra su token una sola vez
 curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
 ```

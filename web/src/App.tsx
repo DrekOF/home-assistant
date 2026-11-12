@@ -2,9 +2,9 @@
  * Nombre: App.tsx
  * Descripción: Rutas de la web de AccesIA y cliente de TanStack Query, con el manejo común de la sesión vencida.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -15,9 +15,13 @@ import { ErrorApi } from './api/cliente'
 import { claves } from './api/consultas'
 import { Aviso } from './componentes/Aviso'
 import { Boton } from './componentes/Boton'
+import { AvanceInscripcion } from './pantallas/AvanceInscripcion'
+import { Camaras } from './pantallas/Camaras'
 import { FichaPersona } from './pantallas/FichaPersona'
+import { FormularioCamara } from './pantallas/FormularioCamara'
 import { FormularioPersona } from './pantallas/FormularioPersona'
 import { InicioSesion } from './pantallas/InicioSesion'
+import { Inscripcion } from './pantallas/Inscripcion'
 import { NoEncontrada } from './pantallas/NoEncontrada'
 import { Personas } from './pantallas/Personas'
 import { Proximamente } from './pantallas/Proximamente'
@@ -72,10 +76,13 @@ const enrutador = createBrowserRouter([
       { path: 'personas/nueva', element: <FormularioPersona /> },
       { path: 'personas/:personaId', element: <FichaPersona /> },
       { path: 'personas/:personaId/editar', element: <FormularioPersona /> },
-      { path: 'inscripcion', element: <Proximamente seccion="inscripcion" /> },
+      { path: 'inscripcion', element: <Inscripcion /> },
+      { path: 'inscripcion/:inscripcionId', element: <AvanceInscripcion /> },
       { path: 'accesos', element: <Proximamente seccion="accesos" /> },
       { path: 'asistencia', element: <Proximamente seccion="asistencia" /> },
-      { path: 'camaras', element: <Proximamente seccion="camaras" /> },
+      { path: 'camaras', element: <Camaras /> },
+      { path: 'camaras/nueva', element: <FormularioCamara /> },
+      { path: 'camaras/:codigo', element: <FormularioCamara /> },
       { path: 'horarios', element: <Proximamente seccion="horarios" /> },
       { path: '*', element: <NoEncontrada /> },
     ],

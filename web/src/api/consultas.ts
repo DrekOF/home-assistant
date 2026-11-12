@@ -1,19 +1,24 @@
 /**
  * Nombre: consultas.ts
- * Descripción: Consultas y cambios de la API con TanStack Query: sesión, personas, consentimiento y horarios.
+ * Descripción: Consultas y cambios de la API con TanStack Query: sesión, personas, consentimiento, horarios, cámaras e inscripciones.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
 import {
   api,
   ErrorApi,
   exigir,
   type ConsentimientoNuevo,
+  type Dispositivo,
+  type DispositivoCambios,
+  type DispositivoConToken,
   type Esquemas,
+  type InscripcionNueva,
   type Persona,
   type PersonaCambios,
   type PersonaNueva,
@@ -25,12 +30,22 @@ export const claves = {
   sesion: ['sesion'] as const,
   personas: ['personas'] as const,
   listaPersonas: (filtros: FiltrosPersonas) => ['personas', 'lista', filtros] as const,
+  // Bajo «lista»: se vuelve a pedir cuando cambia una persona o su consentimiento.
+  personasConConsentimiento: ['personas', 'lista', 'con-consentimiento'] as const,
   persona: (id: string) => ['personas', 'ficha', id] as const,
   consentimiento: (id: string) => ['consentimiento', id] as const,
   consentimientos: (id: string) => ['consentimientos', id] as const,
   textoConsentimiento: ['texto-consentimiento'] as const,
   horarios: ['horarios'] as const,
+  camaras: ['camaras'] as const,
+  camara: (codigo: string) => ['camaras', 'ficha', codigo] as const,
+  inscripcion: (id: string) => ['inscripciones', id] as const,
 }
+
+/** La lista de cámaras se refresca sola: en línea, último contacto y la inscripción en curso cambian sin avisar. */
+export const REFRESCO_CAMARAS_MS = 5000
+/** RF-03 · C6: la web consulta la inscripción cada segundo mientras está activa. */
+export const REFRESCO_INSCRIPCION_MS = 1000
 
 const ruta = (id: string) => ({ params: { path: { persona_id: id } } })
 
@@ -176,5 +191,136 @@ export function useRevocarConsentimiento(id: string) {
   return useMutation({
     mutationFn: () => exigir(api.DELETE('/api/v1/personas/{persona_id}/consentimiento', ruta(id))),
     onSuccess: () => refrescarConsentimiento(cliente, id),
+  })
+}
+
+/** Personas que se pueden inscribir: las que tienen consentimiento vigente (R9). El contrato no filtra por él. */
+export function usePersonasConConsentimiento() {
+  return useQuery({
+    queryKey: claves.personasConConsentimiento,
+    queryFn: async () => {
+      const todas: Persona[] = []
+      for (let pagina = 1; ; pagina += 1) {
+        const datos = await exigir(api.GET('/api/v1/personas', { params: { query: { pagina, por_pagina: 100 } } }))
+        todas.push(...datos.elementos)
+        if (datos.elementos.length === 0 || todas.length >= datos.total) break
+      }
+      return todas
+        .filter((persona) => persona.consentimiento_vigente)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    },
+  })
+}
+
+// --- Cámaras (RF-10) ---
+
+export function useCamaras() {
+  return useQuery({
+    queryKey: claves.camaras,
+    queryFn: () => exigir(api.GET('/api/v1/dispositivos')),
+    refetchInterval: REFRESCO_CAMARAS_MS,
+  })
+}
+
+export function useCamara(codigo: string | undefined) {
+  return useQuery({
+    queryKey: claves.camara(codigo ?? ''),
+    queryFn: () => exigir(api.GET('/api/v1/dispositivos/{codigo}', { params: { path: { codigo: codigo ?? '' } } })),
+    enabled: Boolean(codigo),
+    // La ficha muestra si está en línea y su modo: también se refresca sola.
+    refetchInterval: REFRESCO_CAMARAS_MS,
+  })
+}
+
+/** Después de cambiar una cámara: su ficha queda al día y la lista se vuelve a pedir. */
+function camaraAlDia(cliente: QueryClient, camara: Dispositivo) {
+  cliente.setQueryData(claves.camara(camara.codigo), camara)
+  void cliente.invalidateQueries({ queryKey: claves.camaras, exact: true })
+}
+
+export function useEditarCamara() {
+  const cliente = useQueryClient()
+  return useMutation({
+    mutationFn: ({ codigo, cambios }: { codigo: string; cambios: DispositivoCambios }) =>
+      exigir(api.PATCH('/api/v1/dispositivos/{codigo}', { params: { path: { codigo } }, body: cambios })),
+    onSuccess: (camara) => camaraAlDia(cliente, camara),
+  })
+}
+
+export type CamaraConToken = { camara: Dispositivo; token: string }
+
+/**
+ * Crear una cámara y cambiar su token devuelven el token, que se muestra una sola vez (RF-10 · C1 y C2). Por eso
+ * no usan TanStack Query: el token no pasa por ningún caché. La cámara, sin el token, sí queda al día.
+ */
+export function usePeticionConToken() {
+  const cliente = useQueryClient()
+  const [cargando, setCargando] = useState(false)
+
+  /** Devuelve la cámara y su token, o lanza el error de la API para que quien llama lo muestre donde va. */
+  const ejecutar = useCallback(
+    async (peticion: () => Promise<DispositivoConToken>): Promise<CamaraConToken> => {
+      setCargando(true)
+      try {
+        const { token, ...camara } = await peticion()
+        camaraAlDia(cliente, camara)
+        return { camara, token }
+      } catch (fallo) {
+        // Igual que en las consultas: si la sesión venció, la web vuelve al inicio de sesión.
+        if (fallo instanceof ErrorApi && fallo.codigo === 'sin_sesion') cliente.setQueryData(claves.sesion, null)
+        throw fallo
+      } finally {
+        setCargando(false)
+      }
+    },
+    [cliente],
+  )
+
+  return { ejecutar, cargando }
+}
+
+export const pedirCamaraNueva = (datos: Esquemas['DispositivoNuevo']) => () =>
+  exigir(api.POST('/api/v1/dispositivos', { body: datos }))
+
+export const pedirTokenNuevo = (codigo: string) => () =>
+  exigir(api.POST('/api/v1/dispositivos/{codigo}/token', { params: { path: { codigo } } }))
+
+// --- Inscripciones (RF-03, R9) ---
+
+/** Con `vivo`, la consulta cada segundo mientras está activa (RF-03 · C6); sin él, solo para saber de quién es. */
+export function useInscripcion(id: string | undefined, { vivo = true }: { vivo?: boolean } = {}) {
+  return useQuery({
+    queryKey: claves.inscripcion(id ?? ''),
+    queryFn: () =>
+      exigir(api.GET('/api/v1/inscripciones/{inscripcion_id}', { params: { path: { inscripcion_id: id ?? '' } } })),
+    enabled: Boolean(id),
+    refetchInterval: (consulta) => (vivo && consulta.state.data?.estado === 'activa' ? REFRESCO_INSCRIPCION_MS : false),
+  })
+}
+
+/** Al abrir o cancelar una inscripción cambian la cámara (modo e inscripción activa) y las muestras de la persona. */
+function refrescarInscripcion(cliente: QueryClient, personaId?: string) {
+  void cliente.invalidateQueries({ queryKey: claves.camaras })
+  if (personaId) void cliente.invalidateQueries({ queryKey: claves.persona(personaId) })
+}
+
+export function useAbrirInscripcion() {
+  const cliente = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: InscripcionNueva) => exigir(api.POST('/api/v1/inscripciones', { body: datos })),
+    onSuccess: (inscripcion) => {
+      cliente.setQueryData(claves.inscripcion(inscripcion.id), inscripcion)
+      refrescarInscripcion(cliente, inscripcion.persona.id)
+    },
+  })
+}
+
+export function useCancelarInscripcion() {
+  const cliente = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }: { id: string; personaId?: string }) =>
+      exigir(api.DELETE('/api/v1/inscripciones/{inscripcion_id}', { params: { path: { inscripcion_id: id } } })),
+    onSettled: (_, __, { id, personaId }) =>
+      Promise.all([cliente.invalidateQueries({ queryKey: claves.inscripcion(id) }), refrescarInscripcion(cliente, personaId)]),
   })
 }

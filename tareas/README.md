@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Cómo se trabajan las tareas de AccesIA con Claude Code, orden y plantilla.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Tareas
@@ -27,7 +27,8 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 ## Orden
 
 - Día 1: primero la tarea 00, los tres juntos. Después A, B y C en paralelo, cada una en su rama.
-- Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A.
+- Día 2: A, B1 y C empiezan en paralelo; B2 sale de `main` cuando B1 está fusionada. El orden y el guion del Hito 1 están en `dia-2/00-todos-orden-e-hito-1.md`.
+- Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A el Día 1; B1, B2, A y C el Día 2.
 - Las tareas de cada día se escriben al cerrar el día anterior, a partir de `specs/plan.md` y de lo aprendido.
 
 ## Tareas del Día 1
@@ -38,6 +39,16 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 | [dia-1/A-julian-esp-idf-y-deteccion.md](dia-1/A-julian-esp-idf-y-deteccion.md) | Julián Andrés Silva Morales | `a/esp-idf-deteccion` |
 | [dia-1/B-cristhian-compose-y-base.md](dia-1/B-cristhian-compose-y-base.md) | Cristhian Eduardo Sánchez Mosquera | `b/compose-y-base` |
 | [dia-1/C-jhon-skills-y-web.md](dia-1/C-jhon-skills-y-web.md) | Jhon Jairo Perdomo Perdomo | `c/skills-y-web` |
+
+## Tareas del Día 2
+
+| Archivo | Responsable | Rama |
+| --- | --- | --- |
+| [dia-2/00-todos-orden-e-hito-1.md](dia-2/00-todos-orden-e-hito-1.md) | Todos | `b/hito-1` (solo el resultado del hito) |
+| [dia-2/A-julian-simulador.md](dia-2/A-julian-simulador.md) | Julián Andrés Silva Morales | `a/simulador` |
+| [dia-2/B1-cristhian-sesion-y-api.md](dia-2/B1-cristhian-sesion-y-api.md) | Cristhian Eduardo Sánchez Mosquera | `b/sesion-y-api` |
+| [dia-2/B2-cristhian-reconocimiento-e-inscripcion.md](dia-2/B2-cristhian-reconocimiento-e-inscripcion.md) | Cristhian Eduardo Sánchez Mosquera | `b/reconocimiento` |
+| [dia-2/C-jhon-inscripcion-y-camaras.md](dia-2/C-jhon-inscripcion-y-camaras.md) | Jhon Jairo Perdomo Perdomo | `c/inscripcion-y-camaras` |
 
 ## Plantilla de una tarea
 

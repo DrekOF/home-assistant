@@ -1,9 +1,9 @@
 # Nombre: acl
-# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.1).
+# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.2).
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-11
+# Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 #
 # La comprueba la prueba «contrato MQTT · acl» (servidor/pruebas/test_mqtt_acl.py).
 
@@ -25,3 +25,9 @@ pattern read accesia/%c/puerta/set
 pattern write accesia/%c/puerta/estado
 pattern write accesia/%c/estado
 pattern write accesia/%c/disponible
+
+# La placa publica sus lecturas de ambiente y el descubrimiento de sus dos sensores (D-21).
+# %c tiene que ocupar un nivel entero del tema: por eso el nodo del descubrimiento es el código.
+pattern write accesia/%c/ambiente
+pattern write homeassistant/sensor/%c/temperatura/config
+pattern write homeassistant/sensor/%c/humedad/config

@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.10
+Versión: 1.11
 -->
 
 # Bitácora
@@ -22,6 +22,47 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 2 · Firmware de la XIAO ESP32-C6
+
+- Quién: el frente A, con la ACL de MQTT, que es de infra.
+- Qué:
+  - Un solo binario para la XIAO ESP32-C6 (RF-14 · C1), que:
+    - se conecta al Wi-Fi con reintentos y a MQTT con su código como client id;
+    - abre la puerta en el LED de GPIO15;
+    - publica su estado general cada 60 s y su disponibilidad, con último deseo;
+    - lee un DHT22 o un DHT11 en GPIO2 cada 30 s y publica el descubrimiento de esos dos sensores.
+  - La antena: GPIO3 en bajo y GPIO14 según el comando `antena`. Cuando la puerta está cerrada, el LED muestra el estado: parpadea despacio sin Wi-Fi y rápido sin broker.
+  - La consola entra por el USB-C y por UART0, con `puerta <pin> <segundos> [bajo|alto]`, `sensor` y `antena`.
+  - Del S3 (PR #7) se trajeron la configuración en NVS, la consola, la lógica del recorte y de la espera, las pruebas y los scripts. Los perfiles, los pines de cámara y la detección quedaron en el PR #7.
+  - Un proyecto con varios targets: `sdkconfig.defaults.<target>`, un lockfile por target (`dependencies.lock.esp32c6`) y componentes que solo compilan en el C6. El S3 puede volver como otro target.
+  - `accesia_vision`: el punto de extensión de la cámara (fuente de cuadros y detector), sin código de cámara ni de TinyML.
+  - `infra/mosquitto/acl` 1.1, con las tres líneas de `mqtt.md` 1.2, y sus casos en `test_mqtt_acl.py`.
+  - `.github/workflows/firmware.yml`, adelantado del Día 4: compila con la imagen `espressif/idf:v5.4.4`, revisa el lockfile y corre las pruebas de la lógica pura.
+  - `firmware/README.md` 1.2, con la prueba con la placa: hotspot, firewall, broker, integración MQTT de Home Assistant y consola. `CLAUDE.md` 1.5 suma los comandos del firmware.
+- Cómo:
+  - Claude Code escribió el firmware con el plan que aprobó el equipo. Separó la lógica pura en `accesia_logica` (mensajes, puerta, ambiente, LED y pines) para probarla sin placa; los componentes de ESP-IDF solo la conectan con el hardware.
+  - Decisiones de implementación:
+    - Una lectura fuera del rango del sensor cuenta como falla. El rango del DHT22 es de −40 a 80 °C y de 0 a 100 %; el del DHT11, de 0 a 50 °C y de 20 a 90 %.
+    - `keepalive` de 30 s: el broker publica `offline` unos 45 s después de que la placa se desconecta.
+    - Un `ABRIR` con la puerta abierta vuelve a contar los segundos.
+    - Si la puerta usa el LED, el pin lo maneja la tarea del LED, y la puerta abierta manda sobre el estado.
+    - `codigo` borra el descubrimiento del código anterior antes de guardar el nuevo, como pide el contrato.
+    - `puerta` rechaza los pines de la flash, el USB, UART0, el sensor, la antena y BOOT.
+  - Se corrigió un error: GCC 14 de ESP-IDF marcó dos `strncpy` del Wi-Fi como posible truncado (`-Werror=stringop-truncation`). Se cambiaron por `memcpy`, con los largos que ya limita la consola.
+  - La prueba con la placa se hace con el equipo, con los pasos del README.
+  - Mientras tanto se fusionaron en `main` el PR #9 (simulador) y el PR #10 (B2). La rama se actualizó con cada uno y se conservaron todos los lados: `CLAUDE.md` 1.5 lleva los comandos del simulador, de `descargar-modelos` y del firmware, y la bitácora, todas las entradas. El contrato de la cámara 1.2 solo aclara que 100 KB son 102 400 bytes: no cambia el recorte ni las esperas que trae el firmware.
+- Pruebas:
+  - Lógica pura, en `ubuntu:24.04`, con el detector de comportamiento indefinido y `-Werror`: 41 casos y 200 comprobaciones en verde. Incluyen `contrato MQTT · ambiente`, `contrato MQTT · descubrimiento de la placa`, `contrato MQTT · estado`, `RF-14 · C2`, `C3`, `C5` y `C6`, y las del recorte.
+  - `contrato MQTT · acl`: 8 en verde, con los casos nuevos de `ambiente` y del descubrimiento.
+  - Compilación para el `esp32c6` con ESP-IDF 5.4.4: `accesia.bin` mide 1,05 MB, el 34 % de la partición, y los componentes de AccesIA no dan avisos.
+  - La CI del PR corre la web, el servidor, el simulador y, por primera vez, el firmware.
+- Cambios de contrato o de specs: ninguno. La ACL y sus pruebas siguen a `mqtt.md` 1.2.
+- Pendiente:
+  - La prueba con la placa, con el equipo: RF-14 · C2 a C6 y la lista «Por verificar» del README (el nivel del LED, la antena, la consola por los dos puertos y el DHT).
+  - Infra, por asignar: `compose.escenario2.yaml` como despliegue principal, el `model` del dispositivo en el servidor, la limpieza del descubrimiento en el servidor y la copia de seguridad de Home Assistant OS.
+  - Cuando la placa envíe recortes, el firewall también tendrá que dejar entrar desde el hotspot el 8000 del servidor.
+  - P-03: el módulo de cámara.
 
 ## 2026-11-12 · Día 2 · Tarea B2 · Reconocimiento e inscripción
 

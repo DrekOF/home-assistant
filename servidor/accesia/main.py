@@ -1,10 +1,10 @@
 """
 Nombre: main.py
-Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO y crea el primer administrador.
+Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador y carga los modelos de cara.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import logging
@@ -16,11 +16,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
 from accesia import __version__
-from accesia.api import camaras, consentimiento, horarios, personas, salud, sesion
+from accesia.api import camaras, consentimiento, horarios, inscripciones, personas, rostros, salud, sesion
 from accesia.config import configuracion
 from accesia.db import transaccion
 from accesia.errores import registrar_manejadores
+from accesia.registro import configurar_registro
+from accesia.rostros import ControlDeRitmo
 from accesia.sesion import crear_primer_administrador
+from accesia.vision import cargar_vision
 
 registro = logging.getLogger(__name__)
 
@@ -40,13 +43,16 @@ def preparar_arranque() -> None:
 
 
 @asynccontextmanager
-async def ciclo_de_vida(_: FastAPI) -> AsyncIterator[None]:
+async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
     await run_in_threadpool(preparar_arranque)
+    # YuNet y SFace se cargan una sola vez. Sin los modelos, el servidor no arranca.
+    app.state.vision = await run_in_threadpool(cargar_vision)
     yield
 
 
 def crear_app() -> FastAPI:
     """Crea la aplicación. El contrato de la API es specs/contratos/openapi.yaml, así que no se publica otro."""
+    configurar_registro()
     app = FastAPI(
         title="API de AccesIA",
         version=__version__,
@@ -56,7 +62,9 @@ def crear_app() -> FastAPI:
         lifespan=ciclo_de_vida,
     )
     registrar_manejadores(app)
-    for rutas in (salud, sesion, personas, consentimiento, horarios, camaras):
+    # El 429 vive en memoria: el servidor corre con un solo proceso (arquitectura.md).
+    app.state.ritmo = ControlDeRitmo()
+    for rutas in (salud, sesion, personas, consentimiento, horarios, camaras, rostros, inscripciones):
         app.include_router(rutas.router)
     return app
 

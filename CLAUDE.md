@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -117,6 +117,7 @@ Desde `servidor/` (necesita uv y Docker Desktop abierto):
 
 ```text
 uv sync                                               instala las dependencias
+uv run accesia descargar-modelos                      descarga YuNet y SFace a datos/modelos/ y comprueba su SHA-256 (una vez)
 uv run pytest                                         corre todas las pruebas, con su resumen por marca
 uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
 ```

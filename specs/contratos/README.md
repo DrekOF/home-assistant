@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Contratos
@@ -13,7 +13,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 
 | Contrato | Archivo | Versión | Dueño | Lo usan |
 | --- | --- | --- | --- | --- |
-| Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.1 | B | A (firmware y simulador) |
+| Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.3 | B | C (web), A (simulador) |
 | MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.2 | B | A (placa y simulador), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.2 | B | C (Home Assistant) |
@@ -36,6 +36,13 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## Cámara → servidor 1.2 (2026-11-12)
+
+Una aclaración en `api-dispositivo.md`, propuesta en la tarea B2 del Día 2. Los demás contratos no cambian.
+
+- 100 KB son 102 400 bytes: el servidor responde 413 `imagen_grande` desde 102 401 bytes. El simulador ya envía como máximo 100 000 bytes, así que los dos lados quedan de acuerdo.
+- Solo aclara: no cambia campos, códigos ni temas, por eso es 1.2 y no 2.0. Los casos de `casos-recorte.json` no cambian.
 
 ## `mqtt.md` 1.2 (2026-11-12)
 

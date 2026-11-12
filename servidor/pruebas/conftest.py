@@ -1,15 +1,18 @@
 """
 Nombre: conftest.py
-Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector con testcontainers, la API con sesión dentro de la transacción de cada prueba, y marcas de las specs.
+Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada y marcas de las specs.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
+import itertools
 import os
+import sys
 from collections import Counter, defaultdict
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -180,3 +183,72 @@ def sesion(cliente: TestClient, administrador: dict) -> TestClient:
     respuesta = cliente.post("/api/v1/sesion", json={"correo": administrador["correo"], "clave": administrador["clave"]})
     assert respuesta.status_code == 200, respuesta.text
     return cliente
+
+
+# --- Reloj, visión armada y cámaras (B2) ---
+
+
+class Reloj:
+    """La hora de accesia.tiempo.ahora() que ven el servidor y la prueba; solo avanza cuando la prueba lo dice."""
+
+    def __init__(self, inicio: datetime) -> None:
+        self.momento = inicio
+
+    def __call__(self) -> datetime:
+        return self.momento
+
+    def avanzar(self, segundos: float) -> None:
+        self.momento += timedelta(seconds=segundos)
+
+
+@pytest.fixture
+def reloj(app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> Reloj:
+    """Reemplaza ahora() en todos los módulos del servidor, también los que la importaron con from … import ahora."""
+    from accesia import tiempo
+
+    original = tiempo.ahora
+    falso = Reloj(original())
+    for nombre, modulo in list(sys.modules.items()):
+        if (nombre == "accesia" or nombre.startswith("accesia.")) and getattr(modulo, "ahora", None) is original:
+            monkeypatch.setattr(modulo, "ahora", falso)
+    return falso
+
+
+@pytest.fixture
+def vision(app: FastAPI):
+    """Visión armada (sin modelos ni fotos) en la app de la prueba. Cada recorte avanza 1 s el reloj del 429."""
+    from accesia.rostros import ControlDeRitmo
+    from vision_falsa import VisionFalsa
+
+    falsa = VisionFalsa()
+    app.state.vision = falsa
+    app.state.ritmo = ControlDeRitmo(reloj=itertools.count(start=1000.0, step=1.0).__next__)
+    return falsa
+
+
+@pytest.fixture
+def camaras(cliente: TestClient, conexion: Connection, vision) -> Callable[..., object]:
+    """Registra cámaras con un token real (la base guarda su SHA-256) que envían recortes a la API."""
+    import armar
+    from accesia.seguridad import hash_de_token, token_nuevo
+    from vision_falsa import CamaraDePrueba
+
+    def crear(codigo: str = "entrada", tipo: str = "simulador", activo: bool = True) -> CamaraDePrueba:
+        token = token_nuevo()
+        armar.camara(conexion, codigo, tipo, token_hash=hash_de_token(token), activo=activo)
+        return CamaraDePrueba(cliente, codigo, token, vision)
+
+    return crear
+
+
+@pytest.fixture(scope="session")
+def vision_real():
+    """YuNet y SFace reales, de datos/modelos/. Si faltan, se descargan y se comprueba su SHA-256."""
+    from accesia import modelos
+    from accesia.vision import VisionOpenCV
+
+    try:
+        modelos.descargar(avisar=lambda _: None)
+    except (OSError, RuntimeError) as error:
+        pytest.skip(f"No están los modelos de cara y no se pudieron descargar: {error}")
+    return VisionOpenCV()

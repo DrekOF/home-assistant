@@ -1,10 +1,10 @@
 """
 Nombre: esquemas.py
-Descripción: Esquemas de la API de AccesIA con pydantic, iguales a los de specs/contratos/openapi.yaml 1.3 (sesión, personas, consentimiento, horarios y cámaras).
+Descripción: Esquemas de la API de AccesIA con pydantic, iguales a los de specs/contratos/openapi.yaml 1.3 (sesión, personas, consentimiento, horarios, cámaras, inscripciones y la respuesta a la cámara).
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 from datetime import datetime
@@ -213,6 +213,64 @@ class InscripcionCorta(BaseModel):
     requeridas: int
     estado: EstadoInscripcion
     vence: FechaHora
+
+
+# --- Inscripciones (R9) ---
+
+MotivoMuestra = Literal[
+    "sin_cara", "varias_caras", "cara_pequena", "borrosa", "parece_otra_persona", "distinta_de_la_primera"
+]
+
+
+class Inscripcion(BaseModel):
+    id: UUID
+    persona: PersonaCorta
+    dispositivo: str
+    estado: EstadoInscripcion
+    muestras: int
+    requeridas: int
+    ultimo_motivo: MotivoMuestra | None
+    creada: FechaHora
+    vence: FechaHora
+    terminada: FechaHora | None
+
+
+class InscripcionNueva(BaseModel):
+    persona_id: UUID
+    dispositivo: CodigoCamara
+
+
+# --- Cámara → servidor (specs/contratos/api-dispositivo.md) ---
+
+ResultadoRostro = Literal[
+    "permitido", "denegado", "desconocido", "descartado", "muestra_aceptada", "muestra_rechazada"
+]
+MotivoRostro = Literal[
+    "inactiva",
+    "sin_consentimiento",
+    "bajo_umbral",
+    "sin_cara",
+    "varias_caras",
+    "cara_pequena",
+    "borrosa",
+    "parece_otra_persona",
+    "distinta_de_la_primera",
+]
+
+
+class RespuestaRostro(BaseModel):
+    """Respuesta 200 a la cámara: todos los campos siempre presentes, con null cuando no aplica."""
+
+    modo: Modo
+    resultado: ResultadoRostro
+    motivo: MotivoRostro | None
+    persona: PersonaCorta | None
+    similitud: float | None
+    repetido: bool
+    evento_id: UUID | None
+    inscripcion: InscripcionCorta | None
+    mensaje: str
+    hora: FechaHora
 
 
 class EstadoCamara(BaseModel):

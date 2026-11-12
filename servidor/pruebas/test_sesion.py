@@ -4,7 +4,7 @@ Descripción: Pruebas de la sesión de la web y del primer administrador: contra
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import time
@@ -20,7 +20,7 @@ from accesia.config import configuracion
 from accesia.main import preparar_arranque
 from accesia.sesion import COOKIE, DURACION_S, SAL, crear_primer_administrador
 
-# Todas las rutas de B1 que piden sesión (openapi.yaml: security sesion).
+# Todas las rutas de B1 y B2 que piden sesión (openapi.yaml: security sesion).
 ID = str(uuid4())
 RUTAS_CON_SESION = [
     ("GET", "/api/v1/sesion"),
@@ -43,6 +43,9 @@ RUTAS_CON_SESION = [
     ("GET", "/api/v1/dispositivos/entrada"),
     ("PATCH", "/api/v1/dispositivos/entrada"),
     ("POST", "/api/v1/dispositivos/entrada/token"),
+    ("POST", "/api/v1/inscripciones"),
+    ("GET", f"/api/v1/inscripciones/{ID}"),
+    ("DELETE", f"/api/v1/inscripciones/{ID}"),
 ]
 
 

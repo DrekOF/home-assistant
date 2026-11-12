@@ -4,7 +4,7 @@ Descripción: Revisión de las specs y los contratos 1.0 de AccesIA (tarea 00 de
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Revisión de specs y contratos de AccesIA (tarea 00, Día 1)
@@ -15,6 +15,7 @@ Versión: 1.0
 - No se cambió ningún archivo del repositorio. Según `CLAUDE.md`, un contrato cambia solo por PR, con la aprobación de los frentes que lo usan y una línea en `specs/decisiones.md`.
 - Página publicada (privada; se comparte desde su menú Compartir): https://claude.ai/artifact/VohHhx1gX6p8ACrss5Aqaa
 - Resumen: 12 inconsistencias, 7 huecos y 11 riesgos; 7 de prioridad alta.
+- Estado: el equipo decidió sobre estos puntos en la tarea 00 y los acuerdos se aplicaron en la rama `b/contratos-v1-1`, con los contratos en versión 1.1. Lo decidido está en el registro de cambios de `specs/decisiones.md`; esta revisión queda como estaba.
 
 ## Lo más urgente
 

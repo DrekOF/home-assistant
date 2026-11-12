@@ -4,7 +4,7 @@ Descripción: Configuración de Home Assistant de AccesIA (frente C).
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Home Assistant · frente C
@@ -14,7 +14,7 @@ Versión: 1.0
 | Qué | Dónde |
 | --- | --- |
 | Configuración general (zona horaria `America/Bogota`, idioma español) | `config/configuration.yaml` |
-| Automatizaciones: abrir la puerta y avisar desconocidos | `config/automations.yaml`, copiadas de `specs/contratos/mqtt.md` |
+| Automatizaciones: abrir la puerta y avisar desconocidos | `config/automatizaciones_accesia.yaml`, copiadas de `specs/contratos/mqtt.md` e incluidas desde `configuration.yaml`. `config/automations.yaml` queda para las que se creen en la interfaz |
 | Panel «Portería» | `config/`, en YAML |
 | Integraciones MQTT, Ollama y MCP | Se configuran desde la interfaz (`specs/contratos/mcp-agente.md`) y quedan en `.storage`, que Git ignora |
 

@@ -4,7 +4,7 @@ Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criteri
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Requisitos
@@ -16,19 +16,19 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 ### RF-01 Detección en la cámara (TinyML) · frente A
 
 - C1 Detecta caras dentro del ESP32-S3 con `espressif/human_face_detect` (MSR + MNP, int8).
-- C2 Envía solo el recorte en JPEG, con 25 % de margen y como máximo uno por segundo, según `contratos/api-dispositivo.md`.
+- C2 Envía solo el recorte en JPEG, con la fórmula del recorte de `contratos/api-dispositivo.md`, y espera al menos 1 s desde cada respuesta antes de enviar otro.
 - C3 No envía nada si no hay cara o si la cara mide menos de `CARA_MIN_PX` de alto.
 - C4 Se configura por consola serial sin recompilar (`arquitectura.md`).
-- C5 Compila para todos los perfiles de placa.
-- C6 El simulador cumple el mismo contrato y pasa las mismas pruebas de contrato.
+- C5 Compila los dos binarios, `octal` y `quad`, con todos sus perfiles de placa (D-17).
+- C6 El simulador cumple el mismo contrato y pasa las mismas pruebas de contrato, incluidos los casos de `contratos/casos-recorte.json`.
 
 ### RF-02 Personas y consentimiento · frentes B y C
 
 - C1 Crear, ver, editar, activar y desactivar personas. El documento es único.
 - C2 Registrar el consentimiento con la versión del texto, el medio (web o papel), quién lo registró y la fecha.
-- C3 La web muestra el texto de `consentimiento.md`, dice que es opcional y ofrece el registro manual como alternativa.
+- C3 La web muestra el texto de `consentimiento.md`, dice que es opcional y ofrece el registro manual de asistencia como alternativa (RF-06 · C5).
 - C4 Sin consentimiento vigente no se puede abrir una inscripción (422, código `sin_consentimiento`).
-- C5 Revocar el consentimiento borra las huellas de la persona en la misma transacción.
+- C5 Revocar el consentimiento borra las huellas de la persona y cancela su inscripción activa, en la misma transacción.
 
 ### RF-03 Inscripción · frentes B y C
 
@@ -59,11 +59,12 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 - C2 Las entradas siguientes del mismo día no cambian la llegada.
 - C3 El reporte del día separa a tiempo, tarde, sin horario y ausentes (personas activas con horario ese día y sin llegada).
 - C4 Exportar a CSV por rango de fechas (extra).
+- C5 Registro manual: un administrador registra la llegada de una persona a una hora dada (`POST /api/v1/asistencia`). Se aplica R5 a esa hora y responde 409 `asistencia_duplicada` si ya tiene llegada ese día. La llegada queda con origen `manual` y con quién la registró. Sirve para quien no dio consentimiento y como plan B si la cámara falla.
 
 ### RF-07 Home Assistant · frentes B (publicación) y C (configuración)
 
 - C1 Las entidades de `contratos/mqtt.md` aparecen solas al arrancar el servidor y cada vez que Home Assistant avisa que está en línea.
-- C2 Con un acceso permitido, la automatización abre la puerta y la entidad Puerta cambia en menos de 2 s (meta propuesta).
+- C2 Con un acceso permitido, también si es una repetición de R4, la automatización abre la puerta y la entidad Puerta cambia en menos de 2 s (meta propuesta).
 - C3 Con la alerta de R6, Home Assistant crea una notificación de desconocidos.
 - C4 Hay un panel «Portería» con última persona, último resultado, asistentes hoy, llegadas tarde hoy, desconocidos, puerta y cámara en línea.
 
@@ -78,7 +79,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 ### RF-09 Web de administración · frente C
 
 - C1 Inicio de sesión de administradores; las demás pantallas piden sesión.
-- C2 Pantallas: Personas (con consentimiento), Inscripción (avance en vivo), Accesos, Asistencia y Cámaras.
+- C2 Pantallas: Personas (con consentimiento), Inscripción (avance en vivo), Accesos, Asistencia (con registro manual) y Cámaras.
 - C3 Hecha con los skills de frontend y verificada con Playwright: se ve y funciona como se planeó.
 - C4 Textos en español; fechas y horas en hora de Colombia.
 
@@ -88,18 +89,19 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 - C2 Cambiar el token; el anterior deja de servir.
 - C3 Ver el último contacto y si está en línea.
 - C4 Modo extraer: para una cámara de tipo `respaldo`, el servidor pide `GET {url_captura}` cada segundo, detecta y recorta la cara y la procesa como si hubiera llegado de la cámara.
+- C5 Comando `crear-camara` del servidor: registra una cámara (código, nombre y tipo) y muestra su token una sola vez, sin pasar por la web. Sirve para el Hito 1 y como plan B.
 
 ### RF-11 Kit del día de clase · frente C, con A y B
 
 - C1 Scripts `instalar.sh` y `verificar.sh`.
-- C2 Imágenes arm64 en archivos `.tar`, modelo de Ollama, copia de seguridad de Home Assistant, binarios del firmware por perfil y esptool.
+- C2 Imágenes arm64 en archivos `.tar`, modelo de Ollama, copia de seguridad de Home Assistant, los dos binarios del firmware (`octal` y `quad`), el de diagnóstico, el de respaldo y esptool.
 - C3 Ensayo desde cero hasta la primera persona reconocida en menos de 45 minutos (meta propuesta).
 
 ### RF-12 Derechos del titular (Ley 1581) · frentes B y C
 
 - C1 Borrar todas las huellas de una persona.
 - C2 Borrar una persona: se borran sus huellas, consentimientos, inscripciones y asistencia; sus eventos quedan sin persona.
-- C3 Ver qué datos hay de una persona en su ficha, sin mostrar las huellas.
+- C3 Ver qué datos hay de una persona en su ficha, sin mostrar las huellas: sus datos, sus consentimientos (el vigente y los revocados), cuántas muestras tiene, sus accesos y su asistencia (`GET /api/v1/personas/{persona_id}/asistencia`).
 
 ## Requisitos no funcionales
 
@@ -107,7 +109,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 - C1 Nunca se guarda una imagen de cara: ni en disco, ni en la base, ni en los registros, ni en el repositorio.
 - C2 Prueba: después de una sesión de pruebas no hay archivos de imagen en los volúmenes ni imágenes en base64 en los registros.
-- C3 A un desconocido no se le dice a quién se parece.
+- C3 A un desconocido no se le dice a quién se parece. Al inscribir, una muestra rechazada por parecerse a otra persona tampoco dice a quién.
 - C4 El agente no ve documentos ni huellas.
 
 ### RNF-02 Seguridad
@@ -123,7 +125,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 - C1 Respuesta a la cámara en menos de 1 s en el portátil y de 2 s en la Raspberry.
 - C2 Puerta abierta en menos de 2 s desde que llega el recorte.
-- C3 Se mide la respuesta de Assist en la Raspberry con el modelo elegido; si pasa de 15 s, Ollama va al portátil.
+- C3 Se mide la respuesta de Assist en la Raspberry con el modelo elegido; si pasa de 15 s, Ollama va al portátil con `infra/compose.ollama-portatil.yaml`.
 
 ### RNF-04 Portabilidad
 
@@ -140,9 +142,9 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 - C1 Cada requisito y cada regla tiene pruebas que citan su código.
 - C2 Un PR se fusiona solo con las pruebas en verde.
-- C3 GitHub Actions corre las pruebas y compila el firmware de cada perfil (desde el Día 4).
+- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por frente para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). El firmware se suma el Día 4 con `.github/workflows/firmware.yml`, que compila los dos binarios y corre sus pruebas. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
 
 ### RNF-07 Precisión del reconocimiento (meta propuesta)
 
-- C1 Con los 3 integrantes, 20 intentos cada uno, y fotos de un dataset público como impostores: ningún impostor aceptado y máximo 2 rechazos de 20 por persona.
+- C1 Con los 3 integrantes, 20 intentos cada uno, y fotos de un dataset público como impostores: ningún impostor aceptado y máximo 2 rechazos de 20 por persona. Los recortes son como los de la cámara real: del ESP32-S3 o del simulador en modo «como la cámara».
 - C2 El umbral final y los resultados quedan anotados en `decisiones.md`.

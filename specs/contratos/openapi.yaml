@@ -3,11 +3,11 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-11
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 openapi: 3.1.0
 info:
   title: API de AccesIA
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     API del servidor de AccesIA. La web de administración usa la cookie de sesión y las cámaras
     usan su token. Fechas y horas en ISO 8601 con la zona de Colombia (-05:00). Todos los errores
@@ -180,12 +180,16 @@ paths:
       tags: [Consentimiento]
       operationId: verConsentimiento
       summary: Consentimiento vigente de la persona
+      description: Responde null si la persona no tiene consentimiento vigente; 404 solo si la persona no existe.
       responses:
         "200":
-          description: Consentimiento vigente
+          description: Consentimiento vigente, o null si no hay
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Consentimiento" }
+              schema:
+                anyOf:
+                  - { $ref: "#/components/schemas/Consentimiento" }
+                  - { type: "null" }
         "401": { $ref: "#/components/responses/NoAutorizado" }
         "404": { $ref: "#/components/responses/NoEncontrado" }
     post:
@@ -210,11 +214,59 @@ paths:
     delete:
       tags: [Consentimiento]
       operationId: revocarConsentimiento
-      summary: Revoca el consentimiento y borra las huellas en la misma transacción (RF-02 · C5)
+      summary: Revoca el consentimiento, borra las huellas y cancela la inscripción activa, en la misma transacción (RF-02 · C5)
+      description: 404 si la persona no existe o no tiene consentimiento vigente.
       responses:
-        "204": { description: Consentimiento revocado y huellas borradas }
+        "204": { description: "Consentimiento revocado, huellas borradas e inscripción activa cancelada" }
         "401": { $ref: "#/components/responses/NoAutorizado" }
         "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/personas/{persona_id}/consentimientos:
+    parameters:
+      - $ref: "#/components/parameters/PersonaId"
+    get:
+      tags: [Consentimiento]
+      operationId: listarConsentimientos
+      summary: Todos los consentimientos de la persona, vigente y revocados, del más reciente al más antiguo
+      description: Sirve para mostrar qué versión del texto aceptó la persona (specs/consentimiento.md).
+      responses:
+        "200":
+          description: Consentimientos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Consentimiento" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+
+  /api/v1/personas/{persona_id}/asistencia:
+    parameters:
+      - $ref: "#/components/parameters/PersonaId"
+    get:
+      tags: [Asistencia]
+      operationId: verAsistenciaPersona
+      summary: Llegadas de una persona, de la más reciente a la más antigua (RF-12 · C3)
+      parameters:
+        - name: desde
+          in: query
+          description: Fecha local de Colombia, incluida
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          description: Fecha local de Colombia, incluida
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Llegadas de la persona
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Asistencia" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
 
   /api/v1/consentimiento/texto:
     get:
@@ -272,6 +324,7 @@ paths:
       tags: [Inscripciones]
       operationId: abrirInscripcion
       summary: Abre una inscripción para una persona en una cámara (RF-03, R9)
+      description: Antes de abrir, vence la inscripción activa de esa cámara si ya pasó su hora (R9).
       requestBody:
         required: true
         content:
@@ -481,13 +534,36 @@ paths:
               schema: { $ref: "#/components/schemas/ReporteAsistencia" }
         "401": { $ref: "#/components/responses/NoAutorizado" }
         "422": { $ref: "#/components/responses/NoProcesable" }
+    post:
+      tags: [Asistencia]
+      operationId: registrarAsistenciaManual
+      summary: Registra a mano la llegada de una persona (RF-06 · C5)
+      description: >-
+        Para quien no dio consentimiento y como plan B si la cámara falla. Aplica R5 a la hora dada;
+        la fecha es la fecha local de esa hora (R8). Si la persona ya tiene llegada ese día, responde 409
+        asistencia_duplicada. La hora no puede ser futura (422 validacion).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AsistenciaManualNueva" }
+      responses:
+        "201":
+          description: Llegada registrada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Asistencia" }
+        "401": { $ref: "#/components/responses/NoAutorizado" }
+        "404": { $ref: "#/components/responses/NoEncontrado" }
+        "409": { $ref: "#/components/responses/Conflicto" }
+        "422": { $ref: "#/components/responses/NoProcesable" }
 
   /api/v1/asistencia.csv:
     get:
       tags: [Asistencia]
       operationId: exportarAsistencia
       summary: Exporta la asistencia a CSV (RF-06 · C4, extra)
-      description: "Columnas: fecha, nombre, documento, llegada, estado, minutos_tarde. Separador coma, UTF-8."
+      description: "Columnas: fecha, nombre, documento, llegada, estado, minutos_tarde, origen. Separador coma, UTF-8."
       parameters:
         - name: desde
           in: query
@@ -651,7 +727,8 @@ components:
     Conflicto:
       description: >-
         Choca con el estado actual (codigo: documento_duplicado, codigo_duplicado, nombre_duplicado,
-        consentimiento_vigente, inscripcion_activa, inscripcion_terminada u horario_en_uso)
+        consentimiento_vigente, inscripcion_activa, inscripcion_terminada, horario_en_uso o
+        asistencia_duplicada)
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -673,7 +750,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     DemasiadasPeticiones:
-      description: "Más de un recorte por segundo de la misma cámara (codigo: demasiadas_peticiones)"
+      description: "Llegaron dos recortes de la misma cámara con menos de 0,8 s entre sí (codigo: demasiadas_peticiones)"
       headers:
         Retry-After:
           schema: { type: integer, example: 1 }
@@ -686,7 +763,7 @@ components:
       type: object
       required: [detalle, codigo]
       properties:
-        detalle: { type: string, description: Texto para personas, en español }
+        detalle: { type: string, description: "Texto para personas, en español" }
         codigo:
           type: string
           enum:
@@ -704,6 +781,7 @@ components:
             - inscripcion_activa
             - inscripcion_terminada
             - horario_en_uso
+            - asistencia_duplicada
             - imagen_grande
             - tipo_no_soportado
             - imagen_invalida
@@ -814,6 +892,12 @@ components:
         version_texto: { type: string, description: Debe ser la versión vigente del texto, example: "1.0" }
         medio: { type: string, enum: [web, papel], default: web }
         acepta: { const: true, description: La persona marcó que acepta }
+        aceptado_en:
+          type: string
+          format: date-time
+          description: >-
+            Solo con medio papel: cuándo firmó la persona; no puede ser futura. Con web, o si falta,
+            es la hora del registro.
 
     TextoConsentimiento:
       type: object
@@ -838,7 +922,7 @@ components:
 
     MotivoMuestra:
       type: string
-      enum: [sin_cara, varias_caras, cara_pequena, borrosa, parece_otra_persona]
+      enum: [sin_cara, varias_caras, cara_pequena, borrosa, parece_otra_persona, distinta_de_la_primera]
 
     Inscripcion:
       type: object
@@ -901,7 +985,10 @@ components:
         url_captura: { type: [string, "null"], format: uri }
         activo: { type: boolean }
         en_linea: { type: boolean, description: Según su disponibilidad en MQTT o un contacto en los últimos 2 minutos }
-        modo: { type: string, enum: [reconocer, inscribir] }
+        modo:
+          type: string
+          enum: [reconocer, inscribir]
+          description: Se calcula después de vencer las inscripciones que ya pasaron su hora (R9)
         ultimo_contacto: { type: [string, "null"], format: date-time }
         estado:
           anyOf:
@@ -914,7 +1001,12 @@ components:
       required: [codigo, nombre, tipo]
       description: url_captura es obligatoria si el tipo es respaldo.
       properties:
-        codigo: { type: string, pattern: "^[a-z0-9-]{3,32}$", example: entrada }
+        codigo:
+          type: string
+          pattern: "^[a-z0-9-]{3,32}$"
+          not: { const: servidor }
+          description: servidor está reservado para los temas MQTT del servidor (422 validacion)
+          example: entrada
         nombre: { type: string, minLength: 2, maxLength: 60, example: Entrada }
         tipo: { $ref: "#/components/schemas/TipoCamara" }
         url_captura: { type: [string, "null"], format: uri }
@@ -955,13 +1047,17 @@ components:
             - cara_pequena
             - borrosa
             - parece_otra_persona
+            - distinta_de_la_primera
             - null
         persona:
+          description: >-
+            Con permitido o denegado, la persona reconocida. Al inscribir, siempre quien se inscribe,
+            nunca a quien se parece la cara. Con desconocido, null.
           anyOf:
             - { $ref: "#/components/schemas/PersonaCorta" }
             - { type: "null" }
         similitud: { type: [number, "null"], minimum: -1, maximum: 1 }
-        repetido: { type: boolean }
+        repetido: { type: boolean, description: Repetición de R4; un permitido repetido también se publica en MQTT }
         evento_id: { type: [string, "null"], format: uuid }
         inscripcion:
           anyOf:
@@ -1006,14 +1102,40 @@ components:
       type: string
       enum: [a_tiempo, tarde, sin_horario]
 
+    OrigenAsistencia:
+      type: string
+      enum: [camara, manual]
+      description: camara, si la creó el primer evento permitido del día; manual, si la registró un administrador
+
     FilaAsistencia:
       type: object
-      required: [persona, llegada, estado, minutos_tarde]
+      required: [persona, llegada, estado, minutos_tarde, origen, registrado_por]
       properties:
         persona: { $ref: "#/components/schemas/PersonaCorta" }
         llegada: { type: string, format: date-time }
         estado: { $ref: "#/components/schemas/EstadoAsistencia" }
         minutos_tarde: { type: [integer, "null"], minimum: 0 }
+        origen: { $ref: "#/components/schemas/OrigenAsistencia" }
+        registrado_por: { type: [string, "null"], description: Nombre del administrador que registró una llegada manual }
+
+    Asistencia:
+      description: Una llegada con su fecha local (R8)
+      allOf:
+        - $ref: "#/components/schemas/FilaAsistencia"
+        - type: object
+          required: [fecha]
+          properties:
+            fecha: { type: string, format: date }
+
+    AsistenciaManualNueva:
+      type: object
+      required: [persona_id, llegada]
+      properties:
+        persona_id: { type: string, format: uuid }
+        llegada:
+          type: string
+          format: date-time
+          description: Hora de llegada con zona (R8); no puede ser futura. R5 se aplica a esta hora.
 
     ReporteAsistencia:
       type: object

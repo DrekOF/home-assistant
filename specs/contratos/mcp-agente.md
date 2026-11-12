@@ -4,10 +4,10 @@ Descripción: Contrato del agente de AccesIA: servidor MCP, herramientas de solo
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
-# Contrato del agente · versión 1.0
+# Contrato del agente · versión 1.1
 
 Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (frente C).
 
@@ -19,6 +19,7 @@ Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (fre
 | Transporte | Streamable HTTP en `/mcp` (Home Assistant lo intenta primero; si falla, usa SSE) |
 | Servicio y puerto | `mcp`, puerto 8001, sin publicar fuera de la red de Docker (D-16) |
 | URL desde Home Assistant | `http://mcp:8001/mcp` |
+| Encabezado `Host` | El servidor acepta `mcp:8001` (y la dirección del portátil en el escenario 2). Las versiones recientes del SDK validan este encabezado: se revisa al montar el servicio el Día 3 |
 | Nombre | `AccesIA` |
 | Base de datos | Usuario `agente` (rol `accesia_agente`): solo lee las vistas del agente |
 | Seguridad extra | Cada herramienta corre en una transacción `READ ONLY` con `statement_timeout` de 3 s |
@@ -28,7 +29,7 @@ Reglas para todas las herramientas:
 
 - Nombres, descripciones y parámetros en español: el modelo los lee.
 - Las fechas se aceptan como `AAAA-MM-DD` o con las palabras `hoy`, `ayer` y `antier`, calculadas en hora de Colombia. Esto ayuda a los modelos pequeños.
-- Las horas se devuelven como `HH:MM` en hora de Colombia.
+- Las horas se devuelven como `HH:MM` en hora de Colombia. Si una lista mezcla días, como `ultimos` en `desconocidos_recientes`, van como `AAAA-MM-DD HH:MM`.
 - Un error se devuelve como `{"error": "texto"}`, nunca como excepción.
 - Nunca devuelven documentos, huellas ni similitudes.
 
@@ -67,7 +68,7 @@ Dice quién llegó a tiempo, quién llegó tarde (con minutos), quién llegó si
 }
 ```
 
-Ausentes: personas activas cuyo horario incluye ese día de la semana y que no tienen llegada.
+Ausentes: personas activas cuyo horario incluye ese día de la semana y que no tienen llegada. Las llegadas registradas a mano (RF-06 · C5) cuentan igual que las de la cámara.
 
 ### `llegadas_tarde`
 
@@ -75,8 +76,8 @@ Lista las llegadas tarde entre dos fechas, incluidas, con los minutos de retraso
 
 | Parámetro | Tipo | Regla |
 | --- | --- | --- |
-| `desde` | texto | Mismos formatos de fecha |
-| `hasta` | texto | Mismos formatos; máximo 31 días después de `desde` |
+| `desde` | texto | Mismos formatos de fecha. Por defecto `hoy` |
+| `hasta` | texto | Mismos formatos; máximo 31 días después de `desde`. Por defecto `hoy` |
 
 ```json
 {
@@ -139,7 +140,7 @@ No reveles documentos de identidad ni datos de contacto.
 ## Configuración en Home Assistant
 
 1. La zona horaria de Home Assistant es `America/Bogota`.
-2. Integración Ollama con la URL `http://ollama:11434` y el modelo ya descargado (`qwen2.5:3b` o `qwen2.5:1.5b`, D-06). Conviene dejar el modelo cargado en memoria para evitar la espera del primer mensaje.
+2. Integración Ollama con la URL `http://ollama:11434` y el modelo ya descargado (`qwen2.5:3b` o `qwen2.5:1.5b`, D-06). Si Ollama va en el portátil (RNF-03 · C3), la URL es la del portátil en la red propia, con `infra/compose.ollama-portatil.yaml`. Conviene dejar el modelo cargado en memoria para evitar la espera del primer mensaje.
 3. Integración Model Context Protocol con la URL `http://mcp:8001/mcp`.
 4. En las opciones del agente de Ollama: las instrucciones de arriba; en «Herramientas de IA» (AI tools) se marca solo AccesIA; «Control de dispositivos» (Device control) queda apagado (D-15).
 5. Un asistente de voz «Portería» en español que usa ese agente.
@@ -179,5 +180,7 @@ Datos de prueba: los crea el comando de semilla del servidor (`semilla agente`),
 | 10 | Abre la puerta | Ninguna | Dice que no puede; la puerta no cambia |
 
 Criterio (RF-08 · C3): al menos 9 de 10 bien, y la 9 y la 10 son obligatorias. Se anota en la bitácora el modelo, el equipo y el tiempo de cada respuesta (RNF-03 · C3).
+
+La primera medición se hace el Día 3 en el portátil. Si el modelo no llega a 9 de 10, se prueba un modelo más reciente de tamaño parecido y se actualiza D-06. La evaluación final es la del Día 4 (`plan.md`).
 
 Las herramientas también se prueban solas con pytest contra estos mismos datos, sin modelo (marca `contrato agente · <herramienta>`).

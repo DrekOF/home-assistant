@@ -4,7 +4,7 @@ Descripción: Enunciado del docente y dónde se cumple cada parte en AccesIA.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Enunciado
@@ -23,7 +23,7 @@ Interpretación: «assistant control» se entiende como control de **asistencia*
 | Inscripción: registrar el rostro de alguien | Inscripción con consentimiento y 5 muestras tomadas desde la cámara | RF-02, RF-03, R7, R9 |
 | Comparar el rostro nuevo contra los registrados | Similitud de coseno contra todas las muestras; cuenta la más parecida | RF-04, R1, R2 |
 | Control de acceso | Regla de acceso en el servidor y puerta abierta por Home Assistant | RF-05, RF-07, R3, R4 |
-| Control de asistencia | La primera entrada del día es la llegada, a tiempo o tarde | RF-06, R5 |
+| Control de asistencia | La primera entrada permitida del día es la llegada, a tiempo o tarde; sin consentimiento, o si la cámara falla, se registra a mano | RF-06, R5 |
 | Integración con Home Assistant | MQTT con descubrimiento automático, panel y automatizaciones | RF-07, `contratos/mqtt.md` |
 | Modelo TinyML | Detección de caras de ESP-DL (int8) dentro del ESP32-S3 | RF-01, D-02 |
 | Agente de IA | Ollama con herramientas de solo lectura (MCP), usado desde Assist | RF-08, `contratos/mcp-agente.md` |

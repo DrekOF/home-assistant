@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.2
 -->
 
 # Bitácora
@@ -22,6 +22,25 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-11 · Día 1 · AccesIA como raíz del repositorio
+
+- Quién: el frente B.
+- Qué: AccesIA quedó como raíz de su propio repositorio. Antes, el repositorio git estaba en la carpeta de arriba (`Inteligencia artificial/`) y el primer commit incluía otro proyecto de la materia (entrenamiento distribuido con TensorFlow). En GitHub, `main` se reemplazó con un push forzado y ahora solo tiene AccesIA.
+- Cómo: lo detectó Claude Code al revisar las referencias cruzadas, porque GitHub solo corre los workflows de `.github/workflows/` en la raíz del repositorio. Propuso tres opciones y se eligió reescribir el mismo repositorio de GitHub, que era privado, solo tenía `main` y no tenía otros colaboradores. Pasos: respaldo con `git bundle` en `Universidad/respaldo-git-inteligencia-artificial-2026-11-11.bundle`; `git subtree split --prefix=AccesIA` de `main` y de `b/contratos-v1-1`; repositorio nuevo dentro de `AccesIA/`; `git push --force-with-lease` de `main` y push de `b/contratos-v1-1`.
+- Pruebas: las ramas nuevas tienen el mismo árbol que `AccesIA/` en las viejas, con los mismos autores y fechas. En GitHub, `main` tiene la raíz de AccesIA y nada del otro proyecto, y el árbol de `b/contratos-v1-1` es igual al local.
+- Cambios de contrato o de specs: ninguno. Los commits cambiaron de identificador: `4c3cca5` pasó a `cd480c4` y `915b0c2` a `8075dc0`.
+- Pendiente: renombrar a `.git-viejo` el `.git` de la carpeta de arriba (falló porque VS Code estaba abierto). El proyecto de TensorFlow queda sin git; si lo quieren versionado, va en otro repositorio.
+
+## 2026-11-11 · Día 1 · Tarea 00 · Contratos 1.1
+
+- Quién: los tres integrantes acordaron en la tarea 00; el frente B aplicó los cambios en la rama `b/contratos-v1-1`.
+- Qué: los acuerdos sobre la revisión de los contratos quedaron en las specs, los cinco contratos (versión 1.1), las tareas del Día 1, la guía del día de clase, `.gitignore` y `.editorconfig`. Se agregó `specs/contratos/casos-recorte.json` con los casos de la fórmula del recorte.
+- Cómo: Claude Code hizo primero la revisión, sin cambiar archivos (`docs/revisiones/2026-11-11-revision-contratos-v1.md`). El equipo decidió punto por punto en la tarea 00. Después se le pidió a Claude Code aplicar esos acuerdos sin escribir código; las decisiones menores que tomó al aplicarlos quedan en la lista de abajo para revisarlas en el PR.
+- Decisiones menores al aplicar: el código de error nuevo se llama `asistencia_duplicada` y el motivo nuevo de R7, `distinta_de_la_primera`. La asistencia de una persona se consulta en `GET /api/v1/personas/{persona_id}/asistencia`, y una llegada manual no puede tener hora futura. La tolerancia de 0,8 × `CARA_MIN_PX` se aplica al reconocer y al inscribir. En un `permitido` repetido, el mensaje MQTT lleva el `evento_id` original y la hora y la similitud del recorte nuevo. La ACL de `camara` agrega `topic deny accesia/servidor/#`. `EstadoCamara.firmware` usa el texto de la cabecera HTTP y el simulador no envía `perfil`, `rssi`, `psram_kb` ni `libre_kb`. El ejemplo de `ADMIN_CORREO` es `admin@example.com`. Los archivos nuevos se llaman `compose.ollama-portatil.yaml`, `automatizaciones_accesia.yaml`, `firmware.yml` y `compilar-binarios.ps1`. Las opciones del script de skills son `-Actualizar` y `--actualizar`. La fórmula del recorte redondea hacia afuera (piso al inicio y techo al final). También se arregló una descripción mal escrita del esquema `Error` de `openapi.yaml`, que creaba una clave suelta.
+- Pruebas: `openapi.yaml` pasa `openapi-spec-validator` (OpenAPI 3.1). `base-de-datos.sql` 1.1 cargó en PostgreSQL 18.6 con pgvector (imagen `pgvector/pgvector:pg18`) y pasaron 11 comprobaciones: el código `servidor` se rechaza, `distinta_de_la_primera` se acepta como motivo, la asistencia guarda origen y autor, solo hay una llegada por día, y el usuario `agente` lee `v_asistencia_agente` (incluidas las llegadas manuales) pero no la tabla `asistencia`. Los dos casos de `casos-recorte.json` cumplen la fórmula. Se revisaron las referencias cruzadas: criterios RF, decisiones D, temas MQTT, variables, enums y columnas de las tablas Markdown.
+- Cambios de contrato o de specs: los cinco contratos pasan a 1.1; el detalle está en el registro de cambios de `specs/decisiones.md`. Algunos cambios rompen la 1.0: `GET .../consentimiento` responde `null` en vez de 404 sin consentimiento vigente, las cámaras deben conectarse a MQTT con su código como client id, el 429 se mide con 0,8 s, `FilaAsistencia` pide `origen` y `registrado_por` y `EstadoCamara.firmware` cambia de formato. No afecta a nadie porque todavía no hay código.
+- Pendiente: las preguntas 1, 2, 3, 4, 5 y 11 de la tarea 00 (quién consigue una placa antes de la clase). Revisar en el PR las decisiones menores de arriba.
 
 ## 2026-11-11 · Antes del Día 1 · Kit base del repositorio
 

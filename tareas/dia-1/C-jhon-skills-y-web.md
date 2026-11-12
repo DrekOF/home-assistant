@@ -4,7 +4,7 @@ Descripción: Tarea del Día 1 del frente C: skills de frontend y web base con i
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-11
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Día 1 · Frente C · Skills de frontend y web base
@@ -20,7 +20,7 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
 ## Hacer
 
 1. Skills de frontend:
-   - `scripts/preparar-skills.ps1` y `scripts/preparar-skills.sh` clonan cada repositorio (`git clone --depth 1`) en una carpeta temporal y copian a `.claude/skills/`:
+   - `scripts/preparar-skills.ps1` y `scripts/preparar-skills.sh` traen cada repositorio en el commit fijo que anota el script (una tabla al inicio, igual en los dos) a una carpeta temporal y copian a `.claude/skills/`:
 
      | Repositorio | Qué se copia |
      | --- | --- |
@@ -29,9 +29,12 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
      | `https://github.com/emilkowalski/skills` | Todas las carpetas de `skills/` |
      | `https://github.com/anthropics/skills` | `skills/frontend-design` |
 
+   - La primera vez se fijan los commits vigentes de los cuatro repositorios, después de revisar lo que traen.
+   - Sin opciones, el script nunca cambia de commit: todos los integrantes tienen los mismos skills. Con `-Actualizar` (PowerShell) o `--actualizar` (Bash) trae la última versión de cada repositorio, muestra qué commits cambiaron y actualiza la tabla del script; ese cambio se revisa y se sube en un PR.
    - Si una ruta cambió, el script busca la carpeta que tiene `SKILL.md`, avisa y no copia a ciegas.
    - Se puede correr varias veces: reemplaza lo anterior, anota en `.claude/skills/VERSIONES.txt` el commit de cada repositorio y muestra un resumen.
    - `.claude/skills/` está en `.gitignore`: cada integrante corre el script y reinicia Claude Code para que cargue los skills.
+   - El `.ps1` va en UTF-8 con BOM, como pide `.editorconfig`: sin BOM, Windows PowerShell 5.1 lee mal las tildes.
 2. Web base en `web/`:
    - React + Vite + TypeScript, con React Router, TanStack Query y `openapi-fetch`. Los tipos los genera `openapi-typescript` desde `specs/contratos/openapi.yaml` (`npm run tipos`).
    - Simulacro de la API con MSW, activable con `VITE_SIMULACRO=1`, con datos de ejemplo coherentes con el contrato.
@@ -39,7 +42,7 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
    - Pantallas:
      - Inicio de sesión.
      - Personas: lista con búsqueda y paginación, crear, editar, activar y desactivar.
-     - Ficha de la persona con su consentimiento: el texto viene de la API (`specs/consentimiento.md`), dice que es opcional, ofrece el registro manual como alternativa, y permite registrarlo y revocarlo con confirmación.
+     - Ficha de la persona con su consentimiento: el texto viene de la API (`specs/consentimiento.md`) y dice que es opcional. Sin consentimiento, la asistencia se registra a mano en la pantalla Asistencia (el botón llega el Día 3, RF-06 · C5); la ficha lo explica. Permite registrar el consentimiento (con la fecha del papel si el medio es papel) y revocarlo con una confirmación que avisa que se borran las huellas y se cancela su inscripción activa. Muestra qué versión del texto aceptó (`GET /api/v1/personas/{persona_id}/consentimientos`). `GET /api/v1/personas/{persona_id}/consentimiento` responde `null` si no hay uno vigente.
    - Navegación con Personas, Inscripción, Accesos, Asistencia y Cámaras. Las que aún no existen muestran «Próximamente».
    - Diseño con los skills (taste completo, impeccable, Emil Kowalski y frontend-design). Antes de diseñar, propón una dirección visual corta (tipografía, color y densidad) y espera confirmación.
    - Textos en español; fechas y horas con `es-CO` y `America/Bogota`.
@@ -48,7 +51,8 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
    - Vitest para la lógica (formato de fechas y validaciones).
    - Playwright con el simulacro: iniciar sesión, crear una persona, registrar su consentimiento y comprobar que «Inscribir» solo se habilita con consentimiento vigente.
    - Al terminar cada pantalla, Playwright toma capturas y Claude Code las revisa: que se vea y funcione como se planeó.
-4. `web/README.md` con los comandos.
+4. `.github/workflows/web.yml`: en cada PR y en cada push a `main`, corre en `web/` `npm ci`, `npm run build` y Vitest sobre `ubuntu-latest`. Es solo de la web: el servidor tiene su propio workflow (tarea B) y el firmware se suma el Día 4.
+5. `web/README.md` con los comandos.
 
 ## No hacer
 
@@ -58,12 +62,13 @@ Dejar los skills de frontend listos para todo el equipo y una web con inicio de 
 
 ## Criterios de aceptación
 
-- C1 Los scripts dejan los skills en `.claude/skills/`, en Windows y en Linux.
+- C1 Los scripts dejan los skills en `.claude/skills/`, en Windows y en Linux, en los commits fijos; con `-Actualizar` o `--actualizar` muestran y anotan los commits nuevos.
 - C2 `npm run dev` con el simulacro muestra el inicio de sesión y Personas funcionando.
 - C3 (RF-02 · C3 y C4) El consentimiento muestra su texto y el aviso; «Inscribir» está deshabilitado sin consentimiento vigente.
 - C4 (RF-09 · C3 y C4) Playwright en verde, capturas revisadas y textos en español.
 - C5 `npm run tipos` regenera los tipos sin cambios a mano y `npm run build` pasa.
 - C6 La bitácora y `web/README.md` están al día.
+- C7 (RNF-06 · C3) `web.yml` corre en el PR de esta tarea y queda en verde.
 
 ## Al terminar
 

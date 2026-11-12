@@ -3,7 +3,7 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-11
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 
 # Claves y entorno: nunca en el repositorio
 infra/.env
@@ -36,10 +36,10 @@ web/dist/
 web/playwright-report/
 web/test-results/
 
-# Firmware (ESP-IDF): solo se siguen los sdkconfig.defaults
+# Firmware (ESP-IDF): se siguen los sdkconfig.defaults y dependencies.lock
 firmware/**/build/
+firmware/build-*/
 firmware/**/managed_components/
-firmware/**/dependencies.lock
 firmware/**/sdkconfig
 firmware/**/sdkconfig.old
 

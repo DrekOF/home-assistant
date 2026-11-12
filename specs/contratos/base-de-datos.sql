@@ -3,7 +3,7 @@
 -- Fecha de creación: 2026-11-11
 -- Actualización: 2026-11-11
 -- Autor: Equipo AccesIA
--- Versión: 1.0
+-- Versión: 1.1
 --
 -- La primera migración del servidor crea exactamente este esquema.
 -- Requiere PostgreSQL 18 (uuidv7) y las extensiones vector (pgvector) y unaccent.
@@ -60,8 +60,9 @@ CREATE TABLE consentimiento (
 CREATE UNIQUE INDEX consentimiento_vigente_unico ON consentimiento (persona_id) WHERE revocado_en IS NULL;
 
 -- Cada cámara. token_hash: SHA-256 en hexadecimal del token (aleatorio de 32 bytes).
+-- El código "servidor" está reservado: es el de los temas MQTT del servidor (mqtt.md).
 CREATE TABLE dispositivo (
-    codigo           text PRIMARY KEY CHECK (codigo ~ '^[a-z0-9-]{3,32}$'),
+    codigo           text PRIMARY KEY CHECK (codigo ~ '^[a-z0-9-]{3,32}$' AND codigo <> 'servidor'),
     nombre           text NOT NULL,
     tipo             text NOT NULL DEFAULT 'tinyml' CHECK (tipo IN ('tinyml', 'respaldo', 'simulador')),
     token_hash       text NOT NULL,
@@ -82,7 +83,8 @@ CREATE TABLE inscripcion (
     requeridas          smallint NOT NULL DEFAULT 5 CHECK (requeridas BETWEEN 1 AND 20),
     muestras            smallint NOT NULL DEFAULT 0,
     ultimo_motivo       text CHECK (ultimo_motivo IN
-                        ('sin_cara', 'varias_caras', 'cara_pequena', 'borrosa', 'parece_otra_persona')),
+                        ('sin_cara', 'varias_caras', 'cara_pequena', 'borrosa', 'parece_otra_persona',
+                         'distinta_de_la_primera')),
     creada              timestamptz NOT NULL DEFAULT now(),
     vence               timestamptz NOT NULL,
     terminada           timestamptz,
@@ -125,18 +127,24 @@ CREATE INDEX evento_persona_fecha ON evento_acceso (persona_id, fecha_hora DESC)
 CREATE INDEX evento_dispositivo_fecha ON evento_acceso (dispositivo_codigo, fecha_hora DESC);
 
 -- Una llegada por persona y día (R5). fecha es la fecha local de America/Bogota (R8).
+-- origen: 'camara' la crea el primer evento permitido del día; 'manual' la registra
+-- un administrador (RF-06 · C5), sin evento. salida es un extra del plan.
 CREATE TABLE asistencia (
-    id             uuid PRIMARY KEY DEFAULT uuidv7(),
-    persona_id     uuid NOT NULL REFERENCES persona (id) ON DELETE CASCADE,
-    fecha          date NOT NULL,
-    llegada        timestamptz NOT NULL,
-    salida         timestamptz,
-    estado         text NOT NULL CHECK (estado IN ('a_tiempo', 'tarde', 'sin_horario')),
-    minutos_tarde  integer CHECK (minutos_tarde >= 0),
-    evento_id      uuid REFERENCES evento_acceso (id) ON DELETE SET NULL,
+    id              uuid PRIMARY KEY DEFAULT uuidv7(),
+    persona_id      uuid NOT NULL REFERENCES persona (id) ON DELETE CASCADE,
+    fecha           date NOT NULL,
+    llegada         timestamptz NOT NULL,
+    salida          timestamptz,
+    estado          text NOT NULL CHECK (estado IN ('a_tiempo', 'tarde', 'sin_horario')),
+    minutos_tarde   integer CHECK (minutos_tarde >= 0),
+    origen          text NOT NULL DEFAULT 'camara' CHECK (origen IN ('camara', 'manual')),
+    evento_id       uuid REFERENCES evento_acceso (id) ON DELETE SET NULL,
+    registrado_por  uuid REFERENCES administrador (id) ON DELETE SET NULL,
     UNIQUE (persona_id, fecha),
     CHECK ((estado = 'tarde') = (minutos_tarde IS NOT NULL)),
-    CHECK (salida IS NULL OR salida >= llegada)
+    CHECK (salida IS NULL OR salida >= llegada),
+    CHECK (origen = 'camara' OR evento_id IS NULL),
+    CHECK (origen = 'manual' OR registrado_por IS NULL)
 );
 CREATE INDEX asistencia_fecha ON asistencia (fecha);
 

@@ -4,7 +4,7 @@ Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 import logging
@@ -16,7 +16,20 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
 from accesia import __version__
-from accesia.api import camaras, consentimiento, horarios, inscripciones, personas, rostros, salud, sesion
+from accesia.api import (
+    accesos,
+    asistencia,
+    camaras,
+    configuracion as rutas_configuracion,
+    consentimiento,
+    horarios,
+    huellas,
+    inscripciones,
+    personas,
+    rostros,
+    salud,
+    sesion,
+)
 from accesia.config import configuracion
 from accesia.db import transaccion
 from accesia.errores import registrar_manejadores
@@ -64,7 +77,20 @@ def crear_app() -> FastAPI:
     registrar_manejadores(app)
     # El 429 vive en memoria: el servidor corre con un solo proceso (arquitectura.md).
     app.state.ritmo = ControlDeRitmo()
-    for rutas in (salud, sesion, personas, consentimiento, horarios, camaras, rostros, inscripciones):
+    for rutas in (
+        salud,
+        sesion,
+        personas,
+        consentimiento,
+        horarios,
+        camaras,
+        rostros,
+        inscripciones,
+        huellas,
+        accesos,
+        asistencia,
+        rutas_configuracion,
+    ):
         app.include_router(rutas.router)
     return app
 

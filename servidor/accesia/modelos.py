@@ -1,10 +1,10 @@
 """
 Nombre: modelos.py
-Descripción: Modelos de cara del servidor (YuNet y SFace de opencv/opencv_zoo, en un commit fijo): dónde viven, su SHA-256 y su descarga comprobada.
+Descripción: Modelos de cara del servidor (YuNet y SFace de opencv/opencv_zoo, en un commit fijo): dónde viven, su SHA-256, su nombre corto y su descarga comprobada.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 
 Solo usa la biblioteca estándar: el Dockerfile lo corre solo, sin instalar el servidor, para descargar los modelos
 al construir la imagen (python modelos.py --carpeta /app/datos/modelos).
@@ -31,6 +31,7 @@ class Modelo:
     url: str
     sha256: str
     bytes: int
+    nombre: str  # el que muestra verConfiguracion; el de SFACE es también el de rostro.modelo en la base
 
 
 YUNET = Modelo(
@@ -38,12 +39,14 @@ YUNET = Modelo(
     url=f"{_BASE}/face_detection_yunet/face_detection_yunet_2023mar.onnx",
     sha256="8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
     bytes=232_589,
+    nombre="yunet_2023mar",
 )
 SFACE = Modelo(
     archivo="face_recognition_sface_2021dec.onnx",
     url=f"{_BASE}/face_recognition_sface/face_recognition_sface_2021dec.onnx",
     sha256="0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
     bytes=38_696_353,
+    nombre="sface_2021dec",
 )
 MODELOS = (YUNET, SFACE)
 

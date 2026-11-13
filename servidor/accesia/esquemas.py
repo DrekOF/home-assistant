@@ -1,13 +1,13 @@
 """
 Nombre: esquemas.py
-Descripción: Esquemas de la API de AccesIA con pydantic, iguales a los de specs/contratos/openapi.yaml 1.3 (sesión, personas, consentimiento, horarios, cámaras, inscripciones y la respuesta a la cámara).
+Descripción: Esquemas de la API de AccesIA con pydantic, iguales a los de specs/contratos/openapi.yaml 1.3 (sesión, personas, consentimiento, horarios, cámaras, inscripciones, la respuesta a la cámara, huellas, accesos, asistencia y configuración).
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, ClassVar, Literal, Self
 from uuid import UUID
 
@@ -330,3 +330,92 @@ class DispositivoCambios(Cambios):
     tipo: TipoCamara | None = None
     url_captura: UrlCaptura = None
     activo: bool | None = None
+
+
+# --- Huellas (RF-12 · C1): las muestras sin la huella ---
+
+
+class RostroResumen(BaseModel):
+    id: UUID
+    fuente: TipoCamara
+    modelo: str
+    calidad: float | None
+    creado: FechaHora
+
+
+# --- Accesos (RF-05 · C3) ---
+
+ResultadoAcceso = Literal["permitido", "denegado", "desconocido"]
+MotivoAcceso = Literal["inactiva", "sin_consentimiento", "bajo_umbral"]
+
+
+class EventoAcceso(BaseModel):
+    id: UUID
+    fecha_hora: FechaHora
+    dispositivo: str
+    resultado: ResultadoAcceso
+    motivo: MotivoAcceso | None
+    persona: PersonaCorta | None
+    similitud: float | None
+
+
+class PaginaEventos(BaseModel):
+    elementos: list[EventoAcceso]
+    total: int
+    pagina: int
+    por_pagina: int
+
+
+# --- Asistencia (R5, RF-06) ---
+
+EstadoAsistencia = Literal["a_tiempo", "tarde", "sin_horario"]
+OrigenAsistencia = Literal["camara", "manual"]
+
+
+class FilaAsistencia(BaseModel):
+    persona: PersonaCorta
+    llegada: FechaHora
+    estado: EstadoAsistencia
+    minutos_tarde: int | None
+    origen: OrigenAsistencia
+    registrado_por: str | None
+
+
+class Asistencia(FilaAsistencia):
+    """Una llegada con su fecha local (R8)."""
+
+    fecha: date
+
+
+class AsistenciaManualNueva(BaseModel):
+    persona_id: UUID
+    llegada: AwareDatetime
+
+
+class ReporteAsistencia(BaseModel):
+    fecha: date
+    a_tiempo: list[FilaAsistencia]
+    tarde: list[FilaAsistencia]
+    sin_horario: list[FilaAsistencia]
+    ausentes: list[PersonaCorta]
+    total_llegadas: int
+
+
+# --- Configuración (D-14) ---
+
+
+class Configuracion(BaseModel):
+    """Los valores de las reglas que usa el servidor. No es accesia.config.Configuracion, que los lee del entorno."""
+
+    umbral_similitud: float
+    ventana_repetido_s: int
+    alerta_desconocidos: int
+    alerta_ventana_s: int
+    inscripcion_muestras: int
+    inscripcion_vence_s: int
+    cara_min_px: int
+    nitidez_min: float
+    zona_horaria: str
+    modelo_deteccion: str
+    modelo_huella: str
+    version: str

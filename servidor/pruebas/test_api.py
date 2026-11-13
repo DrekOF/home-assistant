@@ -4,7 +4,7 @@ Descripción: Pruebas «contrato API · salud» y «contrato API · error» (inc
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import pytest
@@ -22,7 +22,7 @@ def test_salud_responde_con_el_esquema_salud(url_base: str) -> None:
     datos = respuesta.json()
     validar("Salud", datos)
     assert datos["base"] == "ok"
-    # MQTT llega el Día 3: hasta entonces el servidor está degradado.
+    # Sin el arranque no hay cliente MQTT: el servidor queda degradado (con el broker, test_mqtt.py).
     assert datos["mqtt"] == "sin_conexion"
     assert datos["estado"] == "degradado"
     assert datos["hora"].endswith("-05:00"), "La hora va en ISO 8601 con la zona de Colombia (R8)."

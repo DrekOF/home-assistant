@@ -1,58 +1,28 @@
 """
 Nombre: test_mqtt_acl.py
-Descripción: Prueba «contrato MQTT · acl»: Mosquitto con el mosquitto.conf y la ACL del repositorio, comprobados con paho-mqtt.
+Descripción: Prueba «contrato MQTT · acl»: Mosquitto con el mosquitto.conf y la ACL del repositorio, comprobados con paho-mqtt. Usa un broker propio, sin los retenidos de las demás pruebas.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
-import re
 import threading
 import uuid
 from collections.abc import Callable, Iterator
-from pathlib import Path
 
 import paho.mqtt.client as mqtt
 import pytest
+from mqtt_de_prueba import CLAVES, ESPERA_S, broker_de_prueba
 from paho.mqtt.reasoncodes import ReasonCode
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 pytestmark = pytest.mark.marca("contrato MQTT · acl")
-
-MOSQUITTO = Path(__file__).resolve().parents[2] / "infra" / "mosquitto"
-CLAVES = {"servidor": "clave-servidor", "homeassistant": "clave-homeassistant", "camara": "clave-camara"}
-ESPERA_S = 5
-
-
-def comando_del_broker() -> list[str]:
-    """Crea las claves de prueba dentro del contenedor y arranca Mosquitto con la configuración del repositorio."""
-    archivo = "/mosquitto/config/claves/passwd"
-    pasos = ["mkdir -p /mosquitto/config/claves"]
-    for indice, (usuario, clave) in enumerate(CLAVES.items()):
-        crear = "-c " if indice == 0 else ""
-        pasos.append(f"mosquitto_passwd -b {crear}{archivo} {usuario} {clave}")
-    pasos += [
-        f"chown mosquitto:mosquitto {archivo}",
-        f"chmod 0700 {archivo}",
-        "exec mosquitto -c /mosquitto/config/mosquitto.conf",
-    ]
-    return ["sh", "-c", " && ".join(pasos)]
 
 
 @pytest.fixture(scope="module")
 def broker() -> Iterator[tuple[str, int]]:
-    contenedor = (
-        DockerContainer("eclipse-mosquitto:2")
-        .with_volume_mapping(str(MOSQUITTO / "mosquitto.conf"), "/mosquitto/config/mosquitto.conf", "ro")
-        .with_volume_mapping(str(MOSQUITTO / "acl"), "/mosquitto/config/acl", "ro")
-        .with_exposed_ports(1883)
-        .with_command(comando_del_broker())
-        .waiting_for(LogMessageWaitStrategy(re.compile(r"mosquitto version \S+ running")))
-    )
-    with contenedor:
-        yield contenedor.get_container_host_ip(), int(contenedor.get_exposed_port(1883))
+    with broker_de_prueba() as direccion:
+        yield direccion
 
 
 class Cliente:

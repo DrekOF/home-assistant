@@ -1,13 +1,15 @@
 # Nombre: simulador.yml
-# Descripción: CI del simulador de la cámara de AccesIA: corre pytest con el modelo YuNet en caché (RNF-06 · C3).
+# Descripción: CI del simulador de la cámara de AccesIA: corre pytest con el modelo YuNet en caché y Mosquitto en un contenedor (RNF-06 · C3).
 # Fecha de creación: 2026-11-12
 # Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 #
-# Es solo del simulador: el servidor tiene servidor.yml, la web web.yml y el firmware se suma el Día 4.
-# Corre en todo PR, como los otros dos: un cambio en specs/contratos/casos-recorte.json también lo afecta.
-# La CI no tiene fotos de caras: las pruebas que las necesitan leen datos/prueba/ y se saltan.
+# Es solo del simulador: el servidor tiene servidor.yml, la web web.yml y el firmware firmware.yml.
+# Corre en todo PR, como los otros: un cambio en specs/contratos/casos-recorte.json o en infra/mosquitto/ también lo
+# afecta. La CI no tiene fotos de caras: las pruebas que las necesitan leen datos/prueba/ y se saltan.
+# Las pruebas de la puerta levantan su propio Mosquitto con testcontainers (el runner trae Docker). Sin Docker, en la
+# CI fallan en vez de saltarse (CI=true).
 
 name: Simulador
 

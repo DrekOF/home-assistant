@@ -1,20 +1,28 @@
 """
 Nombre: dobles.py
-Descripción: Dobles de prueba del simulador: detector, reloj, servidor (httpx.MockTransport), webcam y ventana falsos, y fotos sintéticas sin caras.
+Descripción: Dobles de prueba del simulador: detector, reloj, servidor (httpx.MockTransport), webcam, ventana y cliente MQTT falsos, y fotos sintéticas sin caras.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import cv2
 import httpx
 import numpy as np
+import paho.mqtt.client as paho
+import pytest
+from paho.mqtt.client import ConnectFlags, DisconnectFlags, MQTTMessage
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.properties import Properties
+from paho.mqtt.reasoncodes import ReasonCode
 
+import simulador.comandos as comandos
 from simulador.envio import ClienteCamara
 from simulador.recorte import Cara
 
@@ -140,15 +148,20 @@ class CapturaFalsa:
 
 
 class VentanaFalsa:
-    """Ventana falsa: muestra `cuadros` imágenes y después responde como si la persona pulsara q."""
+    """Ventana falsa: muestra `cuadros` imágenes y después responde como si la persona pulsara q.
+
+    Guarda en memoria la última imagen que mostró, para mirar lo que dibujó el simulador.
+    """
 
     def __init__(self, cuadros: int) -> None:
         self._faltan = cuadros
         self.formas: list[tuple[int, ...]] = []
+        self.ultima: np.ndarray | None = None
         self.cerrada = False
 
     def mostrar(self, imagen: np.ndarray) -> bool:
         self.formas.append(imagen.shape)
+        self.ultima = imagen
         self._faltan -= 1
         return self._faltan > 0
 
@@ -180,3 +193,155 @@ def escribir_foto(ruta: Path, imagen: np.ndarray) -> Path:
     assert ok
     ruta.write_bytes(datos.tobytes())
     return ruta
+
+
+# --- MQTT ---
+
+# Clave de prueba del usuario camara: si aparece en la salida, el simulador mostró la clave.
+CLAVE_MQTT = "clave-mqtt-de-prueba-que-nunca-se-muestra"
+
+
+@dataclass(frozen=True)
+class Publicado:
+    tema: str
+    carga: str
+    qos: int
+    retenido: bool
+
+
+class InfoFalsa:
+    """Como MQTTMessageInfo: el broker falso confirma en el acto."""
+
+    def wait_for_publish(self, timeout: float | None = None) -> None:
+        return None
+
+
+class SocketFalso:
+    def __init__(self, ip: str) -> None:
+        self._ip = ip
+
+    def getsockname(self) -> tuple[str, int]:
+        return (self._ip, 50123)
+
+
+class ClienteMqttFalso:
+    """paho falso: guarda lo que el simulador configura y publica.
+
+    La prueba hace de broker con `conectar`, `fallar_conexion`, `cortar` y `recibir`, que llaman a los callbacks
+    del simulador como lo haría paho desde su hilo.
+    """
+
+    def __init__(self, client_id: str, *, ip: str = "192.168.137.50", conectar_al_arrancar: bool = False) -> None:
+        self.client_id = client_id
+        self.ip = ip
+        self.conectar_al_arrancar = conectar_al_arrancar
+        self.usuario: str | None = None
+        self.clave: str | None = None
+        self.ultimo_deseo: Publicado | None = None
+        self.esperas: tuple[int, int] | None = None
+        self.conexion: tuple[str, int, int] | None = None
+        self.bucle = False
+        self.desconexiones = 0
+        self.publicados: list[Publicado] = []
+        self.suscripciones: list[tuple[str, int]] = []
+        self.on_connect: Any = None
+        self.on_connect_fail: Any = None
+        self.on_disconnect: Any = None
+        self.on_message: Any = None
+
+    # --- Lo que llama el simulador ---
+
+    def username_pw_set(self, username: str, password: str | None = None) -> None:
+        self.usuario, self.clave = username, password
+
+    def will_set(self, topic: str, payload: str | None = None, qos: int = 0, retain: bool = False,
+                 properties: Any = None) -> None:
+        self.ultimo_deseo = Publicado(topic, payload or "", qos, retain)
+
+    def reconnect_delay_set(self, min_delay: int = 1, max_delay: int = 120) -> None:
+        self.esperas = (min_delay, max_delay)
+
+    def connect_async(self, host: str, port: int = 1883, keepalive: int = 60, **_: Any) -> None:
+        self.conexion = (host, port, keepalive)
+
+    def loop_start(self) -> None:
+        self.bucle = True
+        if self.conectar_al_arrancar:
+            self.conectar()
+
+    def loop_stop(self) -> None:
+        self.bucle = False
+
+    def subscribe(self, topic: str, qos: int = 0, **_: Any) -> None:
+        self.suscripciones.append((topic, qos))
+
+    def publish(self, topic: str, payload: str | None = None, qos: int = 0, retain: bool = False,
+                properties: Any = None) -> InfoFalsa:
+        self.publicados.append(Publicado(topic, payload or "", qos, retain))
+        return InfoFalsa()
+
+    def disconnect(self, reasoncode: Any = None, properties: Any = None) -> None:
+        self.desconexiones += 1
+
+    def socket(self) -> SocketFalso:
+        return SocketFalso(self.ip)
+
+    # --- Lo que haría el broker ---
+
+    def conectar(self, codigo: int = 0) -> None:
+        """CONNACK: 0 acepta; 0x86 (134) es «usuario o clave incorrectos»."""
+        self.on_connect(self, None, ConnectFlags(session_present=False),
+                        ReasonCode(PacketTypes.CONNACK, identifier=codigo), Properties(PacketTypes.CONNACK))
+
+    def fallar_conexion(self) -> None:
+        """No se pudo abrir la conexión: el broker no está."""
+        self.on_connect_fail(self, None)
+
+    def cortar(self, codigo: int = 0x80, *, desde_broker: bool = False) -> None:
+        """Se cayó la conexión (0x80, como paho cuando se pierde) o el broker la cerró (0x8E: sesión tomada)."""
+        self.on_disconnect(self, None, DisconnectFlags(is_disconnect_packet_from_server=desde_broker),
+                           ReasonCode(PacketTypes.DISCONNECT, identifier=codigo), Properties(PacketTypes.DISCONNECT))
+
+    def recibir(self, tema: str, carga: bytes) -> None:
+        mensaje = MQTTMessage(topic=tema.encode())
+        mensaje.payload = carga
+        self.on_message(self, None, mensaje)
+
+    def en(self, tema: str) -> list[Publicado]:
+        return [publicado for publicado in self.publicados if publicado.tema == tema]
+
+
+class FabricaMqtt:
+    """El `crear_cliente` de PuertaMqtt para las pruebas: crea clientes falsos y los guarda en `clientes`."""
+
+    def __init__(self, **opciones: Any) -> None:
+        self._opciones = opciones
+        self.clientes: list[ClienteMqttFalso] = []
+
+    def __call__(self, codigo: str) -> ClienteMqttFalso:
+        cliente = ClienteMqttFalso(codigo, **self._opciones)
+        self.clientes.append(cliente)
+        return cliente
+
+
+def preparar_principal(
+    monkeypatch: pytest.MonkeyPatch, servidor: ServidorFalso, caras: Sequence[Cara] = ()
+) -> list[ClienteMqttFalso]:
+    """Deja correr principal() sin modelo, sin servidor y sin broker: detector, servidor y paho falsos.
+
+    Devuelve la lista de los clientes MQTT que cree el simulador; cada uno se conecta al arrancar.
+    """
+    monkeypatch.setattr(comandos, "asegurar_modelo", lambda: Path("modelo-falso.onnx"))
+    monkeypatch.setattr(comandos, "DetectorYuNet", lambda modelo, puntaje: DetectorFalso(caras))
+    monkeypatch.setattr(comandos, "ClienteCamara", lambda url, codigo, token: servidor.cliente(codigo))
+    creados: list[ClienteMqttFalso] = []
+
+    def crear(*_args: Any, client_id: str, **_kwargs: Any) -> ClienteMqttFalso:
+        cliente = ClienteMqttFalso(client_id, conectar_al_arrancar=True)
+        creados.append(cliente)
+        return cliente
+
+    monkeypatch.setattr(paho, "Client", crear)
+    monkeypatch.setenv("TOKEN_CAMARA", TOKEN)
+    monkeypatch.setenv("MQTT_CAMARA_CLAVE", CLAVE_MQTT)
+    return creados

@@ -1,10 +1,10 @@
 /**
  * Nombre: manejadores.ts
- * Descripción: Simulacro de la API con MSW: sesión, personas, consentimiento y horarios, con los códigos de error del contrato.
+ * Descripción: Simulacro de la API con MSW: sesión, personas, consentimiento, horarios, cámaras e inscripciones, con los códigos de error del contrato.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 import { delay, http, HttpResponse } from 'msw'
@@ -12,22 +12,53 @@ import type {
   CodigoError,
   Consentimiento,
   ConsentimientoNuevo,
+  Dispositivo,
+  DispositivoCambios,
+  DispositivoConToken,
+  DispositivoNuevo,
   Esquemas,
+  Inscripcion,
+  InscripcionCorta,
+  InscripcionNueva,
   PaginaPersonas,
   Persona,
   PersonaCambios,
   PersonaNueva,
   Rol,
+  TipoCamara,
 } from '../api/cliente'
 import { esFutura, isoColombia } from '../logica/fechas'
 import { coincide } from '../logica/texto'
-import { NOMBRE_MAX, NOMBRE_MIN, PATRON_DOCUMENTO } from '../logica/validaciones'
+import {
+  CODIGO_RESERVADO,
+  esUrlCaptura,
+  NOMBRE_CAMARA_MAX,
+  NOMBRE_CAMARA_MIN,
+  NOMBRE_MAX,
+  NOMBRE_MIN,
+  PATRON_CODIGO_CAMARA,
+  PATRON_DOCUMENTO,
+} from '../logica/validaciones'
 import { textoConsentimiento } from './consentimiento'
-import { CREDENCIALES_SIMULACRO, crearEstado, type PersonaGuardada } from './datos'
+import {
+  CREDENCIALES_SIMULACRO,
+  crearEstado,
+  GUION,
+  MUESTRAS_REQUERIDAS,
+  PASO_MS,
+  VENCE_MS,
+  type CamaraGuardada,
+  type InscripcionGuardada,
+  type PersonaGuardada,
+} from './datos'
 
 // «*» acepta cualquier origen: la misma ruta sirve en el navegador y en las pruebas con Node.
 const API = '*/api/v1'
 const ROLES: Rol[] = ['estudiante', 'docente', 'administrativo', 'otro']
+const TIPOS: TipoCamara[] = ['tinyml', 'respaldo', 'simulador']
+/** Como el servidor: una cámara está en línea si su último contacto fue hace 2 minutos o menos. */
+const EN_LINEA_MS = 2 * 60 * 1000
+const PATRON_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 let estado = crearEstado()
 
@@ -42,7 +73,15 @@ function error(status: number, codigo: CodigoError, detalle: string) {
 
 const sinSesion = () => error(401, 'sin_sesion', 'Inicia sesión para continuar.')
 const personaNoExiste = () => error(404, 'no_encontrado', 'Esa persona no existe o ya fue borrada.')
+const camaraNoExiste = (codigo: string) => error(404, 'no_encontrado', `No hay una cámara con el código ${codigo}.`)
+const inscripcionNoExiste = () => error(404, 'no_encontrado', 'Esa inscripción no existe.')
 const validacion = (detalle: string) => error(422, 'validacion', detalle)
+
+/** Como el servidor: «Los datos no son válidos: revisa «codigo», «nombre».», más la frase de la regla que falló. */
+function datosInvalidos(campos: string[], frase?: string) {
+  const revisa = campos.length ? `: revisa ${[...campos].sort().map((campo) => `«${campo}»`).join(', ')}` : ''
+  return validacion([`Los datos no son válidos${revisa}.`, frase].filter(Boolean).join(' '))
+}
 
 /** Una pausa corta en el navegador, como la de una red real: deja ver los estados de carga. En las pruebas, ninguna. */
 const pausa = () => delay(typeof window === 'undefined' ? 0 : 180)
@@ -67,6 +106,121 @@ function aPersona(guardada: PersonaGuardada): Persona {
     horario_nombre: horario?.nombre ?? null,
     consentimiento_vigente: vigenteDe(guardada.id) !== undefined,
   }
+}
+
+const iso = (milisegundos: number) => isoColombia(new Date(milisegundos))
+
+function activaDe(codigo: string): InscripcionGuardada | undefined {
+  return estado.inscripciones.find((i) => i.dispositivo === codigo && i.estado === 'activa')
+}
+
+/**
+ * Pone al día una inscripción activa: aplica los pasos del guion que ya llegaron (solo si su cámara está
+ * activa y en línea, porque si no, no llegan caras) y, si ya pasó su hora, la vence (R9).
+ */
+function alDia(inscripcion: InscripcionGuardada, ahora = Date.now()): void {
+  if (inscripcion.estado !== 'activa') return
+  const camara = estado.camaras.find((c) => c.codigo === inscripcion.dispositivo)
+  if (camara?.activo && camara.conectada) {
+    const debidos = Math.floor((Math.min(ahora, inscripcion.vence) - inscripcion.creada) / PASO_MS)
+    while (inscripcion.pasos < debidos && inscripcion.estado === 'activa') {
+      const paso = GUION[inscripcion.pasos]
+      if (paso === undefined) break
+      inscripcion.pasos += 1
+      if (paso !== 'aceptada') {
+        // R7: el rechazo deja su motivo; una muestra aceptada después no lo borra, como en el servidor.
+        inscripcion.ultimo_motivo = paso
+        continue
+      }
+      inscripcion.muestras += 1
+      const persona = estado.personas.find((p) => p.id === inscripcion.persona_id)
+      if (persona) persona.muestras += 1
+      if (inscripcion.muestras >= inscripcion.requeridas) {
+        inscripcion.estado = 'completada'
+        inscripcion.terminada = inscripcion.creada + inscripcion.pasos * PASO_MS
+      }
+    }
+  }
+  if (inscripcion.estado === 'activa' && ahora >= inscripcion.vence) {
+    inscripcion.estado = 'vencida'
+    inscripcion.terminada = inscripcion.vence
+  }
+}
+
+/** R9: el vencimiento se revisa al consultar la inscripción, al abrir otra y al listar o ver las cámaras. */
+function todasAlDia(ahora = Date.now()): void {
+  for (const inscripcion of estado.inscripciones) alDia(inscripcion, ahora)
+}
+
+function aInscripcion(guardada: InscripcionGuardada): Inscripcion {
+  const persona = estado.personas.find((p) => p.id === guardada.persona_id)
+  return {
+    id: guardada.id,
+    persona: { id: guardada.persona_id, nombre: persona?.nombre ?? '' },
+    dispositivo: guardada.dispositivo,
+    estado: guardada.estado,
+    muestras: guardada.muestras,
+    requeridas: guardada.requeridas,
+    ultimo_motivo: guardada.ultimo_motivo,
+    creada: iso(guardada.creada),
+    vence: iso(guardada.vence),
+    terminada: guardada.terminada === null ? null : iso(guardada.terminada),
+  }
+}
+
+function aCorta(guardada: InscripcionGuardada): InscripcionCorta {
+  return {
+    id: guardada.id,
+    muestras: guardada.muestras,
+    requeridas: guardada.requeridas,
+    estado: guardada.estado,
+    vence: iso(guardada.vence),
+  }
+}
+
+/** modo es inscribir si y solo si inscripcion_activa no es null (Dispositivo en openapi.yaml). */
+function aDispositivo(guardada: CamaraGuardada, ahora = Date.now()): Dispositivo {
+  const { conectada, ...datos } = guardada
+  // Una cámara conectada envía todo el tiempo: su último contacto es de hace unos segundos.
+  const ultimoContacto = conectada ? iso(ahora - 3000) : guardada.ultimo_contacto
+  const activa = activaDe(guardada.codigo)
+  return {
+    ...datos,
+    ultimo_contacto: ultimoContacto,
+    en_linea: ultimoContacto !== null && ahora - Date.parse(ultimoContacto) <= EN_LINEA_MS,
+    modo: activa ? 'inscribir' : 'reconocer',
+    inscripcion_activa: activa ? aCorta(activa) : null,
+  }
+}
+
+/** Como el del servidor: 32 bytes aleatorios en base64 para URL, 43 caracteres. */
+function tokenNuevo(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+/** Revisa los campos de DispositivoNuevo (`nueva`) o DispositivoCambios; null si están bien. */
+function revisarCamara(cuerpo: Record<string, unknown>, nueva: boolean) {
+  const { codigo, nombre, tipo, url_captura, activo } = cuerpo
+  const campos: string[] = []
+  if (nueva && (typeof codigo !== 'string' || !PATRON_CODIGO_CAMARA.test(codigo))) campos.push('codigo')
+  if (nueva || nombre !== undefined) {
+    const largo = typeof nombre === 'string' ? nombre.trim().length : 0
+    if (largo < NOMBRE_CAMARA_MIN || largo > NOMBRE_CAMARA_MAX) campos.push('nombre')
+  }
+  if ((nueva || tipo !== undefined) && !TIPOS.includes(tipo as TipoCamara)) campos.push('tipo')
+  if (url_captura !== undefined && url_captura !== null && (typeof url_captura !== 'string' || !esUrlCaptura(url_captura))) {
+    campos.push('url_captura')
+  }
+  if (!nueva && activo !== undefined && typeof activo !== 'boolean') campos.push('activo')
+  if (campos.length) return datosInvalidos(campos)
+  if (nueva && codigo === CODIGO_RESERVADO) {
+    return datosInvalidos([], 'El código «servidor» está reservado para los temas MQTT del servidor.')
+  }
+  return null
 }
 
 /** Revisa los campos de PersonaNueva o PersonaCambios; devuelve el detalle del primer problema. */
@@ -256,7 +410,15 @@ export const manejadores = [
     const vigente = guardada ? vigenteDe(guardada.id) : undefined
     if (!guardada || !vigente) return error(404, 'no_encontrado', 'La persona no existe o no tiene un consentimiento vigente.')
     // RF-02 · C5: revocar borra las huellas y cancela la inscripción activa, todo junto.
-    vigente.revocado_en = isoColombia()
+    const ahora = Date.now()
+    todasAlDia(ahora)
+    for (const inscripcion of estado.inscripciones) {
+      if (inscripcion.persona_id === guardada.id && inscripcion.estado === 'activa') {
+        inscripcion.estado = 'cancelada'
+        inscripcion.terminada = ahora
+      }
+    }
+    vigente.revocado_en = iso(ahora)
     guardada.muestras = 0
     guardada.actualizada = vigente.revocado_en
     return new HttpResponse(null, { status: 204 })
@@ -282,6 +444,154 @@ export const manejadores = [
     await pausa()
     if (!estado.sesion) return sinSesion()
     return HttpResponse.json(estado.horarios)
+  }),
+
+  http.get(`${API}/dispositivos`, async () => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const ahora = Date.now()
+    todasAlDia(ahora)
+    const ordenadas = [...estado.camaras].sort((a, b) => (a.codigo < b.codigo ? -1 : 1))
+    return HttpResponse.json(ordenadas.map((camara) => aDispositivo(camara, ahora)))
+  }),
+
+  http.post(`${API}/dispositivos`, async ({ request }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const cuerpo = await leerJson(request)
+    if (!cuerpo) return datosInvalidos([], 'Revisa el cuerpo de la petición.')
+    const problema = revisarCamara(cuerpo, true)
+    if (problema) return problema
+    const nueva = cuerpo as DispositivoNuevo
+    const url = nueva.url_captura ?? null
+    if (nueva.tipo === 'respaldo' && url === null) {
+      return datosInvalidos([], 'Una cámara de respaldo necesita su URL de captura.')
+    }
+    if (estado.camaras.some((c) => c.codigo === nueva.codigo)) {
+      return error(409, 'codigo_duplicado', `Ya hay una cámara con el código ${nueva.codigo}.`)
+    }
+    const guardada: CamaraGuardada = {
+      codigo: nueva.codigo,
+      nombre: nueva.nombre.trim(),
+      tipo: nueva.tipo,
+      url_captura: url,
+      activo: true,
+      conectada: false,
+      ultimo_contacto: null,
+      estado: null,
+      creado: isoColombia(),
+    }
+    estado.camaras.push(guardada)
+    // El token sale solo en esta respuesta: el simulacro no lo guarda, como el servidor guarda solo su hash.
+    const conToken: DispositivoConToken = { ...aDispositivo(guardada), token: tokenNuevo() }
+    return HttpResponse.json(conToken, { status: 201 })
+  }),
+
+  http.get(`${API}/dispositivos/:codigo`, async ({ params }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const guardada = estado.camaras.find((c) => c.codigo === params.codigo)
+    if (!guardada) return camaraNoExiste(String(params.codigo))
+    const ahora = Date.now()
+    todasAlDia(ahora)
+    return HttpResponse.json(aDispositivo(guardada, ahora))
+  }),
+
+  http.patch(`${API}/dispositivos/:codigo`, async ({ params, request }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const guardada = estado.camaras.find((c) => c.codigo === params.codigo)
+    if (!guardada) return camaraNoExiste(String(params.codigo))
+    const cuerpo = await leerJson(request)
+    if (!cuerpo || Object.keys(cuerpo).length === 0) return validacion('Envía al menos un dato para cambiar.')
+    const problema = revisarCamara(cuerpo, false)
+    if (problema) return problema
+    const cambios = cuerpo as DispositivoCambios
+    const tipo = cambios.tipo ?? guardada.tipo
+    const url = cambios.url_captura !== undefined ? cambios.url_captura : guardada.url_captura
+    if (tipo === 'respaldo' && url === null) return validacion('Una cámara de respaldo necesita su URL de captura.')
+    if (cambios.nombre !== undefined) guardada.nombre = cambios.nombre.trim()
+    guardada.tipo = tipo
+    guardada.url_captura = url
+    if (cambios.activo !== undefined) guardada.activo = cambios.activo
+    const ahora = Date.now()
+    todasAlDia(ahora)
+    return HttpResponse.json(aDispositivo(guardada, ahora))
+  }),
+
+  http.post(`${API}/dispositivos/:codigo/token`, async ({ params }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const guardada = estado.camaras.find((c) => c.codigo === params.codigo)
+    if (!guardada) return camaraNoExiste(String(params.codigo))
+    const conToken: DispositivoConToken = { ...aDispositivo(guardada), token: tokenNuevo() }
+    return HttpResponse.json(conToken)
+  }),
+
+  http.post(`${API}/inscripciones`, async ({ request }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const cuerpo = await leerJson(request)
+    if (!cuerpo) return datosInvalidos([], 'Revisa el cuerpo de la petición.')
+    const campos: string[] = []
+    if (typeof cuerpo.persona_id !== 'string' || !PATRON_UUID.test(cuerpo.persona_id)) campos.push('persona_id')
+    if (typeof cuerpo.dispositivo !== 'string' || !PATRON_CODIGO_CAMARA.test(cuerpo.dispositivo)) campos.push('dispositivo')
+    if (campos.length) return datosInvalidos(campos)
+    const { persona_id, dispositivo } = cuerpo as InscripcionNueva
+    // El mismo orden del servidor: persona, cámara, cámara activa, consentimiento y una sola activa por cámara.
+    const persona = estado.personas.find((p) => p.id === persona_id)
+    if (!persona) return personaNoExiste()
+    const camara = estado.camaras.find((c) => c.codigo === dispositivo)
+    if (!camara) return camaraNoExiste(dispositivo)
+    if (!camara.activo) return validacion('La cámara está desactivada: actívala antes de inscribir.')
+    if (!vigenteDe(persona.id)) {
+      return error(422, 'sin_consentimiento', 'La persona no tiene un consentimiento vigente: regístralo antes de inscribirla.')
+    }
+    const ahora = Date.now()
+    todasAlDia(ahora)
+    if (activaDe(dispositivo)) {
+      return error(409, 'inscripcion_activa', `Ya hay una inscripción activa en la cámara ${dispositivo}.`)
+    }
+    const nueva: InscripcionGuardada = {
+      id: crypto.randomUUID(),
+      persona_id: persona.id,
+      dispositivo,
+      estado: 'activa',
+      muestras: 0,
+      requeridas: MUESTRAS_REQUERIDAS,
+      ultimo_motivo: null,
+      creada: ahora,
+      vence: ahora + VENCE_MS,
+      terminada: null,
+      pasos: 0,
+    }
+    estado.inscripciones.push(nueva)
+    return HttpResponse.json(aInscripcion(nueva), { status: 201 })
+  }),
+
+  http.get(`${API}/inscripciones/:inscripcionId`, async ({ params }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const guardada = estado.inscripciones.find((i) => i.id === params.inscripcionId)
+    if (!guardada) return inscripcionNoExiste()
+    alDia(guardada)
+    return HttpResponse.json(aInscripcion(guardada))
+  }),
+
+  http.delete(`${API}/inscripciones/:inscripcionId`, async ({ params }) => {
+    await pausa()
+    if (!estado.sesion) return sinSesion()
+    const guardada = estado.inscripciones.find((i) => i.id === params.inscripcionId)
+    if (!guardada) return inscripcionNoExiste()
+    const ahora = Date.now()
+    alDia(guardada, ahora)
+    if (guardada.estado !== 'activa') {
+      return error(409, 'inscripcion_terminada', 'La inscripción ya terminó: no se puede cancelar.')
+    }
+    // Las muestras aceptadas se conservan (RF-03 · C4).
+    guardada.estado = 'cancelada'
+    guardada.terminada = ahora
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // El resto del contrato llega con sus pantallas: el simulacro responde con el esquema Error.

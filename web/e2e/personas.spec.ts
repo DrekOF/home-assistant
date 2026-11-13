@@ -2,9 +2,9 @@
  * Nombre: personas.spec.ts
  * Descripción: Pruebas de punta a punta con el simulacro: inicio de sesión, Personas y consentimiento (RF-09 · C1, RF-02 · C1 a C5).
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 import { expect, test } from '@playwright/test'
@@ -125,7 +125,8 @@ test('RF-02 · C1, C2, C3 y C4 · crea una persona, registra su consentimiento y
 
   await inscribir.click()
   await expect(page).toHaveURL(/\/inscripcion\?persona=/)
-  await expect(page.getByText('la inscripción empezará con')).toContainText('Camila Andrea Torres Quintero')
+  // Inscripción ya la tiene elegida: tiene consentimiento vigente.
+  await expect(page.getByLabel('Persona').locator('option:checked')).toContainText('Camila Andrea Torres Quintero')
 })
 
 test('RF-02 · C5 · revocar pide confirmación, borra las huellas y vuelve a deshabilitar «Inscribir»', async ({ page }) => {
@@ -206,7 +207,8 @@ test('Accesibilidad · teclado · salto al contenido, navegación y diálogo sin
 test('RF-09 · C2 · las secciones que aún no existen dicen «Próximamente»', async ({ page }) => {
   await entrar(page)
   const navegacion = page.getByRole('navigation', { name: 'Secciones' })
-  for (const seccion of ['Inscripción', 'Accesos', 'Asistencia', 'Cámaras', 'Horarios']) {
+  // Inscripción y Cámaras llegaron el Día 2; Accesos, Asistencia y Horarios son del Día 3.
+  for (const seccion of ['Accesos', 'Asistencia', 'Horarios']) {
     await navegacion.getByRole('link', { name: new RegExp(seccion) }).click()
     await expect(page.getByRole('heading', { level: 1, name: seccion })).toBeVisible()
     await expect(page.getByText('Esta pantalla está en construcción.')).toBeVisible()

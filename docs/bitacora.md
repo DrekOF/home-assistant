@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.13
 -->
 
 # Bitácora
@@ -22,6 +22,70 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 2 · Tarea C · Inscripción y Cámaras
+
+- Quién: el frente C.
+- Qué:
+  - Simulacro (MSW) de cámaras e inscripciones:
+    - Tres cámaras de ejemplo: `entrada` en línea, `salida` sin conexión y `patio` inactiva.
+    - La inscripción avanza sola cada 2 s con un guion fijo, con dos rechazos, y vence a los 120 s.
+    - Al abrir una inscripción sigue el mismo orden de comprobaciones y los mismos mensajes del servidor.
+  - Pantalla Inscripción:
+    - Abre una inscripción para una persona con consentimiento vigente en una cámara activa; las dos quedan en la dirección.
+    - Ante un 409 `inscripcion_activa`, ofrece ver o cancelar la que ya estaba, y muestra las que siguen en curso.
+    - El avance es en vivo: «Muestra n de 5», el tiempo que falta y el motivo del último rechazo con qué hacer.
+    - Cancelar pide confirmación, y al final dice cómo terminó.
+  - Pantalla Cámaras:
+    - Una lista que se refresca sola. Desde ahí se crea, se edita, se activa o desactiva y se cambia el token.
+    - El token se muestra una sola vez en un diálogo y no queda en ningún caché.
+  - `npm run e2e:servidor`: Personas y consentimiento contra el servidor real.
+- Cómo:
+  - Claude Code trabajó en un worktree aparte (`AccesIA-c`, rama `c/inscripcion-y-camaras`):
+    - Salió de `main` con el PR #9.
+    - Copió `infra/.env` y el `passwd` de Mosquitto.
+    - Trabajó contra el contrato con el simulacro, porque B2 todavía no estaba en `main`.
+  - Propuso el plan y el equipo lo aprobó con cinco decisiones:
+    - Las personas con consentimiento también aparecen si están inactivas, marcadas.
+    - El tipo «Simulador» va por defecto.
+    - Inscripción tiene un panel «En curso».
+    - El simulacro avanza un paso cada 2 s.
+    - Sin librerías nuevas.
+  - Ajustes del equipo al aprobar:
+    - Fusionar solo con las tres CI en verde.
+    - Correr `e2e:servidor` contra el compose de B2 sin reiniciarlo ni reconstruirlo.
+    - Traer `main` con B2 antes del PR.
+  - Skills:
+    - Se usaron los seis.
+    - De impeccable solo se leyeron sus guías (Operate y el piso de calidad): su ejecutable no se corrió, así que su carga de contexto no se ejecutó y se leyó `DESIGN.md` directamente.
+    - web-design-guidelines se usó con la copia local de `command.md`.
+    - Qué aportó cada skill quedó en `web/DESIGN.md`.
+  - Decisiones al construir:
+    - Crear una cámara y cambiar el token no pasan por TanStack Query, para que el token no quede en su caché de mutaciones.
+    - La casilla «Cámara activa» va solo al editar: `DispositivoNuevo` no tiene `activo`.
+    - Un 422 va junto al campo que nombra el detalle del servidor («revisa «codigo»» o la frase de la regla); si no nombra ninguno, va arriba del formulario.
+    - El motivo pasa a gris si después se aceptó otra muestra, porque `ultimo_motivo` no se borra al aceptar.
+  - Verificación:
+    - Playwright y las capturas, revisadas a 1280×720 y 1440×900, mostraron cosas que se corrigieron:
+      - el ancho del aviso de «completada»;
+      - el último rechazo, que sobraba al completar;
+      - el comando de PowerShell, que se partía en el diálogo del token;
+      - el formulario apretado en la ficha de la cámara;
+      - «Las 0 muestras», que pasó a «No hay muestras aceptadas.».
+    - El navegador integrado del panel no registra el service worker de MSW: la revisión visual se hizo con Playwright.
+  - Durante la tarea se fusionaron B2 (PR #10) y el firmware del C6 (PR #11):
+    - Se trajo `main` antes del PR.
+    - Lo que el simulacro copió de B2 coincidía, salvo el texto del 409 `inscripcion_terminada`, que se igualó y quedó en una prueba.
+- Pruebas:
+  - Vitest: 103 bien. Cubren el simulacro de cámaras e inscripciones contra el contrato, los motivos, el tiempo que falta, la validación del código y el campo de un 422.
+  - Playwright con el simulacro: 19 bien, con las capturas.
+  - `npm run e2e:servidor` contra el compose de B2: 7 bien. Al final borró las personas de prueba.
+  - `npm run build` pasó y `npm run tipos` no dejó cambios.
+- Cambios de contrato o de specs: ninguno.
+- Pendiente:
+  - Probar Inscripción contra el servidor real con la cámara del simulador (C2 con B2 en `main`), en el Hito 1. No se hizo en el servidor compartido para no chocar con otra prueba que use la cámara.
+  - Crear cámaras en el servidor real: el contrato no tiene cómo borrarlas, así que se probó con el simulacro.
+  - El paso 4 del guion del Hito 1 ya puede usar la pantalla Inscripción en vez de PowerShell.
 
 ## 2026-11-12 · Día 2 · Tareas del Día 3
 

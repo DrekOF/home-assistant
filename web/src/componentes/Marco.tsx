@@ -2,9 +2,9 @@
  * Nombre: Marco.tsx
  * Descripción: Marco de las pantallas con sesión: salto al contenido, barra lateral con la navegación, cinta del simulacro y cierre de sesión.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 import { CalendarCheck, Cctv, Clock, DoorOpen, FlaskConical, LogOut, ScanFace, Users, type LucideIcon } from 'lucide-react'
@@ -19,10 +19,10 @@ type Seccion = { a: string; texto: string; icono: LucideIcon; pronto?: boolean }
 
 export const SECCIONES: Seccion[] = [
   { a: '/personas', texto: 'Personas', icono: Users },
-  { a: '/inscripcion', texto: 'Inscripción', icono: ScanFace, pronto: true },
+  { a: '/inscripcion', texto: 'Inscripción', icono: ScanFace },
   { a: '/accesos', texto: 'Accesos', icono: DoorOpen, pronto: true },
   { a: '/asistencia', texto: 'Asistencia', icono: CalendarCheck, pronto: true },
-  { a: '/camaras', texto: 'Cámaras', icono: Cctv, pronto: true },
+  { a: '/camaras', texto: 'Cámaras', icono: Cctv },
   { a: '/horarios', texto: 'Horarios', icono: Clock, pronto: true },
 ]
 

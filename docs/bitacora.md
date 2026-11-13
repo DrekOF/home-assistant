@@ -66,7 +66,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - **La imagen, probada aparte:**
     - con `docker buildx build --platform linux/amd64,linux/arm64`, en 42 s con la caché; la etapa `web` corrió una sola vez, en `linux/amd64`;
     - sola, sin base, en el puerto 18000: salud `degradado`, rutas del navegador con `index.html`, JS y fuentes con su tipo y caché larga, y `dist` sin rastro del simulacro;
-    - con una base desechable en una red propia: corrieron las migraciones, se creó el primer administrador y, en el navegador, cargó el inicio de sesión. Se entró, y Personas, Nueva cámara, Asistencia y Horarios cargaron pidiendo su ruta directamente, como al recargar;
+    - con una base desechable en una red propia: corrieron las migraciones, se creó el primer administrador y, en el navegador, cargó el inicio de sesión. Al entrar, la web llevó a Personas, y Nueva cámara, Asistencia y Horarios cargaron pidiendo su ruta directamente, como al recargar;
     - después se borraron los contenedores, la red, las imágenes de prueba y las claves de prueba.
 - Decisiones donde la tarea o las specs no decían nada:
   - **Node 24 y no 22.** La tarea decía Node 22. Se usó Node 24, el de `web.yml`, con la versión exacta.

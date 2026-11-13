@@ -4,7 +4,7 @@ Descripción: Plan de AccesIA por días, frentes e hitos, con el corte mínimo.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Plan
@@ -37,10 +37,15 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | 2 | B2 | Reconocimiento (YuNet + SFace + pgvector), reglas R1 a R4 y R7, e inscripción (R9) | `tareas/dia-2/B2-cristhian-reconocimiento-e-inscripcion.md` |
 | 2 | C | Personas (con consentimiento) contra la API real, y pantallas Inscripción y Cámaras | `tareas/dia-2/C-jhon-inscripcion-y-camaras.md` |
 | 2 | Todos | **Hito 1:** el simulador inscribe y reconoce a alguien de punta a punta | `tareas/dia-2/00-todos-orden-e-hito-1.md` |
-| 3 | A | Cámara de la placa cuando llegue el módulo: captura, TinyML y envío, según `arquitectura.md` (D-21) | — |
-| 3 | B | Asistencia (R5) y su registro manual por la API, alertas (R6), eventos y descubrimiento por MQTT, servidor MCP y comando `semilla agente` | — |
-| 3 | C | Home Assistant: MQTT, panel, automatizaciones y Assist con Ollama y MCP; primera medición de las 10 preguntas del agente en el portátil; pantallas Accesos, Asistencia (con el botón de registro manual) y Horarios (RF-13) | — |
-| 3 | Todos | **Hito 2:** con el simulador, Home Assistant abre la puerta y Assist dice quién llegó tarde | — |
+| 3 | Todos | El Hito 1 primero; dependencias y orden entre las tareas del día, reparto entre tres sesiones, Docker Compose desde la carpeta principal y guion del Hito 2 | `tareas/dia-3/00-todos-orden-e-hito-2.md` |
+| 3 | A1 | Puerta del simulador por MQTT, sin chocar con la placa que usa el mismo código | `tareas/dia-3/A1-julian-puerta-del-simulador.md` |
+| 3 | A2 | Cámara de la placa cuando llegue el módulo: captura, TinyML y envío, según `arquitectura.md` (D-21). Si no llega, pasa al Día 4 | `tareas/dia-3/A2-julian-camara-de-la-placa.md` |
+| 3 | B1 | Asistencia (R5) desde la cámara y su registro manual; API de accesos, reporte del día, asistencia de una persona, huellas (RF-12 · C1) y configuración | `tareas/dia-3/B1-cristhian-asistencia-y-consultas.md` |
+| 3 | B2 | MQTT: disponibilidad, descubrimiento (con el `model` de D-21 y su limpieza), eventos (con la repetición de R4), alertas (R6), resumen y estado de las cámaras | `tareas/dia-3/B2-cristhian-mqtt.md` |
+| 3 | B3 | Servidor MCP con las cinco herramientas, servicio `mcp` y comando `semilla agente` | `tareas/dia-3/B3-cristhian-mcp-y-semilla.md` |
+| 3 | C1 | Pantallas Accesos, Asistencia (con el botón de registro manual) y Horarios (RF-13), y los datos de la persona en su ficha (RF-12) | `tareas/dia-3/C1-jhon-accesos-asistencia-y-horarios.md` |
+| 3 | C2 | Home Assistant OS: MQTT, panel, automatizaciones y Assist con Ollama y MCP; Ollama, el firewall del hotspot y `compose.escenario2.yaml`, adelantado del Día 4 por D-21; copia de seguridad de Home Assistant OS; primera medición de las 10 preguntas del agente en el portátil | `tareas/dia-3/C2-jhon-home-assistant-y-agente.md` |
+| 3 | Todos | **Hito 2:** con el simulador, Home Assistant abre la puerta y Assist dice quién llegó tarde | `tareas/dia-3/00-todos-orden-e-hito-2.md` |
 | 4 | A | Calibración del umbral y prueba de la placa con Home Assistant; `firmware.yml` ya se adelantó el Día 2 (D-21). El diagnóstico y el respaldo del S3 quedan para cuando vuelva | — |
 | 4 | B | Modo extraer, pruebas de las reglas completas y evaluación del agente con 10 preguntas | — |
 | 4 | C | Imágenes arm64 probadas con emulación, kit en el portátil, Compose del portátil con solo Ollama (`infra/compose.ollama-portatil.yaml`), scripts `instalar.sh` y `verificar.sh`, y Playwright sobre toda la web | — |

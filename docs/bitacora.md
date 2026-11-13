@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.13
 -->
 
 # Bitácora
@@ -86,6 +86,59 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - Probar Inscripción contra el servidor real con la cámara del simulador (C2 con B2 en `main`), en el Hito 1. No se hizo en el servidor compartido para no chocar con otra prueba que use la cámara.
   - Crear cámaras en el servidor real: el contrato no tiene cómo borrarlas, así que se probó con el simulacro.
   - El paso 4 del guion del Hito 1 ya puede usar la pantalla Inscripción en vez de PowerShell.
+
+## 2026-11-12 · Día 2 · Tareas del Día 3
+
+- Quién: el frente B, para todo el equipo.
+- Qué: las tareas del Día 3 en `tareas/dia-3/`, con la plantilla de `tareas/README.md` y ya con D-21 (la XIAO ESP32-C6, el broker en el portátil, Home Assistant OS en la Pi 5 y el hotspot de Windows). Cada tarea dice de qué depende.
+  - `00-todos-orden-e-hito-2.md`:
+    - dependencias y orden entre las tareas;
+    - el reparto entre las tres sesiones y qué va en paralelo;
+    - los acuerdos para no pisarse;
+    - el guion del Hito 2 con el hardware de D-21, con sus criterios y qué revisar si algo falla.
+  - `A1-julian-puerta-del-simulador.md`: el simulador se conecta a MQTT como una cámara y simula la puerta, con una opción para no quitarle el client id a la placa.
+  - `A2-julian-camara-de-la-placa.md`: la cámara de la placa, solo si llega el módulo (P-03), con los dos casos de `arquitectura.md`; si es una cámara SPI para el C6, primero el cambio de contrato.
+  - `B1-cristhian-asistencia-y-consultas.md`:
+    - R5 desde la cámara y el registro manual;
+    - los accesos, el reporte del día y la asistencia de una persona;
+    - los rostros (RF-12 · C1) y la configuración.
+  - `B2-cristhian-mqtt.md`:
+    - disponibilidad, descubrimiento, eventos con la repetición de R4, alertas de R6 y resumen;
+    - el estado de las cámaras desde MQTT.
+  - `B3-cristhian-mcp-y-semilla.md`: el servidor MCP con las cinco herramientas, el servicio `mcp` y `semilla agente`.
+  - `C1-jhon-accesos-asistencia-y-horarios.md`: las pantallas Accesos, Asistencia (con el registro manual) y Horarios, y los datos de la persona en su ficha.
+  - `C2-jhon-home-assistant-y-agente.md`:
+    - Home Assistant OS con el broker del portátil, las automatizaciones, el panel «Portería» y Assist con Ollama y MCP;
+    - Ollama y `compose.escenario2.yaml`;
+    - la primera medición de las 10 preguntas.
+- Cómo:
+  - Se le pidió a Claude Code escribir las tareas sin escribir código, en esta misma sesión, después de fusionar B2 del Día 2.
+  - Trabajó en un worktree aparte (`AccesIA-tareas-dia-3`), porque el Compose del Hito corre desde el de B2 y la sesión del C6 trabaja en la carpeta principal.
+  - Leyó el plan, D-21, los contratos vigentes (`mqtt.md` 1.2, `mcp-agente.md` 1.2 y `openapi.yaml` 1.3), los requisitos, la bitácora y la descripción del PR #11 del firmware.
+- Decisiones al escribir, para revisarlas en el PR:
+  - A, B y C se dividen como el Día 2, para que cada PR se pueda revisar. El camino crítico es B: B1 primero, y después B2 y B3, que pueden ir en paralelo.
+  - `compose.escenario2.yaml` se adelanta del Día 4 a C2, porque con D-21 es el despliegue de la demo y el Hito 2 lo necesita.
+  - Los endpoints de rostros y `GET /api/v1/configuracion`, que el Día 2 dejó sin tarea, van en B1.
+  - La placa y el simulador no pueden usar el mismo código a la vez: el simulador solo se conecta a MQTT si se pide (A1). En el Hito 2, la puerta es la de la placa.
+  - El Hito 2 usa datos reales: un horario con un bloque que ya pasó, para que la llegada salga tarde. La semilla del agente es para la medición de las 10 preguntas.
+- Ajustes de la revisión del equipo:
+  - El Hito 1 todavía no se ha corrido: va primero, apenas se fusione la C del Día 2, y antes del Hito 2.
+  - Desde el Hito 1, Docker Compose corre solo desde la carpeta principal, que siempre está en `main`. Quien fusiona un PR que cambia el servidor, la web o la infra hace `git pull` allí y lo reconstruye, avisando.
+  - El firewall del portátil deja entrar desde `192.168.137.0/24` el 1883, el 8001 y el 11434, y Ollama escucha fuera de localhost (`OLLAMA_HOST=0.0.0.0` si corre nativo). El 8000 se suma cuando la placa envíe recortes.
+  - De la lista de infra de D-21, el `model` del dispositivo y la limpieza del descubrimiento van en B2, y la copia de seguridad de Home Assistant OS en C2.
+  - Las tareas piden proponer en el plan lo que las specs no dicen:
+    - la opción de MQTT del simulador;
+    - el `model` del dispositivo para un simulador;
+    - si `EstadoCamara` suma `sensor` y `antena` en `openapi.yaml` (1.4);
+    - el encabezado `Host` del MCP en el escenario 2;
+    - cómo convive la semilla con datos reales;
+    - si `mcp-agente.md` pasa a 1.3 con las URL del portátil;
+    - si se suma Home Assistant Container a `compose.yaml` para probar sin la Pi.
+- Pruebas: no hay código. Se revisaron a mano las referencias de las tareas: archivos, secciones, criterios RF y RNF, casos de las reglas, temas MQTT, operaciones y códigos de error de `openapi.yaml`.
+- Cambios de contrato o de specs: ninguno en los contratos. `specs/plan.md` 1.6 tiene una fila por tarea del Día 3, y `specs/decisiones.md` 1.9 lo anota en su registro. `tareas/README.md` 1.2 suma el Día 3 e `infra/README.md` 1.4 dice que `compose.escenario2.yaml` es del Día 3.
+- Pendiente:
+  - la tarea C del Día 2, que sigue en curso, y después el Hito 1;
+  - P-03, el módulo de cámara, que decide si A2 se hace el Día 3.
 
 ## 2026-11-12 · Día 2 · Firmware de la XIAO ESP32-C6
 

@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.14
 -->
 
 # Bitácora
@@ -85,6 +85,123 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pendiente:
   - Con la placa, cuando el equipo tenga el hardware: comprobar que recupera la puerta si alguien corre `--puerta` con su código.
   - En el modo carpeta, un `ABRIR` que llegue después de la última foto ya no se recibe, porque el simulador se desconecta al terminar.
+
+## 2026-11-12 · Día 2 · Tarea C · Inscripción y Cámaras
+
+- Quién: el frente C.
+- Qué:
+  - Simulacro (MSW) de cámaras e inscripciones:
+    - Tres cámaras de ejemplo: `entrada` en línea, `salida` sin conexión y `patio` inactiva.
+    - La inscripción avanza sola cada 2 s con un guion fijo, con dos rechazos, y vence a los 120 s.
+    - Al abrir una inscripción sigue el mismo orden de comprobaciones y los mismos mensajes del servidor.
+  - Pantalla Inscripción:
+    - Abre una inscripción para una persona con consentimiento vigente en una cámara activa; las dos quedan en la dirección.
+    - Ante un 409 `inscripcion_activa`, ofrece ver o cancelar la que ya estaba, y muestra las que siguen en curso.
+    - El avance es en vivo: «Muestra n de 5», el tiempo que falta y el motivo del último rechazo con qué hacer.
+    - Cancelar pide confirmación, y al final dice cómo terminó.
+  - Pantalla Cámaras:
+    - Una lista que se refresca sola. Desde ahí se crea, se edita, se activa o desactiva y se cambia el token.
+    - El token se muestra una sola vez en un diálogo y no queda en ningún caché.
+  - `npm run e2e:servidor`: Personas y consentimiento contra el servidor real.
+- Cómo:
+  - Claude Code trabajó en un worktree aparte (`AccesIA-c`, rama `c/inscripcion-y-camaras`):
+    - Salió de `main` con el PR #9.
+    - Copió `infra/.env` y el `passwd` de Mosquitto.
+    - Trabajó contra el contrato con el simulacro, porque B2 todavía no estaba en `main`.
+  - Propuso el plan y el equipo lo aprobó con cinco decisiones:
+    - Las personas con consentimiento también aparecen si están inactivas, marcadas.
+    - El tipo «Simulador» va por defecto.
+    - Inscripción tiene un panel «En curso».
+    - El simulacro avanza un paso cada 2 s.
+    - Sin librerías nuevas.
+  - Ajustes del equipo al aprobar:
+    - Fusionar solo con las tres CI en verde.
+    - Correr `e2e:servidor` contra el compose de B2 sin reiniciarlo ni reconstruirlo.
+    - Traer `main` con B2 antes del PR.
+  - Skills:
+    - Se usaron los seis.
+    - De impeccable solo se leyeron sus guías (Operate y el piso de calidad): su ejecutable no se corrió, así que su carga de contexto no se ejecutó y se leyó `DESIGN.md` directamente.
+    - web-design-guidelines se usó con la copia local de `command.md`.
+    - Qué aportó cada skill quedó en `web/DESIGN.md`.
+  - Decisiones al construir:
+    - Crear una cámara y cambiar el token no pasan por TanStack Query, para que el token no quede en su caché de mutaciones.
+    - La casilla «Cámara activa» va solo al editar: `DispositivoNuevo` no tiene `activo`.
+    - Un 422 va junto al campo que nombra el detalle del servidor («revisa «codigo»» o la frase de la regla); si no nombra ninguno, va arriba del formulario.
+    - El motivo pasa a gris si después se aceptó otra muestra, porque `ultimo_motivo` no se borra al aceptar.
+  - Verificación:
+    - Playwright y las capturas, revisadas a 1280×720 y 1440×900, mostraron cosas que se corrigieron:
+      - el ancho del aviso de «completada»;
+      - el último rechazo, que sobraba al completar;
+      - el comando de PowerShell, que se partía en el diálogo del token;
+      - el formulario apretado en la ficha de la cámara;
+      - «Las 0 muestras», que pasó a «No hay muestras aceptadas.».
+    - El navegador integrado del panel no registra el service worker de MSW: la revisión visual se hizo con Playwright.
+  - Durante la tarea se fusionaron B2 (PR #10) y el firmware del C6 (PR #11):
+    - Se trajo `main` antes del PR.
+    - Lo que el simulacro copió de B2 coincidía, salvo el texto del 409 `inscripcion_terminada`, que se igualó y quedó en una prueba.
+- Pruebas:
+  - Vitest: 103 bien. Cubren el simulacro de cámaras e inscripciones contra el contrato, los motivos, el tiempo que falta, la validación del código y el campo de un 422.
+  - Playwright con el simulacro: 19 bien, con las capturas.
+  - `npm run e2e:servidor` contra el compose de B2: 7 bien. Al final borró las personas de prueba.
+  - `npm run build` pasó y `npm run tipos` no dejó cambios.
+- Cambios de contrato o de specs: ninguno.
+- Pendiente:
+  - Probar Inscripción contra el servidor real con la cámara del simulador (C2 con B2 en `main`), en el Hito 1. No se hizo en el servidor compartido para no chocar con otra prueba que use la cámara.
+  - Crear cámaras en el servidor real: el contrato no tiene cómo borrarlas, así que se probó con el simulacro.
+  - El paso 4 del guion del Hito 1 ya puede usar la pantalla Inscripción en vez de PowerShell.
+
+## 2026-11-12 · Día 2 · Tareas del Día 3
+
+- Quién: el frente B, para todo el equipo.
+- Qué: las tareas del Día 3 en `tareas/dia-3/`, con la plantilla de `tareas/README.md` y ya con D-21 (la XIAO ESP32-C6, el broker en el portátil, Home Assistant OS en la Pi 5 y el hotspot de Windows). Cada tarea dice de qué depende.
+  - `00-todos-orden-e-hito-2.md`:
+    - dependencias y orden entre las tareas;
+    - el reparto entre las tres sesiones y qué va en paralelo;
+    - los acuerdos para no pisarse;
+    - el guion del Hito 2 con el hardware de D-21, con sus criterios y qué revisar si algo falla.
+  - `A1-julian-puerta-del-simulador.md`: el simulador se conecta a MQTT como una cámara y simula la puerta, con una opción para no quitarle el client id a la placa.
+  - `A2-julian-camara-de-la-placa.md`: la cámara de la placa, solo si llega el módulo (P-03), con los dos casos de `arquitectura.md`; si es una cámara SPI para el C6, primero el cambio de contrato.
+  - `B1-cristhian-asistencia-y-consultas.md`:
+    - R5 desde la cámara y el registro manual;
+    - los accesos, el reporte del día y la asistencia de una persona;
+    - los rostros (RF-12 · C1) y la configuración.
+  - `B2-cristhian-mqtt.md`:
+    - disponibilidad, descubrimiento, eventos con la repetición de R4, alertas de R6 y resumen;
+    - el estado de las cámaras desde MQTT.
+  - `B3-cristhian-mcp-y-semilla.md`: el servidor MCP con las cinco herramientas, el servicio `mcp` y `semilla agente`.
+  - `C1-jhon-accesos-asistencia-y-horarios.md`: las pantallas Accesos, Asistencia (con el registro manual) y Horarios, y los datos de la persona en su ficha.
+  - `C2-jhon-home-assistant-y-agente.md`:
+    - Home Assistant OS con el broker del portátil, las automatizaciones, el panel «Portería» y Assist con Ollama y MCP;
+    - Ollama y `compose.escenario2.yaml`;
+    - la primera medición de las 10 preguntas.
+- Cómo:
+  - Se le pidió a Claude Code escribir las tareas sin escribir código, en esta misma sesión, después de fusionar B2 del Día 2.
+  - Trabajó en un worktree aparte (`AccesIA-tareas-dia-3`), porque el Compose del Hito corre desde el de B2 y la sesión del C6 trabaja en la carpeta principal.
+  - Leyó el plan, D-21, los contratos vigentes (`mqtt.md` 1.2, `mcp-agente.md` 1.2 y `openapi.yaml` 1.3), los requisitos, la bitácora y la descripción del PR #11 del firmware.
+- Decisiones al escribir, para revisarlas en el PR:
+  - A, B y C se dividen como el Día 2, para que cada PR se pueda revisar. El camino crítico es B: B1 primero, y después B2 y B3, que pueden ir en paralelo.
+  - `compose.escenario2.yaml` se adelanta del Día 4 a C2, porque con D-21 es el despliegue de la demo y el Hito 2 lo necesita.
+  - Los endpoints de rostros y `GET /api/v1/configuracion`, que el Día 2 dejó sin tarea, van en B1.
+  - La placa y el simulador no pueden usar el mismo código a la vez: el simulador solo se conecta a MQTT si se pide (A1). En el Hito 2, la puerta es la de la placa.
+  - El Hito 2 usa datos reales: un horario con un bloque que ya pasó, para que la llegada salga tarde. La semilla del agente es para la medición de las 10 preguntas.
+- Ajustes de la revisión del equipo:
+  - El Hito 1 todavía no se ha corrido: va primero, apenas se fusione la C del Día 2, y antes del Hito 2.
+  - Desde el Hito 1, Docker Compose corre solo desde la carpeta principal, que siempre está en `main`. Quien fusiona un PR que cambia el servidor, la web o la infra hace `git pull` allí y lo reconstruye, avisando.
+  - El firewall del portátil deja entrar desde `192.168.137.0/24` el 1883, el 8001 y el 11434, y Ollama escucha fuera de localhost (`OLLAMA_HOST=0.0.0.0` si corre nativo). El 8000 se suma cuando la placa envíe recortes.
+  - De la lista de infra de D-21, el `model` del dispositivo y la limpieza del descubrimiento van en B2, y la copia de seguridad de Home Assistant OS en C2.
+  - Las tareas piden proponer en el plan lo que las specs no dicen:
+    - la opción de MQTT del simulador;
+    - el `model` del dispositivo para un simulador;
+    - si `EstadoCamara` suma `sensor` y `antena` en `openapi.yaml` (1.4);
+    - el encabezado `Host` del MCP en el escenario 2;
+    - cómo convive la semilla con datos reales;
+    - si `mcp-agente.md` pasa a 1.3 con las URL del portátil;
+    - si se suma Home Assistant Container a `compose.yaml` para probar sin la Pi.
+- Pruebas: no hay código. Se revisaron a mano las referencias de las tareas: archivos, secciones, criterios RF y RNF, casos de las reglas, temas MQTT, operaciones y códigos de error de `openapi.yaml`.
+- Cambios de contrato o de specs: ninguno en los contratos. `specs/plan.md` 1.6 tiene una fila por tarea del Día 3, y `specs/decisiones.md` 1.9 lo anota en su registro. `tareas/README.md` 1.2 suma el Día 3 e `infra/README.md` 1.4 dice que `compose.escenario2.yaml` es del Día 3.
+- Pendiente:
+  - la tarea C del Día 2, que sigue en curso, y después el Hito 1;
+  - P-03, el módulo de cámara, que decide si A2 se hace el Día 3.
 
 ## 2026-11-12 · Día 2 · Firmware de la XIAO ESP32-C6
 

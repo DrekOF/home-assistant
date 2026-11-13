@@ -2,9 +2,9 @@
 Nombre: DESIGN.md
 Descripción: Sistema visual de la web de AccesIA: dirección, tokens, componentes, movimiento, accesibilidad y qué skill apoya cada decisión.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Sistema visual de la web
@@ -67,6 +67,7 @@ Corto, con salida rápida, y solo cuando dice algo. Nada se mueve solo.
 - Los botones se encogen a `scale(0.97)` al presionarlos.
 - El diálogo entra con opacidad y escala desde 0,97 (`@starting-style`) y sale igual. Su fondo se oscurece.
 - Los segmentos de la barra de avance se llenan con `scaleX` desde la izquierda.
+- Cuando cambia el motivo del último rechazo, su aviso entra con opacidad y 4 px de desplazamiento en 150 ms (`@starting-style`). El tiempo que falta y la lista de cámaras, que cambian a cada rato, no se animan.
 - Los esqueletos laten mientras carga.
 - Con `prefers-reduced-motion`, todo queda quieto.
 - No hay `transition: all`. Se anima `transform` y `opacity`, más el color en los cambios de estado al pasar el mouse.
@@ -82,12 +83,22 @@ Corto, con salida rápida, y solo cuando dice algo. Nada se mueve solo.
 | Diálogo de confirmación | `DialogoConfirmacion.tsx` | `<dialog>` nativo, solo para lo que no se puede deshacer (revocar) o lo que se pierde (salir sin guardar). El foco empieza en «Cancelar» y Escape cierra. |
 | Esqueleto | `Esqueleto.tsx` | Filas grises del mismo alto que las reales, para que la tabla no salte. |
 | Vacío | `Vacio.tsx` | Dice qué pasó y qué hacer, con la acción a la mano. |
-| Barra de avance | `BarraAvance.tsx` | Un segmento por muestra, «Muestra 3 de 5» con `aria-live` y `role="progressbar"`. La usará la inscripción (RF-03 · C6). |
+| Barra de avance | `BarraAvance.tsx` | Un segmento por muestra, «Muestra 3 de 5» con `aria-live` y `role="progressbar"` (RF-03 · C6). A la derecha, un detalle opcional que no se anuncia: el tiempo que falta. |
+| Diálogo del token | `DialogoToken.tsx` | `<dialog>` nativo que muestra el token una sola vez (RF-10 · C1 y C2). El token queda seleccionado en un campo de solo lectura, con «Copiar» y, si el navegador no deja, la indicación de copiarlo con Ctrl+C. Dice dónde ponerlo. Vive solo en el estado de quien lo abre: no va al caché de TanStack Query, ni al navegador, ni a la dirección, y se olvida al cerrarlo. |
+| Motivo del último rechazo | `Aviso` en `AvanceInscripcion.tsx` | Ámbar mientras es lo último que pasó; informativo si después se aceptó otra muestra o si la inscripción terminó. Dice qué pasó y qué hacer (`logica/inscripcion.ts`), sin decir nunca a quién se parece la cara. |
+| Cámara ocupada | `Aviso` en `Inscripcion.tsx` | Ante un 409 `inscripcion_activa`: de quién es la inscripción, su avance y el tiempo que falta, con «Ver su avance» y «Cancelarla y abrir la nueva» (con confirmación). |
+| Tabla de cámaras | `Camaras.tsx` | Cuatro columnas en vez de siete: Cámara (nombre, y debajo código y tipo), Estado, Conexión (con el último contacto debajo) y Modo. «Inscribiendo» va en ámbar porque mientras tanto la cámara no reconoce (R9); «Reconoce» va en texto simple. |
 | Marco | `Marco.tsx` | Salto al contenido, barra lateral con la sección actual marcada (`aria-current`), cinta del simulacro y cierre de sesión. Al cambiar de pantalla, el foco va al contenido. |
 
 ## Estados
 
-Cada pantalla tiene sus estados de carga (esqueleto), vacío (`Vacio`), error (`Aviso` con «Reintentar») y éxito (aviso en la región de estado). Desactivar a una persona no pide confirmación porque se puede deshacer en el mismo aviso. Revocar el consentimiento sí la pide, porque borra las huellas.
+Cada pantalla tiene sus estados de carga (esqueleto), vacío (`Vacio`), error (`Aviso` con «Reintentar») y éxito (aviso en la región de estado).
+
+Lo que cambia solo:
+
+- La inscripción activa se consulta cada segundo y la lista de cámaras cada 5 s. Si una consulta falla, se sigue viendo lo último que llegó, con un aviso de que se está reintentando.
+- El tiempo que falta se cuenta en la web cada segundo, contra `vence`.
+- Cuando la inscripción termina, un aviso dice cómo terminó (completada, vencida o cancelada) y qué se puede hacer después. Mide lo mismo que el panel del avance. Desactivar a una persona no pide confirmación porque se puede deshacer en el mismo aviso. Revocar el consentimiento sí la pide, porque borra las huellas.
 
 ## Accesibilidad
 
@@ -96,6 +107,8 @@ Revisada con las reglas de web-design-guidelines fijadas en el commit `434b7f9` 
 - Todo se usa con teclado: salto al contenido, foco visible con `:focus-visible` (2 px en el acento) y orden de tabulación igual al de lectura. Lo prueba Playwright.
 - Formularios: `label` en cada control, `name` y `autocomplete`, sin corrector en correos y documentos, y ejemplos que terminan en «…».
 - La dirección guarda el estado de la lista (`q`, `estado` y `pagina`). La paginación usa enlaces.
+- La dirección también guarda la persona y la cámara elegidas para inscribir (`persona` y `camara`) y el id de una inscripción abierta: al recargar se ve la misma.
+- Lo que cambia en vivo se anuncia una vez: «Muestra n de 5» y el motivo del último rechazo, desde regiones `aria-live` que existen siempre. El tiempo que falta no se anuncia.
 - Fechas y horas con `Intl.DateTimeFormat`, en `es-CO` y `America/Bogota`. La hora y «a. m.» van con espacio duro, para que no se partan de línea.
 - Las superficies del navegador también llevan los colores del sistema: selección de texto, cursor, casillas (`accent-color`), barra de desplazamiento y subrayados.
 
@@ -114,3 +127,14 @@ Dos diferencias justificadas con esas reglas:
 | frontend-design | Partir del tema (control de acceso para una demo en clase) y no de una plantilla; el panel de color de la entrada como único momento propio. |
 | taste-skill | Un solo estilo de botón relleno por vista, etiquetas visibles, errores debajo de cada campo y el foco en el primero. Su parte de páginas de presentación queda para la página de scroll storytelling del plan. |
 | web-design-guidelines | La revisión final de accesibilidad, formularios, teclado, tipografía e i18n con su copia fija. |
+
+El Día 2 (Inscripción y Cámaras) se apoyó en los mismos seis:
+
+| Skill | Qué aportó |
+| --- | --- |
+| impeccable | Operate: componentes conocidos y del mismo vocabulario (el motivo y la cámara ocupada son `Aviso`), y diálogos solo donde el pedido los justifica: el token y las acciones que no se deshacen. Se leyeron sus guías; su ejecutable no se corrió. |
+| Emil Kowalski | Qué se anima: los segmentos al llenarse y el motivo al cambiar, cortos y con curva de salida. No se animan el tiempo que falta ni el refresco de la lista. Copiar cambia de texto al instante. |
+| refactoring-ui | La tabla de cámaras agrupa siete datos en cuatro columnas, con lo secundario debajo en gris. En el avance, el conteo manda y el tiempo que falta queda en segundo plano. |
+| frontend-design | Cada acción conserva su nombre en la confirmación («Crear cámara» → «Cámara Portería creada.»). Sin flechas pegadas al texto de los botones, salvo donde la dirección significa algo («Siguiente»). |
+| taste-skill | Etiquetas visibles, un solo botón relleno por vista y cada error bajo su campo, también los del servidor (409 y 422). |
+| web-design-guidelines | La revisión de las pantallas nuevas con la copia local: `name` en el campo del token y la elección de persona y cámara en la dirección. |

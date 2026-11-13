@@ -1,13 +1,22 @@
 /**
  * Nombre: datos.ts
- * Descripción: Datos de ejemplo del simulacro, coherentes con el contrato 1.2: personas ficticias, horarios por bloques y consentimientos.
+ * Descripción: Datos de ejemplo del simulacro, coherentes con el contrato 1.3: personas ficticias, horarios por bloques, consentimientos, cámaras y el guion de las inscripciones.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
-import type { Administrador, Consentimiento, Horario, Persona, Rol } from '../api/cliente'
+import type {
+  Administrador,
+  Consentimiento,
+  Dispositivo,
+  EstadoInscripcion,
+  Horario,
+  MotivoMuestra,
+  Persona,
+  Rol,
+} from '../api/cliente'
 import { CREDENCIALES_SIMULACRO } from './credenciales'
 
 export { CREDENCIALES_SIMULACRO }
@@ -15,12 +24,57 @@ export { CREDENCIALES_SIMULACRO }
 /** Lo que el simulacro guarda de una persona; horario_nombre, consentimiento_vigente salen al responder. */
 export type PersonaGuardada = Omit<Persona, 'horario_nombre' | 'consentimiento_vigente'>
 
+/**
+ * Lo que el simulacro guarda de una cámara. en_linea, modo e inscripcion_activa salen al responder. Una cámara
+ * `conectada` «envía» todo el tiempo: su último contacto es siempre de hace unos segundos.
+ */
+export type CamaraGuardada = Omit<Dispositivo, 'en_linea' | 'modo' | 'inscripcion_activa'> & { conectada: boolean }
+
+/** Una inscripción del simulacro, con las horas en milisegundos para avanzarla con el reloj. */
+export type InscripcionGuardada = {
+  id: string
+  persona_id: string
+  dispositivo: string
+  estado: EstadoInscripcion
+  muestras: number
+  requeridas: number
+  ultimo_motivo: MotivoMuestra | null
+  creada: number
+  vence: number
+  terminada: number | null
+  /** Cuántos pasos del guion ya pasaron. */
+  pasos: number
+}
+
+/** INSCRIPCION_MUESTRAS e INSCRIPCION_VENCE_S con sus valores iniciales (specs/arquitectura.md). */
+export const MUESTRAS_REQUERIDAS = 5
+export const VENCE_MS = 120_000
+
+/** Cada PASO_MS llega una cara de la cámara mientras la inscripción está activa y la cámara, en línea. */
+export const PASO_MS = 2000
+
+/**
+ * Lo que llega en cada paso: una muestra aceptada o el motivo de un rechazo (R7). Con 5 aceptadas, la
+ * inscripción queda completada en el paso 7, a los 14 s.
+ */
+export const GUION: Array<'aceptada' | MotivoMuestra> = [
+  'aceptada',
+  'aceptada',
+  'cara_pequena',
+  'aceptada',
+  'borrosa',
+  'aceptada',
+  'aceptada',
+]
+
 export type EstadoSimulacro = {
   sesion: boolean
   administrador: Administrador
   horarios: Horario[]
   personas: PersonaGuardada[]
   consentimientos: Consentimiento[]
+  camaras: CamaraGuardada[]
+  inscripciones: InscripcionGuardada[]
 }
 
 /** UUID fijos para que las direcciones de los datos de ejemplo no cambien entre recargas. */
@@ -106,6 +160,44 @@ const CONSENTIMIENTOS: Consentimiento[] = [
   consentimiento(211, 11, 'web', '2026-11-09T16:34:00-05:00'),
 ]
 
+// Cámaras de ejemplo: la de la entrada es el simulador y está en línea; la de la salida, una placa que no
+// se ha vuelto a conectar; la del patio, una de respaldo desactivada.
+const CAMARAS: CamaraGuardada[] = [
+  {
+    codigo: 'entrada',
+    nombre: 'Entrada',
+    tipo: 'simulador',
+    url_captura: null,
+    activo: true,
+    conectada: true,
+    ultimo_contacto: null,
+    estado: null,
+    creado: '2026-11-11T09:00:00-05:00',
+  },
+  {
+    codigo: 'patio',
+    nombre: 'Patio',
+    tipo: 'respaldo',
+    url_captura: 'http://192.168.137.50/capture',
+    activo: false,
+    conectada: false,
+    ultimo_contacto: null,
+    estado: null,
+    creado: '2026-11-11T09:10:00-05:00',
+  },
+  {
+    codigo: 'salida',
+    nombre: 'Salida',
+    tipo: 'tinyml',
+    url_captura: null,
+    activo: true,
+    conectada: false,
+    ultimo_contacto: '2026-11-11T18:42:00-05:00',
+    estado: null,
+    creado: '2026-11-11T09:05:00-05:00',
+  },
+]
+
 /** Un estado nuevo, copiado de los datos de ejemplo: el simulacro vive en memoria y se reinicia al recargar. */
 export function crearEstado(): EstadoSimulacro {
   return structuredClone({
@@ -114,5 +206,7 @@ export function crearEstado(): EstadoSimulacro {
     horarios: HORARIOS,
     personas: PERSONAS,
     consentimientos: CONSENTIMIENTOS,
+    camaras: CAMARAS,
+    inscripciones: [],
   })
 }

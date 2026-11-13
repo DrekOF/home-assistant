@@ -1,10 +1,10 @@
 /**
  * Nombre: pantallas.css
- * Descripción: Estilos propios de cada pantalla de la web de AccesIA: inicio de sesión, Personas, formulario, ficha y Próximamente.
+ * Descripción: Estilos propios de cada pantalla de la web de AccesIA: inicio de sesión, Personas, formulario, ficha, Inscripción, Cámaras y Próximamente.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 /* Encabezado de cada pantalla */
@@ -430,4 +430,101 @@
   font-size: var(--texto-s);
   font-weight: 600;
   color: var(--color-texto-2);
+}
+
+.texto-secundario {
+  color: var(--color-texto-2);
+}
+
+/* Inscripción: abrir una y, debajo, las que siguen en curso */
+.inscripcion {
+  display: grid;
+  gap: var(--e-4);
+  max-width: 44rem;
+}
+
+.en-curso {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.en-curso__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2) var(--e-4);
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-divisor);
+}
+
+.en-curso__item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.en-curso__nombre {
+  font-weight: 600;
+}
+
+.en-curso__item a {
+  font-weight: 600;
+}
+
+/* Avance de una inscripción */
+.avance-inscripcion__estado {
+  max-width: 44rem;
+}
+
+.avance-inscripcion {
+  gap: var(--e-4);
+  max-width: 44rem;
+}
+
+.avance-inscripcion .avance__etiqueta {
+  font-size: var(--texto-xl);
+}
+
+.avance-inscripcion .avance__detalle {
+  font-size: var(--texto-l);
+}
+
+.avance-inscripcion .avance__segmento {
+  height: 1rem;
+}
+
+.avance-inscripcion__pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--color-divisor);
+}
+
+.avance-inscripcion__pie p {
+  flex: 1 1 18rem;
+}
+
+/* Cuando cambia el motivo del último rechazo, el aviso entra sin saltar: corto y con salida rápida. */
+.motivo {
+  transition:
+    opacity var(--t-medio) var(--curva-salida),
+    transform var(--t-medio) var(--curva-salida);
+}
+
+@starting-style {
+  .motivo {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.motivo__nota {
+  margin-top: var(--e-1);
+  color: var(--color-texto-2);
+  font-size: var(--texto-s);
 }

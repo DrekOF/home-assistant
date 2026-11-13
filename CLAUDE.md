@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -156,6 +156,7 @@ npm run tipos                                         regenera los tipos desde o
 npm run build                                         revisa los tipos y compila
 npm test                                              Vitest: lógica, simulacro y contraste
 npm run e2e                                           Playwright con el simulacro; capturas en web/capturas/
+npm run e2e:servidor                                  Playwright contra el servidor real (Compose arriba; credenciales de infra/.env)
 ```
 
 Firmware de la XIAO ESP32-C6, desde la raíz (necesita ESP-IDF 5.4.4 y PowerShell, no Git Bash):

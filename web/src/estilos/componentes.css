@@ -1,10 +1,10 @@
 /**
  * Nombre: componentes.css
- * Descripción: Estilos de los componentes de la web de AccesIA: botones, campos, tablas, insignias, avisos, diálogo, esqueletos y barra de avance.
+ * Descripción: Estilos de los componentes de la web de AccesIA: botones, campos, tablas, insignias, avisos, diálogos (con el del token), esqueletos y barra de avance.
  * Fecha de creación: 2026-11-11
- * Actualización: 2026-11-11
+ * Actualización: 2026-11-12
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 /* Botones: uno solo relleno por vista marca la acción principal. */
@@ -625,4 +625,57 @@ select.control {
 .datos dd {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* Detalle a la derecha del conteo de la barra de avance, como el tiempo que falta: no compite con el conteo. */
+.avance__detalle {
+  color: var(--color-texto-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Diálogo del token: el ícono en el acento, porque no es una advertencia sino un dato que hay que guardar. */
+.dialogo__icono--acento {
+  background: var(--color-acento-suave);
+  color: var(--color-acento);
+}
+
+.dialogo code {
+  padding: 0.0625rem var(--e-1);
+  border-radius: var(--radio-s);
+  background: var(--color-neutro-fondo);
+  color: var(--color-texto);
+  font-family: var(--fuente-mono);
+  font-size: var(--texto-s);
+  white-space: nowrap;
+}
+
+.dialogo h3 {
+  margin-bottom: var(--e-2);
+  font-size: var(--texto-m);
+}
+
+.token {
+  display: flex;
+  gap: var(--e-2);
+}
+
+/* 43 caracteres del token en mono: en 14 px caben en el diálogo sin cortarse. */
+.token__valor {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--texto-s);
+}
+
+/* El enlace de una fila de tabla, debajo de su dato. */
+.tabla__enlace {
+  display: inline-block;
+  margin-top: var(--e-1);
+  font-size: var(--texto-s);
+  font-weight: 600;
+}
+
+/* Acciones dentro de un aviso, debajo de su texto. */
+.aviso__acciones {
+  margin-top: var(--e-2);
 }

@@ -1,10 +1,10 @@
 """
 Nombre: armar.py
-Descripción: Arma datos directamente en la base para las pruebas del servidor: personas, consentimientos, cámaras, inscripciones, huellas, eventos y asistencia.
+Descripción: Arma datos directamente en la base para las pruebas del servidor: horarios con bloques, personas, consentimientos, cámaras, inscripciones, huellas, eventos y asistencia.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import math
@@ -16,6 +16,27 @@ from sqlalchemy import Connection, text
 
 # Una huella de prueba: 128 números iguales, con norma 1, como las de SFace.
 HUELLA = "[" + ",".join([f"{1 / math.sqrt(128):.8f}"] * 128) + "]"
+
+
+def horario(conexion: Connection, nombre: str, *bloques: tuple[int, str, int]) -> UUID:
+    """Un horario con sus bloques: (día de 1 = lunes a 7 = domingo, hora de inicio «HH:MM», tolerancia en minutos)."""
+    horario_id = conexion.execute(
+        text("INSERT INTO horario (nombre) VALUES (:nombre) RETURNING id"), {"nombre": nombre}
+    ).scalar_one()
+    for dia, hora_inicio, tolerancia_min in bloques:
+        conexion.execute(
+            text(
+                "INSERT INTO horario_bloque (horario_id, dia, hora_inicio, tolerancia_min) "
+                "VALUES (:horario_id, :dia, CAST(:hora_inicio AS time), :tolerancia_min)"
+            ),
+            {"horario_id": horario_id, "dia": dia, "hora_inicio": hora_inicio, "tolerancia_min": tolerancia_min},
+        )
+    return horario_id
+
+
+def clase_ia(conexion: Connection) -> UUID:
+    """El horario de ejemplo de R5 que trae el SQL del contrato: de lunes a viernes a las 07:00, con 10 min."""
+    return conexion.execute(text("SELECT id FROM horario WHERE nombre = 'Clase IA'")).scalar_one()
 
 
 def persona(conexion: Connection, documento: str = "1075000001", nombre: str = "Ana María Gómez", **campos) -> UUID:
@@ -90,26 +111,55 @@ def inscripcion(
 
 
 def rostro(
-    conexion: Connection, persona_id: UUID, inscripcion_id: UUID | None = None, huella: Sequence[float] | None = None
+    conexion: Connection,
+    persona_id: UUID,
+    inscripcion_id: UUID | None = None,
+    huella: Sequence[float] | None = None,
+    calidad: float | None = None,
+    creado: datetime | None = None,
 ) -> UUID:
-    """Una huella de la persona; sin huella, la de prueba (HUELLA)."""
+    """Una huella de la persona; sin huella, la de prueba (HUELLA). Sin creado, con now() de la transacción."""
     texto = HUELLA if huella is None else "[" + ",".join(format(float(valor), ".9g") for valor in huella) + "]"
     return conexion.execute(
         text(
-            "INSERT INTO rostro (persona_id, inscripcion_id, huella, fuente) "
-            "VALUES (:persona_id, :inscripcion_id, CAST(:huella AS vector), 'simulador') RETURNING id"
+            "INSERT INTO rostro (persona_id, inscripcion_id, huella, fuente, calidad, creado) "
+            "VALUES (:persona_id, :inscripcion_id, CAST(:huella AS vector), 'simulador', :calidad, "
+            "COALESCE(CAST(:creado AS timestamptz), now())) RETURNING id"
         ),
-        {"persona_id": persona_id, "inscripcion_id": inscripcion_id, "huella": texto},
+        {
+            "persona_id": persona_id,
+            "inscripcion_id": inscripcion_id,
+            "huella": texto,
+            "calidad": calidad,
+            "creado": creado,
+        },
     ).scalar_one()
 
 
-def evento(conexion: Connection, dispositivo: str, persona_id: UUID) -> UUID:
+def evento(
+    conexion: Connection,
+    dispositivo: str,
+    persona_id: UUID | None,
+    resultado: str = "permitido",
+    motivo: str | None = None,
+    similitud: float | None = 0.71,
+    fecha_hora: datetime | None = None,
+) -> UUID:
+    """Un evento de acceso; sin fecha_hora, con now() de la transacción."""
     return conexion.execute(
         text(
-            "INSERT INTO evento_acceso (dispositivo_codigo, persona_id, resultado, similitud) "
-            "VALUES (:dispositivo, :persona_id, 'permitido', 0.71) RETURNING id"
+            "INSERT INTO evento_acceso (fecha_hora, dispositivo_codigo, persona_id, resultado, motivo, similitud) "
+            "VALUES (COALESCE(CAST(:fecha_hora AS timestamptz), now()), :dispositivo, :persona_id, :resultado, "
+            ":motivo, :similitud) RETURNING id"
         ),
-        {"dispositivo": dispositivo, "persona_id": persona_id},
+        {
+            "fecha_hora": fecha_hora,
+            "dispositivo": dispositivo,
+            "persona_id": persona_id,
+            "resultado": resultado,
+            "motivo": motivo,
+            "similitud": similitud,
+        },
     ).scalar_one()
 
 
@@ -138,9 +188,10 @@ def inscrita(
     *huellas: Sequence[float],
     activa: bool = True,
     con_consentimiento: bool = True,
+    horario_id: UUID | None = None,
 ) -> UUID:
-    """Una persona con sus huellas ya guardadas y, si se pide, con consentimiento vigente."""
-    persona_id = persona(conexion, documento=documento, nombre=nombre, activa=activa)
+    """Una persona con sus huellas ya guardadas, su horario y, si se pide, con consentimiento vigente."""
+    persona_id = persona(conexion, documento=documento, nombre=nombre, activa=activa, horario_id=horario_id)
     if con_consentimiento:
         # Una hora antes: revocar por la API usa ahora() sin microsegundos y no puede quedar antes de aceptado_en.
         consentimiento(conexion, persona_id, aceptado_en=datetime.now(UTC) - timedelta(hours=1))
@@ -155,5 +206,15 @@ def eventos(conexion: Connection) -> list:
         text(
             "SELECT id, fecha_hora, dispositivo_codigo, persona_id, resultado, motivo, similitud "
             "FROM evento_acceso ORDER BY fecha_hora, id"
+        )
+    ).all()
+
+
+def llegadas(conexion: Connection) -> list:
+    """Las llegadas guardadas (tabla asistencia), por fecha y hora de llegada."""
+    return conexion.execute(
+        text(
+            "SELECT id, persona_id, fecha, llegada, estado, minutos_tarde, origen, evento_id, registrado_por "
+            "FROM asistencia ORDER BY fecha, llegada, id"
         )
     ).all()

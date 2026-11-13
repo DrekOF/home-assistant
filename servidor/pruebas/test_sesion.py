@@ -4,7 +4,7 @@ Descripción: Pruebas de la sesión de la web y del primer administrador: contra
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import time
@@ -20,7 +20,7 @@ from accesia.config import configuracion
 from accesia.main import preparar_arranque
 from accesia.sesion import COOKIE, DURACION_S, SAL, crear_primer_administrador
 
-# Todas las rutas de B1 y B2 que piden sesión (openapi.yaml: security sesion).
+# Todas las rutas que piden sesión (openapi.yaml: security sesion), hasta la B1 del Día 3.
 ID = str(uuid4())
 RUTAS_CON_SESION = [
     ("GET", "/api/v1/sesion"),
@@ -33,6 +33,10 @@ RUTAS_CON_SESION = [
     ("POST", f"/api/v1/personas/{ID}/consentimiento"),
     ("DELETE", f"/api/v1/personas/{ID}/consentimiento"),
     ("GET", f"/api/v1/personas/{ID}/consentimientos"),
+    ("GET", f"/api/v1/personas/{ID}/asistencia"),
+    ("GET", f"/api/v1/personas/{ID}/rostros"),
+    ("DELETE", f"/api/v1/personas/{ID}/rostros"),
+    ("DELETE", f"/api/v1/rostros/{ID}"),
     ("GET", "/api/v1/consentimiento/texto"),
     ("GET", "/api/v1/horarios"),
     ("POST", "/api/v1/horarios"),
@@ -46,6 +50,11 @@ RUTAS_CON_SESION = [
     ("POST", "/api/v1/inscripciones"),
     ("GET", f"/api/v1/inscripciones/{ID}"),
     ("DELETE", f"/api/v1/inscripciones/{ID}"),
+    ("GET", "/api/v1/accesos"),
+    ("GET", "/api/v1/asistencia"),
+    ("POST", "/api/v1/asistencia"),
+    ("GET", "/api/v1/asistencia.csv"),
+    ("GET", "/api/v1/configuracion"),
 ]
 
 

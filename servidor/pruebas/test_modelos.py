@@ -4,7 +4,7 @@ Descripción: Pruebas de los modelos de cara: un archivo o una descarga que no c
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import hashlib
@@ -22,7 +22,7 @@ def _sin_avisos(_: str) -> None:
 
 @pytest.mark.marca("modelos · SHA-256")
 def test_un_archivo_que_falta_pesa_otra_cosa_o_tiene_otro_hash_no_pasa(tmp_path: Path) -> None:
-    modelo = modelos.Modelo("m.onnx", "https://ejemplo.invalid/m.onnx", hashlib.sha256(b"bien").hexdigest(), 4)
+    modelo = modelos.Modelo("m.onnx", "https://ejemplo.invalid/m.onnx", hashlib.sha256(b"bien").hexdigest(), 4, "m")
     ruta = tmp_path / "m.onnx"
 
     assert "falta" in modelos.problema_de(ruta, modelo)
@@ -37,7 +37,9 @@ def test_un_archivo_que_falta_pesa_otra_cosa_o_tiene_otro_hash_no_pasa(tmp_path:
 @pytest.mark.marca("modelos · SHA-256")
 def test_una_descarga_que_no_coincide_se_descarta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     contenido = b"esto no es el modelo"
-    falso = modelos.Modelo("m.onnx", "https://ejemplo.invalid/m.onnx", hashlib.sha256(b"otro").hexdigest(), len(contenido))
+    falso = modelos.Modelo(
+        "m.onnx", "https://ejemplo.invalid/m.onnx", hashlib.sha256(b"otro").hexdigest(), len(contenido), "m"
+    )
     monkeypatch.setattr(modelos, "MODELOS", (falso,))
     monkeypatch.setattr(modelos.urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(contenido))
 
@@ -50,7 +52,9 @@ def test_una_descarga_que_no_coincide_se_descarta(tmp_path: Path, monkeypatch: p
 @pytest.mark.marca("modelos · SHA-256")
 def test_una_descarga_que_coincide_queda_y_no_se_repite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     contenido = b"modelo de prueba"
-    bueno = modelos.Modelo("m.onnx", "https://ejemplo.invalid/m.onnx", hashlib.sha256(contenido).hexdigest(), len(contenido))
+    bueno = modelos.Modelo(
+        "m.onnx", "https://ejemplo.invalid/m.onnx", hashlib.sha256(contenido).hexdigest(), len(contenido), "m"
+    )
     descargas = []
 
     def abrir(*_a, **_k):

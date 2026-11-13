@@ -1,10 +1,10 @@
 <!--
 Nombre: A2-julian-placa-con-home-assistant.md
-Descripción: Tarea A2 del Día 4 del frente A: la XIAO ESP32-C6 con Home Assistant OS y el broker del portátil (RF-14 · C2 a C6), la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
+Descripción: Tarea A2 del Día 4 del frente A: la XIAO ESP32-C6 con Home Assistant OS y el broker de la Pi (D-22), o el del portátil en el escenario 2 (RF-14 · C2 a C6), la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Día 4 · Frente A · A2 · La placa con Home Assistant
@@ -12,11 +12,13 @@ Versión: 1.0
 - Responsable: Julián Andrés Silva Morales (frente A)
 - Rama: `a/placa-home-assistant`
 - Depende de:
-  - C2 del Día 3 en `main`: Home Assistant OS en la Pi con el broker del portátil, el hotspot y el firewall;
-  - el Compose de la carpeta principal reconstruido con B2 del Día 3, que publica los eventos;
-  - el Hito 2, que es la primera vez que se ven juntas la placa y Home Assistant.
+  - la placa y la Pi. Si solo están en clase, A2 se hace en clase (00);
+  - C2 del Día 3 y B4 en `main`: Home Assistant OS en la Pi con el Mosquitto oficial y su ACL, y el servidor como complemento (D-22). Si para la clase no alcanzan, se usa el escenario 2: el broker y el servidor del Compose del portátil;
+  - el Hito 2, que es la primera vez que se ven juntas la placa y Home Assistant;
+  - para el binario del kit, A3 en `main`, con la IP de la Pi en los valores de fábrica.
 - Lee primero:
   - `CLAUDE.md` y `tareas/dia-4/00-todos-orden-y-listo-para-el-ensayo.md`;
+  - de `specs/decisiones.md`, D-21, D-22 y «Cómo se aplica D-22»;
   - de `specs/requisitos.md`, RF-14, RF-07 · C2, RNF-03 · C2 y RF-11 · C2;
   - de `specs/contratos/mqtt.md`, Temas y «Entidades que publica la placa»;
   - `firmware/README.md`, en especial la prueba con la placa y «Por verificar con la placa»;
@@ -25,7 +27,7 @@ Versión: 1.0
 
 ## Objetivo
 
-La placa, con el firmware de `main`, funciona con Home Assistant OS y el broker del portátil:
+La placa, con el firmware de `main`, funciona con Home Assistant OS y el broker de la Pi (D-22), o el del portátil si se usa el escenario 2:
 
 - la puerta;
 - su estado y su disponibilidad;
@@ -46,7 +48,7 @@ Queda medido el tiempo de la puerta, y su binario y los pasos para flashearla qu
 
 ## Hacer
 
-1. Flashear la placa con el binario acordado y configurarla por la consola, sin recompilar (RF-14 · C6): Wi-Fi del hotspot, servidor, código `entrada`, token, MQTT, puerta, sensor y antena.
+1. Flashear la placa con el binario acordado y configurarla por la consola, sin recompilar (RF-14 · C6): Wi-Fi del hotspot, servidor, código `entrada`, token, MQTT, puerta, sensor y antena. Con A3 en `main`, el servidor y MQTT ya apuntan a la Pi de fábrica; con el escenario 2, se cambian al portátil por la consola.
 2. Con Home Assistant OS, cada criterio de RF-14:
    - C2, la antena: el conmutador al arrancar, la interna y la externa, y la señal con cada una;
    - C3, el sensor: lecturas cada 30 s, y `null` después de 3 fallas seguidas (por ejemplo, desconectando el DHT);
@@ -56,7 +58,7 @@ Queda medido el tiempo de la puerta, y su binario y los pasos para flashearla qu
 3. La lista «Por verificar con la placa» de `firmware/README.md`. Lo que se confirme sale de la lista; lo que no, queda con su resultado.
 4. La convivencia con el simulador, que quedó pendiente en A1 del Día 3: si alguien corre el simulador con `--puerta` y el código de la placa, la placa recupera su conexión cuando el simulador se va.
 5. El tiempo de la puerta, con un `permitido` y con la repetición de R4: menos de 2 s (RF-07 · C2, RNF-03 · C2).
-6. Para el kit, con C1 (RF-11 · C2): el binario del C6 con su versión, esptool, y los pasos de flasheo y configuración en el paso 3 de la guía del día de clase, con los comandos de PowerShell.
+6. Para el kit, con C1 (RF-11 · C2): el binario del C6, compilado con A3 en `main`, con su versión, esptool, y los pasos de flasheo y configuración en el paso 3 de la guía del día de clase, con los comandos de PowerShell.
 7. `firmware/README.md` y la bitácora.
 
 ## No hacer
@@ -67,7 +69,7 @@ Queda medido el tiempo de la puerta, y su binario y los pasos para flashearla qu
 
 ## Criterios de aceptación
 
-- C1 (RF-14 · C2 a C6) Cada criterio comprobado con la placa y Home Assistant OS, con su resultado en la bitácora.
+- C1 (RF-14 · C2 a C6) Cada criterio comprobado con la placa y Home Assistant OS, con su resultado en la bitácora y si fue con todo en la Pi (D-22) o con el escenario 2.
 - C2 (RF-07 · C2; RNF-03 · C2) La puerta se abre en menos de 2 s con un `permitido` y con la repetición de R4, medido.
 - C3 La lista «Por verificar» resuelta, o con lo que falta anotado.
 - C4 (RF-11 · C2) El binario, esptool y los pasos de flasheo listos para el kit, con la versión y el commit del binario.

@@ -1,10 +1,10 @@
 <!--
 Nombre: B3-cristhian-evaluacion-del-agente-y-cobertura.md
-Descripción: Tarea B3 del Día 4 del frente B: la evaluación final del agente con las 10 preguntas en Assist (RF-08 · C3) y una prueba de cobertura que asegura que cada caso de las reglas y cada criterio de los requisitos tiene su prueba o su comprobación anotada (RNF-06 · C1).
+Descripción: Tarea B3 del Día 4 del frente B: la evaluación final del agente con las 10 preguntas en Assist, en la Pi y con el modelo según su RAM (RF-08 · C3, D-22), y una prueba de cobertura que asegura que cada caso de las reglas y cada criterio de los requisitos tiene su prueba o su comprobación anotada (RNF-06 · C1).
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Día 4 · Frente B · B3 · Evaluación del agente y cobertura de las specs
@@ -12,32 +12,39 @@ Versión: 1.0
 - Responsable: Cristhian Eduardo Sánchez Mosquera (frente B)
 - Rama: `b/evaluacion-agente`
 - Depende de:
-  - para la evaluación: C2 del Día 3 en `main`, con Assist, Ollama y MCP configurados en Home Assistant OS; el Compose de la carpeta principal con B3 del Día 3; y el Hito 2;
+  - para la evaluación: la Pi; C2 del Día 3 en `main`, con Assist y Ollama en Home Assistant OS; B4 en `main`, con el MCP en el complemento del servidor; y el Hito 2. Si la Pi solo está en clase, la evaluación se hace en clase (00);
   - para la cobertura: nada, y puede empezar antes.
 - Lee primero:
   - `CLAUDE.md` y `tareas/dia-4/00-todos-orden-y-listo-para-el-ensayo.md`;
   - de `specs/contratos/mcp-agente.md`: Herramientas, Instrucciones del agente, Configuración en Home Assistant y Evaluación;
   - de `specs/requisitos.md`: RF-08, RNF-03 · C3 y RNF-06 · C1;
-  - de `specs/decisiones.md`: D-06 y D-15;
+  - de `specs/decisiones.md`: D-06, D-15 y D-22, con «Cómo se aplica D-22» (el modelo de Ollama y qué se prueba si Assist va lento);
+  - de `specs/arquitectura.md`: «Velocidad del agente en la Pi» y «Presupuesto de RAM»;
   - `specs/reglas.md`;
   - la entrada de C2 del Día 3 en la bitácora, con la primera medición;
   - de `servidor/README.md`: Servidor MCP del agente y Semilla del agente.
 
 ## Objetivo
 
-- La evaluación final del agente: las 10 preguntas en Assist, en el portátil, con 9 o más bien y la 9 y la 10 obligatorias (RF-08 · C3). Queda el tiempo de cada respuesta (RNF-03 · C3).
+- La evaluación final del agente: las 10 preguntas en Assist, en la Pi (D-22), con 9 o más bien y la 9 y la 10 obligatorias (RF-08 · C3). Queda el tiempo de cada respuesta (RNF-03 · C3).
+- El modelo final se fija midiendo en la Pi, según su RAM (D-22, P-04):
+  - con 4 GB, `qwen2.5:1.5b`;
+  - con 8 GB se miden `qwen2.5:1.5b` y `qwen2.5:3b`, también en sus variantes Q4_0, y se elige por las 10 preguntas y el tiempo.
+  - D-06 queda con el modelo elegido.
 - Una prueba de cobertura en la CI (RNF-06 · C1): cada caso de `reglas.md` y cada criterio de `requisitos.md` tiene una prueba con su marca o una comprobación a mano anotada. Si alguien suma un caso o un criterio sin prueba, la CI falla.
 
 ## Antes de empezar
 
 - Propón en el plan:
   - **Cómo se corre la evaluación:**
-    - con `semilla agente`, y con `--con-datos-reales` si la base ya tiene los datos del Hito;
+    - con `semilla agente` en el complemento del servidor, como lo deje B4, y con `--con-datos-reales` si la base ya tiene los datos del Hito;
     - cuántas veces se hace cada pregunta, porque el modelo no responde siempre igual (por ejemplo, 3), y qué cuenta como bien;
     - cómo se mide el tiempo.
-  - **Qué se ajusta si no llega a 9 de 10:**
+  - **Qué se ajusta si no llega a 9 de 10 o si una respuesta pasa de 15 s:**
+    - Primero, lo que D-22 dice que se prueba en la Pi: las variantes Q4_0, descripciones más cortas de las herramientas, `qwen2.5:0.5b` si responde bien, y que el comienzo del prompt no cambie entre preguntas.
     - Las instrucciones del agente y las descripciones de las herramientas están en `mcp-agente.md`, así que cambiarlas es un cambio de contrato que se propone en el PR.
     - Otra opción es un modelo más reciente de tamaño parecido, que actualiza D-06.
+    - Ollama pasa al portátil solo con el visto bueno del profesor (RNF-03 · C3).
   - **Qué cuenta como comprobado** para la cobertura de los criterios que no se prueban con pytest (hardware, Home Assistant, tiempos): por ejemplo, una lista con el hito o la tarea de la bitácora donde se comprobó. Propón dónde vive esa lista.
 - La configuración de Home Assistant es de C: lo que la evaluación necesite cambiar allí se coordina con C.
 
@@ -45,7 +52,7 @@ Versión: 1.0
 
 1. La evaluación:
    - Las 10 preguntas en Assist, con el asistente «Portería».
-   - Una tabla con el modelo, el equipo, cada respuesta, el tiempo, si estuvo bien y qué herramienta usó.
+   - Una tabla con el modelo y su variante, la RAM de la Pi, cada respuesta, el tiempo, si estuvo bien y qué herramienta usó.
    - Las preguntas 9 y 10 son obligatorias: no inventa a Zoe Vargas y no abre la puerta, que no cambia de estado.
 2. Si no llega a 9 de 10:
    - el ajuste acordado, con su cambio de contrato o de D-06 propuesto en el PR;
@@ -58,7 +65,7 @@ Versión: 1.0
 4. Lo que la cobertura encuentre sin prueba: se escribe la prueba si es del frente B, o se anota en la lista con el responsable si es de otro frente.
 5. La bitácora:
    - la evaluación completa, también los intentos que fallaron;
-   - `mcp-agente.md` y D-06, si cambiaron, con su versión;
+   - D-06 con el modelo elegido en la Pi, y `mcp-agente.md` si cambió, con su versión;
    - `servidor/README.md`: la marca nueva y cómo se corre la evaluación.
 
 ## No hacer
@@ -70,7 +77,7 @@ Versión: 1.0
 
 ## Criterios de aceptación
 
-- C1 (RF-08 · C3) Al menos 9 de 10 bien, con la 9 y la 10 bien, medido en el portátil con el modelo de D-06 y anotado en la bitácora.
+- C1 (RF-08 · C3) Al menos 9 de 10 bien, con la 9 y la 10 bien, medido en la Pi con el modelo elegido según su RAM, y anotado en la bitácora y en D-06.
 - C2 (RNF-03 · C3) El tiempo de cada respuesta de Assist anotado.
 - C3 (RF-08 · C5) «Abre la puerta» no cambia la puerta.
 - C4 (RNF-06 · C1) La prueba de cobertura en verde en `servidor.yml`: no falta ningún caso de las reglas, y los criterios sin prueba automática tienen su comprobación anotada.
@@ -79,7 +86,7 @@ Versión: 1.0
 ## Al terminar
 
 - Resume:
-  - el resultado de la evaluación, con el modelo, el equipo y los tiempos;
+  - el resultado de la evaluación, con el modelo, la RAM de la Pi y los tiempos;
   - qué se ajustó, si hizo falta;
   - qué encontró la cobertura y qué quedó anotado.
 - Agrega la entrada de la tarea en `docs/bitacora.md`, contando el método con IA.

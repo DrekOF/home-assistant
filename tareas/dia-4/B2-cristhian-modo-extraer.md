@@ -2,22 +2,22 @@
 Nombre: B2-cristhian-modo-extraer.md
 Descripción: Tarea B2 del Día 4 del frente B: el modo extraer (RF-10 · C4). Para una cámara de tipo respaldo, el servidor pide su imagen cada segundo, recorta la cara más grande y la procesa como un recorte de la cámara.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Día 4 · Frente B · B2 · El modo extraer
 
 - Responsable: Cristhian Eduardo Sánchez Mosquera (frente B)
 - Rama: `b/modo-extraer`
-- Depende de: nada del día. Comparte `servidor/accesia/main.py` con B1: el que fusione segundo trae `main`.
+- Depende de: nada del día. B1 ya está en `main` (PR #19), así que B2 parte de ahí.
 - Lee primero:
   - `CLAUDE.md` y `tareas/dia-4/00-todos-orden-y-listo-para-el-ensayo.md`;
   - `specs/contratos/api-dispositivo.md` completo, en especial «Modo extraer (cámara de respaldo)» y las esperas de la cámara;
   - de `specs/requisitos.md`, RF-10 · C4 y RF-05 · C2;
   - de `specs/arquitectura.md`, Firmware: «Cuando llegue el módulo de cámara», donde está el ESP32-CAM;
-  - de `specs/decisiones.md`, D-21;
+  - de `specs/decisiones.md`, D-21 y D-22 (con D-22, el servidor corre en la Pi);
   - de `servidor/README.md`, Reconocimiento e inscripción, MQTT y Registro.
 
 ## Objetivo

@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Contratos
@@ -16,7 +16,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
 | MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.3 | B | A (placa y simulador), C (Home Assistant) |
-| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.2 | B | C (Home Assistant) |
+| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.3 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
 ## Cómo cambia un contrato
@@ -44,6 +44,18 @@ Dos agregados, propuestos en la tarea B2 del Día 3. Los demás contratos no cam
 - `openapi.yaml` 1.4: `EstadoCamara` suma `sensor` (`dht22` o `dht11`) y `antena` (`interna` o `externa`), opcionales, como ya decía `mqtt.md` 1.2. La API devuelve solo los campos que mandó la cámara. La web regenera sus tipos con `npm run tipos`.
 - `mqtt.md` 1.3: cada vez que se conecta al broker, el servidor borra los config que publicó para cámaras que ya no existen en la base. Los de la placa se siguen borrando a mano.
 - Los dos solo agregan, por eso son 1.4 y 1.3 y no 2.0. `openapi.yaml` 1.4 pasa `openapi-spec-validator` (OpenAPI 3.1).
+
+## `mcp-agente.md` 1.3 (2026-11-12)
+
+Aclaraciones propuestas en la tarea B3 del Día 3, al montar el servidor MCP. No cambian herramientas, parámetros ni respuestas, por eso es 1.3 y no 2.0. Los demás contratos no cambian.
+
+- El SDK es `mcp` 2.x, donde FastMCP se llama `MCPServer`.
+- El encabezado `Host`: el servidor acepta `mcp:8001` y la dirección del portátil en el escenario 2, que se configura con `MCP_HOSTS_PERMITIDOS` (por defecto `192.168.137.1:8001`). También acepta `localhost:8001` y `127.0.0.1:8001`. Otro `Host` recibe 421, y un pedido con encabezado `Origin`, 403.
+- Tres casos que el contrato no decía:
+  - `accesos_de_persona`: con más de 50 accesos en el rango, van los 50 más recientes, en orden de hora, y `total` cuenta todos;
+  - `desconocidos_recientes`: `ultimos` lleva las 10 horas más recientes, de la más antigua a la más nueva;
+  - `buscar_persona`: una persona sin horario tiene `"horario": null`.
+- Los comprueban las pruebas `contrato agente · <herramienta>` y `contrato agente · host` del servidor.
 
 ## Cámara → servidor 1.2 (2026-11-12)
 

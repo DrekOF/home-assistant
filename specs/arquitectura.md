@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Arquitectura
@@ -21,7 +21,7 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Placa del punto de acceso | Abre la puerta (un LED), publica su estado y un sensor de temperatura y humedad; la cámara, cuando llegue el módulo (D-21) | Seeed Studio XIAO ESP32-C6, ESP-IDF 5.4 (C++), esp-mqtt, `esp-idf-lib/dht` | A | `firmware/` |
 | Simulador | Hace lo mismo que la cámara con la webcam o con una carpeta de fotos | Python 3.13, OpenCV (YuNet), httpx, paho-mqtt | A | `simulador/` |
 | Servidor | Huella, reglas, inscripción, asistencia, eventos MQTT, API y web | Python 3.13, FastAPI, OpenCV (YuNet + SFace), SQLAlchemy 2, psycopg 3, pgvector, Alembic, paho-mqtt | B | `servidor/` |
-| Servidor MCP | Herramientas de solo lectura del agente | SDK oficial `mcp` de Python, mismo paquete del servidor | B | `servidor/` |
+| Servidor MCP | Herramientas de solo lectura del agente | SDK oficial `mcp` 2.x de Python (`MCPServer`, que en la 1.x se llamaba FastMCP), mismo paquete del servidor | B | `servidor/` |
 | Base de datos | Personas, huellas, eventos y asistencia | PostgreSQL 18 + pgvector | B | `specs/contratos/base-de-datos.sql` |
 | Broker MQTT | Mensajes entre servidor, cámara, placa y Home Assistant | Mosquitto 2, en el portátil en la demo (D-21) | B | `infra/mosquitto/` |
 | Home Assistant | Panel, automatizaciones (puerta y avisos) y Assist | Home Assistant OS en la Raspberry Pi 5 (D-21); Home Assistant Container en el escenario 1 | C | `homeassistant/` |
@@ -92,7 +92,7 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 | `postgres` | `pgvector/pgvector:pg18` | 5432 | `127.0.0.1:${POSTGRES_PORT}` (5434 por defecto) | `servidor`, `mcp`, pruebas |
 | `mosquitto` | `eclipse-mosquitto:2` | 1883 | `1883` en la red | `servidor`, placa, simulador, Home Assistant |
 | `servidor` | `accesia-servidor` (propia, `servidor/Dockerfile` con la raíz del repositorio como contexto) | 8000 | `8000` en la red | cámara, simulador, web |
-| `mcp` | `accesia-servidor` (misma imagen, otro comando) | 8001 | no se publica | Home Assistant |
+| `mcp` | `accesia-servidor` (misma imagen, comando `accesia mcp`) | 8001 | no se publica | Home Assistant |
 | `homeassistant` | `ghcr.io/home-assistant/home-assistant:stable` | 8123 | `8123` en la red | navegador |
 | `ollama` | `ollama/ollama` | 11434 | no se publica | Home Assistant |
 
@@ -102,12 +102,13 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 - Las versiones exactas de las imágenes se fijan el Día 4, antes de armar el kit.
 - Escenario 2 (Home Assistant OS en la Raspberry), el de la demo (D-21): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en el hotspot del portátil o en otra red propia. Era la excepción a D-16 y D-19; con D-21 es el caso normal.
 - Ollama en el portátil (RNF-03 · C3): `infra/compose.ollama-portatil.yaml` levanta solo `ollama` en el portátil y publica el 11434 en la red propia; Home Assistant sigue en la Raspberry. Lo crea la tarea C del Día 4. Es otra excepción a D-19.
+- El servicio `mcp` no recibe `infra/.env`: Compose le arma `DATABASE_URL` con el usuario `agente` y `AGENTE_DB_PASSWORD`, y le pasa `ZONA_HORARIA` y `MCP_HOSTS_PERMITIDOS`. Así nunca tiene la clave del dueño de la base (D-15).
 
 Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001/mcp`, `http://ollama:11434`, `mqtt://mosquitto:1883`.
 
 ## Configuración (`infra/.env`)
 
-`infra/.env` no se sube a Git. `infra/.env.example` lleva los mismos nombres sin claves. Compose arma con estas variables `DATABASE_URL` y `MQTT_URL` para el servidor.
+`infra/.env` no se sube a Git. `infra/.env.example` lleva los mismos nombres sin claves. Compose arma con estas variables `DATABASE_URL` y `MQTT_URL` para el servidor, y la `DATABASE_URL` del usuario `agente` para `mcp`.
 
 | Variable | Ejemplo | Para qué |
 | --- | --- | --- |
@@ -132,6 +133,7 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `NITIDEZ_MIN` | `60` | R7 |
 | `ZONA_HORARIA` | `America/Bogota` | R8 |
 | `OLLAMA_MODELO` | `qwen2.5:3b` | Modelo que se descarga para el agente (D-06) |
+| `MCP_HOSTS_PERMITIDOS` | `192.168.137.1:8001` | Encabezados `Host` que acepta el servidor MCP además de `mcp:8001`, separados por comas. En el escenario 2 (D-21), la IP del portátil en el hotspot. Si falta, Compose usa `192.168.137.1:8001` |
 
 ## Firmware
 

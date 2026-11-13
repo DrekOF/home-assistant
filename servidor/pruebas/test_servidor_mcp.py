@@ -1,10 +1,10 @@
 """
 Nombre: test_servidor_mcp.py
-Descripción: Pruebas del servidor MCP del agente: «RF-08 · C1» con un cliente MCP real por Streamable HTTP, y «contrato agente · host» con el encabezado Host de mcp:8001, del portátil y de MCP_HOSTS_PERMITIDOS.
+Descripción: Pruebas del servidor MCP del agente: «RF-08 · C1» con un cliente MCP real por Streamable HTTP; «contrato agente · host» con el encabezado Host de mcp:8001, del portátil y de MCP_HOSTS_PERMITIDOS; «contrato agente · home assistant», con los esquemas convertidos como los convierte Home Assistant, y «contrato agente · instrucciones».
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import json
@@ -12,21 +12,23 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import anyio
+import probatio
 import pytest
 import uvicorn
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from sqlalchemy import Engine
+from sqlalchemy import Engine, create_engine
 from starlette.testclient import TestClient
 
 from accesia import servidor_mcp
 from accesia.config import Configuracion
 
 HERRAMIENTAS = {"buscar_persona", "asistencia_del_dia", "llegadas_tarde", "accesos_de_persona",
-                "desconocidos_recientes"}
+                "desconocidos_recientes", "fecha_y_hora_GetDateTime"}
 INICIAR = {
     "jsonrpc": "2.0",
     "id": 1,
@@ -135,7 +137,7 @@ def _texto(resultado: Any) -> dict[str, Any]:
 
 
 @pytest.mark.marca("RF-08 · C1")
-def test_un_cliente_mcp_lista_las_cinco_herramientas(url_mcp: str) -> None:
+def test_un_cliente_mcp_lista_las_seis_herramientas(url_mcp: str) -> None:
     lista, _ = _como_el_cliente(url_mcp, [])
     herramientas = {herramienta.name: herramienta for herramienta in lista.tools}
 
@@ -151,21 +153,23 @@ def test_un_cliente_mcp_lista_las_cinco_herramientas(url_mcp: str) -> None:
         "llegadas_tarde": {"desde", "hasta"},
         "accesos_de_persona": {"nombre", "desde", "hasta"},
         "desconocidos_recientes": {"horas"},
+        "fecha_y_hora_GetDateTime": set(),
     }
     assert herramientas["desconocidos_recientes"].input_schema["properties"]["horas"]["type"] == "integer"
     assert herramientas["buscar_persona"].input_schema["required"] == ["nombre"]
 
 
 @pytest.mark.marca("RF-08 · C1")
-def test_un_cliente_mcp_llama_las_cinco_herramientas(url_mcp: str) -> None:
+def test_un_cliente_mcp_llama_las_seis_herramientas(url_mcp: str) -> None:
     _, resultados = _como_el_cliente(url_mcp, [
         ("buscar_persona", {"nombre": "Elena Mora"}),
         ("asistencia_del_dia", {"fecha": "ayer"}),
         ("llegadas_tarde", {"desde": "antier", "hasta": "ayer"}),
         ("accesos_de_persona", {"nombre": "Ana", "desde": "ayer", "hasta": "ayer"}),
         ("desconocidos_recientes", {}),
+        ("fecha_y_hora_GetDateTime", {}),
     ])
-    persona, asistencia, tardes, accesos, desconocidos = (_texto(resultado) for resultado in resultados)
+    persona, asistencia, tardes, accesos, desconocidos, ahora = (_texto(resultado) for resultado in resultados)
 
     assert persona == {"personas": [{"nombre": "Elena Mora", "rol": "estudiante", "activa": False,
                                      "horario": "Clase todos los días"}]}
@@ -175,6 +179,7 @@ def test_un_cliente_mcp_llama_las_cinco_herramientas(url_mcp: str) -> None:
     assert tardes["total"] == 3
     assert accesos["total"] == 2
     assert desconocidos == {"horas": 24, "total": 3, "por_camara": {"entrada": 3}, "ultimos": ["2026-11-20 08:00"] * 3}
+    assert ahora == {"fecha": "2026-11-20", "dia": "viernes", "hora": "10:00"}
     assert resultados[1].structured_content == asistencia  # también como contenido estructurado
 
 
@@ -187,3 +192,46 @@ def test_un_error_vuelve_como_texto_y_no_como_excepcion(url_mcp: str) -> None:
 
     assert set(_texto(fecha)) == {"error"}
     assert set(_texto(horas)) == {"error"}
+
+
+# --- Home Assistant (contrato agente · home assistant e instrucciones) ---
+
+
+CONTRATO = Path(__file__).resolve().parents[2] / "specs" / "contratos" / "mcp-agente.md"
+
+
+def _herramientas_del_servidor() -> list[Any]:
+    """Las herramientas tal como las lista el servidor. Listarlas no toca la base."""
+    motor = create_engine("postgresql+psycopg://nadie@127.0.0.1:1/nada")
+    return anyio.run(servidor_mcp.crear_servidor(motor).list_tools)
+
+
+@pytest.mark.marca("contrato agente · home assistant")
+def test_home_assistant_convierte_los_esquemas_de_todas_las_herramientas() -> None:
+    """La integración MCP convierte cada inputSchema con probatio.from_openapi (mcp/coordinator.py): si uno solo
+    falla, la integración falla entera y Assist se queda sin las herramientas de AccesIA. La integración de Ollama
+    lo vuelve a OpenAPI con probatio.to_openapi (ollama/entity.py)."""
+    for herramienta in _herramientas_del_servidor():
+        esquema = probatio.to_openapi(probatio.from_openapi(herramienta.input_schema), openapi_version="3.1.0")
+
+        assert esquema["type"] == "object", herramienta.name
+        assert set(esquema["properties"]) == set(herramienta.input_schema["properties"]), herramienta.name
+
+
+@pytest.mark.marca("contrato agente · home assistant")
+def test_una_sola_herramienta_termina_en_getdatetime() -> None:
+    """Con ella, Home Assistant no agrega su línea de fecha y hora, que cambia cada segundo (conversation/chat_log.py)."""
+    nombres = [herramienta.name for herramienta in _herramientas_del_servidor()]
+
+    assert [nombre for nombre in nombres if nombre.endswith("GetDateTime")] == [servidor_mcp.FECHA_Y_HORA]
+    assert servidor_mcp.FECHA_Y_HORA == "fecha_y_hora_GetDateTime"
+
+
+@pytest.mark.marca("contrato agente · instrucciones")
+def test_las_instrucciones_del_contrato_no_cambian_entre_preguntas() -> None:
+    """Sin plantillas, las instrucciones son el mismo texto en cada pregunta y Ollama las reutiliza de su caché."""
+    seccion = CONTRATO.read_text(encoding="utf-8").split("## Instrucciones del agente", 1)[1]
+    instrucciones = seccion.split("```text\n", 1)[1].split("```", 1)[0]
+
+    assert "{{" not in instrucciones and "{%" not in instrucciones
+    assert servidor_mcp.FECHA_Y_HORA in instrucciones

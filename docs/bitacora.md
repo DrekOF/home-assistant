@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.19
+Versión: 1.20
 -->
 
 # Bitácora
@@ -22,6 +22,58 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-13 · Día 4 · Contrato del agente 1.5: fecha_y_hora_GetDateTime
+
+- Quién: el frente B, porque cambia el contrato del agente. La corrió la sesión A.
+- Qué:
+  - **Herramienta `fecha_y_hora_GetDateTime`** en el servidor MCP: la fecha, el día de la semana y la hora en Colombia (R8). No tiene parámetros, no toca la base y es de solo lectura, como las demás. El sufijo en inglés lo exige Home Assistant: con él, no agrega al prompt su línea de fecha y hora, que cambia cada segundo.
+  - **`mcp-agente.md` 1.5**, que solo agrega:
+    - la herramienta y por qué lleva el sufijo;
+    - las instrucciones sin la línea «Hoy es… y son las…», sin plantillas y con cuándo usar la herramienta;
+    - que después de cambiar las herramientas se recarga la integración MCP, porque Home Assistant relee la lista cada 30 minutos.
+  - **`servidor/scripts/cache_del_prompt.py`**: arma cada pedido a Ollama como lo arma Home Assistant y mide qué parte del prompt sale de la caché, antes (1.4) y después (1.5).
+  - `probatio==0.13.0` en el grupo de desarrollo, la misma versión de Home Assistant.
+- Cómo:
+  - Claude Code leyó el código de Home Assistant (rama dev) antes de proponer el plan. Confirmó que:
+    - la integración MCP pasa el nombre de cada herramienta sin cambios, y `MergedAPI` solo le antepone un prefijo si dos herramientas se llaman igual;
+    - la condición es `tool.name.endswith("GetDateTime")`, en `conversation/chat_log.py`;
+    - el texto que agrega la API es fijo;
+    - los esquemas se convierten con `probatio.from_openapi`, y si uno solo falla, la integración se queda sin ninguna herramienta;
+    - Home Assistant relee la lista de herramientas cada 30 minutos.
+  - Con `probatio` 0.13.0 probó los cinco esquemas y uno sin parámetros: todos se convierten. De paso vio que `probatio` le quita el tipo `integer` a `horas`; el SDK igual convierte el valor.
+  - El equipo aprobó el plan con cinco puntos: el nombre, el campo `dia`, «la fecha o la hora exacta», `probatio` en el grupo de desarrollo y el script en el repositorio.
+  - **La medición**, con Ollama 0.40.16, la versión del complemento de SirUli, en Docker y solo con CPU, con las variables del complemento y `qwen2.5:1.5b`:
+    - Con los valores por defecto del complemento (`OLLAMA_KV_CACHE_TYPE=q8_0` y `OLLAMA_FLASH_ATTENTION=0`), Ollama no cargó el modelo: «quantized V cache requires flash_attn to be enabled». El Supervisor le pasa a un complemento `legacy` sus opciones como variables de entorno, así que en la Pi pasaría lo mismo. Con `OLLAMA_FLASH_ATTENTION=1` funciona. Quedó en la C2 y en `arquitectura.md`.
+    - El primer intento del script solo miraba `prompt_eval_count`, que dio cerca de 1 000 tokens en todas las preguntas, aunque los tiempos sí bajaban. El registro de `llama-server` mostró los tokens reutilizados, y la respuesta de Ollama 0.40 resultó traer `prompt_eval_cached_count`: lo procesado es la resta.
+    - `llama-server` también guarda en RAM prompts de pedidos anteriores, y en una segunda corrida hasta la primera pregunta salió de la caché. Por eso se mide con Ollama recién arrancado.
+    - El resultado, con cada pregunta en una conversación nueva y unos segundos después de la anterior:
+
+| Contrato | Pregunta | Tokens del prompt | De la caché | Procesados | Tiempo | Herramienta pedida |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1.4 | ¿Quién llegó tarde ayer? | 958 | 3 | 955 | 2 570 ms | `asistencia_del_dia` |
+| 1.4 | ¿Qué hora es? | 955 | 206 | 749 | 2 170 ms | ninguna |
+| 1.4 | ¿Hubo desconocidos en las últimas 24 horas? | 965 | 205 | 760 | 2 137 ms | `desconocidos_recientes` |
+| 1.5 | ¿Quién llegó tarde ayer? | 998 | 30 | 968 | 2 550 ms | `llegadas_tarde` |
+| 1.5 | ¿Qué hora es? | 995 | 986 | 9 | 168 ms | `fecha_y_hora_GetDateTime` |
+| 1.5 | ¿Hubo desconocidos en las últimas 24 horas? | 1 005 | 986 | 19 | 103 ms | `desconocidos_recientes` |
+
+  - Lectura: con la 1.4, la caché solo guardaba nuestras instrucciones (206 tokens), y cada pregunta volvía a procesar la línea de la hora y las herramientas. Con la 1.5, desde la segunda pregunta solo se procesa la pregunta. El modelo pidió la herramienta nueva solo con «¿Qué hora es?». Los tiempos son de la CPU del portátil, no de la Pi.
+- Pruebas: `uv run pytest` en `servidor/`: 559 en verde y 2 saltadas (las de caras reales). Las nuevas o cambiadas:
+  - `contrato agente · fecha_y_hora_GetDateTime`: 3, con la hora fija, cerca de la medianoche de Colombia y sin base;
+  - `contrato agente · home assistant`: 2, con los esquemas convertidos con `probatio` y una sola herramienta con el sufijo;
+  - `contrato agente · instrucciones`: 1, sin plantillas y con la herramienta nombrada;
+  - `RF-08 · C1`: las dos pruebas del cliente MCP real, ahora con seis herramientas.
+
+  La primera corrida tuvo una falla en `test_arranque.py`: al worktree nuevo le faltaban los modelos de cara en `datos/modelos/`, que la CI baja antes de pytest. Con los modelos, pasó.
+- Cambios de contrato o de specs:
+  - `mcp-agente.md` 1.5, con su sección en `contratos/README.md` 1.9 y su registro en `decisiones.md` 1.13. La D-22 queda con el resultado en «La hora en el prompt».
+  - `arquitectura.md` 1.11 (la velocidad del agente con las cifras, y flash attention y el 11434 del complemento de Ollama), `requisitos.md` 1.6 (RF-08 · C1 y RNF-03 · C3), `servidor/README.md` 1.8 y la C2 del Día 3 1.2.
+- Pendiente:
+  - **C2:** en el complemento de Ollama, `OLLAMA_FLASH_ATTENTION` a 1 y el 11434 desactivado en su sección Red. Después de actualizar el MCP, recargar la integración. Medir en la Pi la primera pregunta, que procesa todo el prompt (unos 45 s con 1.5b, estimado), y las siguientes.
+  - El contenedor `ollama-cache` se borró. Quedan el volumen `ollama-cache`, con el modelo (cerca de 1 GB), para el ensayo de la C2, y la imagen `ollama/ollama:0.40.16` (8,5 GB).
+  - `git pull` y la reconstrucción en la carpeta principal, cuando el equipo lo diga.
+  - La B4, cuando la sesión 3 la agregue a las tareas del Día 4.
 
 ## 2026-11-12 · Día 3 · D-22 · Todo en la Raspberry Pi
 

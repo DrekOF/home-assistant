@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.10
+Versión: 1.11
 -->
 
 # Arquitectura
@@ -100,7 +100,7 @@ En la demo, todo menos la cámara y la placa corre en la Raspberry Pi 5 como com
   - el servidor usa `local-accesia-base:5432` y `core-mosquitto:1883`, con el usuario MQTT `servidor`;
   - Home Assistant se conecta solo a MQTT, con su usuario reservado `homeassistant`. Llega al MCP en `http://local-accesia-servidor:8001/mcp` y a Ollama en `http://<hash>-ollama:11434`;
   - la placa y el simulador usan la IP fija de la Pi en el hotspot: `http://<IP de la Pi>:8000` y `mqtt://<IP de la Pi>:1883`.
-- **Lo que no se publica.** El MCP y Ollama solo están en la red interna, así que D-16 se cumple sin excepción. El `config.yaml` de `accesia_servidor` publica solo el 8000. Si el complemento de Ollama publica el 11434, se le quita en su configuración de red.
+- **Lo que no se publica.** El MCP y Ollama solo están en la red interna, así que D-16 se cumple sin excepción. El `config.yaml` de `accesia_servidor` publica solo el 8000. El complemento de Ollama publica el 11434 por defecto: se desactiva en su sección Red.
 - **La web** va en la raíz del puerto 8000 (`http://<IP de la Pi>:8000/`), sin Ingress, igual que en el portátil.
 - **`accesia_base`.** Su `Dockerfile` parte de `pgvector/pgvector:pg18` y suma `jq`. Un `run.sh` lee las claves de `/data/options.json` y arranca PostgreSQL con `PGDATA=/data/postgres`.
 - **`accesia_servidor`.** Es la imagen del servidor, adaptada. Su `run.sh`:
@@ -109,7 +109,7 @@ En la demo, todo menos la cámara y la placa corre en la Raspberry Pi 5 como com
   - arranca Uvicorn en el 8000 y `accesia mcp` en el 8001, con `MCP_HOSTS_PERMITIDOS=local-accesia-servidor:8001`;
   - termina si uno de los dos falla, para que Supervisor lo reinicie.
 - **Mosquitto.** `servidor` y `camara` van en sus `logins`. Con `customize` activo y la carpeta `mosquitto`, lee `/share/mosquitto/acl.conf`, que tiene una sola línea: `acl_file /share/mosquitto/accesscontrollist`. Ese archivo es la ACL de `contratos/mqtt.md`, la misma de `infra/mosquitto/acl`.
-- **Ollama.** El complemento de SirUli usa la imagen oficial `ollama/ollama`, para aarch64 y amd64, y trae `OLLAMA_KEEP_ALIVE=-1`: el modelo queda cargado en memoria.
+- **Ollama.** El complemento de SirUli usa la imagen oficial `ollama/ollama` (la 0.40.16 en noviembre de 2026), para aarch64 y amd64. Trae `OLLAMA_KEEP_ALIVE=-1`, así que el modelo queda cargado en memoria, y `OLLAMA_NUM_PARALLEL=1`: un solo espacio de caché, el que reutiliza el comienzo del prompt. Con sus valores por defecto, `OLLAMA_KV_CACHE_TYPE=q8_0` y `OLLAMA_FLASH_ATTENTION=0`, Ollama 0.40.16 no carga el modelo («quantized V cache requires flash_attn to be enabled»): se cambia `OLLAMA_FLASH_ATTENTION` a 1 en las opciones del complemento. Así se comprobó en el portátil, solo con CPU. Como el complemento es «legacy», Supervisor le pasa sus opciones como variables de entorno.
 - **Construcción.** Sin `image` en su `config.yaml`, la Pi construye cada complemento local desde su `Dockerfile`. Desde Supervisor 2026.04 ya no llega `BUILD_FROM`, así que cada `Dockerfile` lleva su `FROM` explícito; `build.yaml` está obsoleto.
 - **Empaquetado.** Supervisor solo ve la carpeta del complemento. Por eso `scripts/empaquetar-complementos.ps1` arma `kit/complementos/`, que Git ignora, con:
   - el código del servidor;
@@ -149,14 +149,24 @@ Son estimaciones. Las del servidor y el MCP se midieron en el portátil, con los
 ### Velocidad del agente en la Pi
 
 - Cifras publicadas de llama.cpp en una Pi 5, en Q4_K_M: `qwen2.5:1.5b` procesa el prompt a unos 22 tokens/s y genera unos 9,6; `qwen2.5:3b`, unos 10,6 y 4,8. La variante Q4_0, reacomodada para ARM, procesó el prompt unas tres veces más rápido. Con Ollama hay que medirlo.
-- Las instrucciones y las cinco herramientas suman unos 1 000 a 1 300 tokens. Con esas cifras, procesarlas sin caché tardaría unos 50 s con 1.5b en Q4_K_M, y unos 18 s en Q4_0: más que los 15 s de RNF-03 · C3.
-- **La caché del prompt.** Ollama reutiliza el comienzo del prompt que no cambió desde la llamada anterior. Home Assistant arma el prompt de sistema así: nuestras instrucciones, el texto que agrega la API de las herramientas y una línea propia con la fecha y la hora, con segundos (`Current time is …`). Las herramientas van después: en la plantilla de Qwen2.5 quedan detrás de ese texto. Por eso:
-  - entre una pregunta y otra, Ollama solo puede reutilizar nuestras instrucciones, y solo si no llevan la hora. Las herramientas se procesan de nuevo cada vez;
-  - dentro de una misma pregunta, la segunda llamada al modelo, la que lleva la respuesta de la herramienta, reutiliza todo;
-  - la línea «Hoy es…» de nuestras instrucciones (`mcp-agente.md`) repite lo que ya da Home Assistant;
-  - Home Assistant omite su línea si alguna herramienta tiene un nombre que termina en `GetDateTime`. Una herramienta así en el MCP dejaría estable todo el comienzo del prompt, con las herramientas incluidas, pero agrega una herramienta al contrato, con un nombre en inglés.
+- Las instrucciones y las seis herramientas suman unos 1 000 tokens (medido abajo). Con esas cifras, procesarlas sin caché tardaría unos 45 s con 1.5b en Q4_K_M, y unos 15 s en Q4_0: más que los 15 s de RNF-03 · C3.
+- **La caché del prompt.** Ollama reutiliza el comienzo del prompt que no cambió desde un pedido anterior. Home Assistant arma el prompt de sistema con nuestras instrucciones, el texto que agrega la API de las herramientas y una línea propia con la fecha y la hora, con segundos (`Current time is …`), salvo que alguna herramienta tenga un nombre que termine en `GetDateTime`. Las herramientas van después: en la plantilla de Qwen2.5 quedan detrás de ese texto.
+  - Hasta `mcp-agente.md` 1.4, esa línea cambiaba en cada pregunta, y Ollama volvía a procesar las herramientas: unos 750 tokens por pregunta.
+  - Desde la 1.5, `fecha_y_hora_GetDateTime` hace que Home Assistant no agregue la línea, y las instrucciones ya no llevan la hora. Desde la segunda pregunta, Ollama solo procesa la pregunta.
+  - Dentro de una misma pregunta, la segunda llamada al modelo, la que lleva la respuesta de la herramienta, reutiliza todo.
+- **Medido** el 2026-11-13 en el portátil, con `servidor/scripts/cache_del_prompt.py`: Ollama 0.40.16 solo con CPU, `qwen2.5:1.5b`, recién arrancado y con cada pregunta en una conversación nueva. En Ollama 0.40, `prompt_eval_count` cuenta todo el prompt y `prompt_eval_cached_count`, lo que salió de la caché:
 
-  Se comprueba con `prompt_eval_count` en dos preguntas seguidas, en el ensayo con el devcontainer (C2 del Día 3). Lo que haya que cambiar en `mcp-agente.md` se propone después, en su propio PR.
+| Escenario | Pregunta | Tokens del prompt | De la caché | Procesados | Tiempo |
+| --- | --- | --- | --- | --- | --- |
+| 1.4 | ¿Quién llegó tarde ayer? | 958 | 3 | 955 | 2 570 ms |
+| 1.4 | ¿Qué hora es? | 955 | 206 | 749 | 2 170 ms |
+| 1.4 | ¿Hubo desconocidos en las últimas 24 horas? | 965 | 205 | 760 | 2 137 ms |
+| 1.5 | ¿Quién llegó tarde ayer? | 998 | 30 | 968 | 2 550 ms |
+| 1.5 | ¿Qué hora es? | 995 | 986 | 9 | 168 ms |
+| 1.5 | ¿Hubo desconocidos en las últimas 24 horas? | 1 005 | 986 | 19 | 103 ms |
+
+  El modelo pidió `fecha_y_hora_GetDateTime` solo con «¿Qué hora es?». Los tiempos son de la CPU del portátil, no de la Pi.
+- **En la Pi**, la primera pregunta después de arrancar Ollama todavía procesa todo el prompt: unos 45 s con 1.5b en Q4_K_M, con las cifras publicadas. Las siguientes procesan solo la pregunta. Los tiempos reales se miden en la C2.
 - Si una respuesta pasa de 15 s, se sigue RNF-03 · C3.
 
 ### Cómo se prueban sin la Pi

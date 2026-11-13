@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Contratos
@@ -15,8 +15,8 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
-| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.3 | B | A (placa y simulador), C (Home Assistant) |
-| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.3 | B | C (Home Assistant) |
+| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.4 | B | A (placa y simulador), C (Home Assistant) |
+| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.4 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
 ## Cómo cambia un contrato
@@ -36,6 +36,18 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## `mqtt.md` 1.4 y `mcp-agente.md` 1.4 (2026-11-12)
+
+Por D-22: todo corre en la Raspberry Pi 5, como complementos de Home Assistant OS. Solo cambia dónde está cada pieza; los demás contratos no cambian.
+
+- `mqtt.md` 1.4:
+  - el broker de la demo es el complemento oficial de Mosquitto, en la Pi, y `servidor` y `camara` van en sus `logins`;
+  - `homeassistant` pasa a tener acceso total, y se suma `addons`, también con acceso total: el complemento oficial reserva esos dos usuarios para Home Assistant y para los complementos, y Home Assistant espera que lean y escriban sin restricciones en todos los temas;
+  - una sola ACL para la Pi y el portátil, y dónde va en la Pi (`/share/mosquitto/`).
+- `mcp-agente.md` 1.4: en la Pi, Home Assistant llega al MCP en `http://local-accesia-servidor:8001/mcp` y a Ollama en `http://<hash>-ollama:11434`, y el MCP acepta el `Host` `local-accesia-servidor:8001` con `MCP_HOSTS_PERMITIDOS`. Las herramientas, sus respuestas y las instrucciones no cambian.
+- Son 1.4 y no 2.0 porque ningún cliente tiene que cambiar sus temas, sus mensajes ni sus llamadas.
+- `infra/mosquitto/acl` y la prueba `contrato MQTT · acl` se ponen al día aparte, con los complementos (B4 del Día 4).
 
 ## `openapi.yaml` 1.4 y `mqtt.md` 1.3 (2026-11-12)
 

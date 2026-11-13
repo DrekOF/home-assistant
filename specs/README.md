@@ -4,7 +4,7 @@ Descripción: Índice de las specs de AccesIA y orden de lectura.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Specs de AccesIA
@@ -16,7 +16,7 @@ Aquí está qué se construye y con qué reglas. Se leen antes de cada tarea. Si
 | # | Archivo | Para qué sirve |
 | --- | --- | --- |
 | 1 | [enunciado.md](enunciado.md) | Lo que pidió el docente y dónde se cumple cada parte |
-| 2 | [decisiones.md](decisiones.md) | Por qué el sistema es así (D-01 a D-21) |
+| 2 | [decisiones.md](decisiones.md) | Por qué el sistema es así (D-01 a D-22) |
 | 3 | [arquitectura.md](arquitectura.md) | Piezas, flujos, servicios, puertos, configuración y despliegue |
 | 4 | [requisitos.md](requisitos.md) | Qué debe hacer (RF y RNF) y cómo se comprueba (criterios C) |
 | 5 | [reglas.md](reglas.md) | Reglas de negocio R1 a R9 con sus casos de prueba |
@@ -42,6 +42,7 @@ Las pruebas citan estos códigos en su nombre o en su marca (ver `CLAUDE.md`).
 
 - P-01 Fecha exacta de la clase.
 - P-03 Módulo de cámara que llega la próxima clase: si es una cámara SPI para el C6 o una placa con cámara aparte (`arquitectura.md`, «Cuando llegue el módulo de cámara»).
+- P-04 La RAM de la Raspberry Pi 5, que decide el modelo de Ollama, y su IP fija en el hotspot (D-22). Se ven en la próxima clase.
 
 Resueltos:
 

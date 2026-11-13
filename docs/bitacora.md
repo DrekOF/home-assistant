@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.17
+Versión: 1.18
 -->
 
 # Bitácora
@@ -22,6 +22,58 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 3 · D-22 · Todo en la Raspberry Pi
+
+- Quién: el frente B, porque cambia contratos. La corrió la sesión A.
+- Qué:
+  - **D-22** en `decisiones.md`: todo corre en la Raspberry Pi 5, como complementos de Home Assistant OS:
+    - `accesia_base` (PostgreSQL 18 con pgvector) y `accesia_servidor` (la API, la web, MQTT y el MCP), nuestros y locales;
+    - el Mosquitto oficial, con nuestros usuarios y nuestra ACL;
+    - Ollama, con el complemento de SirUli, y el modelo según la RAM de la Pi.
+  - «Cómo se aplica D-22»: la IP fija de la Pi, la web en la raíz del 8000 sin Ingress, el acceso total de `homeassistant` y su motivo, qué se prueba en la Pi antes de pasar Ollama al portátil, la hora en el prompt, la instalación con el internet del celular, las huellas en las copias y el plan B. Y la tabla de lo que cambia en D-04, D-05, D-06, D-09, D-11, D-14, D-16, D-19 y D-21.
+  - **Contratos:** `mqtt.md` 1.4 y `mcp-agente.md` 1.4, con su sección en `contratos/README.md` 1.8.
+  - **Specs:**
+    - `arquitectura.md` 1.9, con la sección nueva «Complementos de Home Assistant OS»: piezas, nombres internos, instalación, presupuesto de RAM, velocidad del agente y cómo se prueba sin la Pi;
+    - `requisitos.md` 1.5, `modelo-datos.md` 1.3, `plan.md` 1.7, `enunciado.md` 1.3 y `specs/README.md` 1.3, con P-04.
+  - **La C2 del Día 3**, ajustada a D-22 (versión 1.1).
+  - `CLAUDE.md` 1.9 y `docs/guia-dia-de-clase.md` 1.3.
+- Cómo:
+  - El profesor pidió Ollama dentro de la Raspberry. El equipo le pidió a Claude Code una decisión nueva y un plan, sin código, y dejó en pausa el plan de la C2.
+  - Antes de proponer, Claude Code revisó:
+    - la documentación de los complementos de Home Assistant: configuración, comunicación entre complementos, pruebas y el cambio del builder de 2026, que dejó de pasar `BUILD_FROM`;
+    - el complemento oficial de Mosquitto: `logins`, usuarios reservados y ACL;
+    - el complemento de Ollama de SirUli;
+    - cifras publicadas de modelos en una Pi 5: RAM y tokens por segundo;
+    - la RAM del servidor (121 MB) y del MCP (92 MB), medida en el portátil con los procesos de Python, porque Docker Desktop no respondía.
+  - El equipo aprobó la D-22 con los seis puntos de la propuesta y seis ajustes:
+    - Ollama pasa al portátil solo con el visto bueno del profesor; antes se prueba en la Pi;
+    - revisar en el código de Home Assistant si pone la hora al comienzo del prompt;
+    - `mqtt.md` como 1.4, con `homeassistant` con acceso total y una sola ACL;
+    - si la Pi solo está en clase, se instala allá con el internet del celular, con los modelos en el kit;
+    - la web en la raíz del 8000, sin Ingress;
+    - la B4 la agrega la sesión 3 a las tareas del Día 4.
+  - **La hora en el prompt.** Claude Code leyó el código de Home Assistant: `helpers/llm.py`, `conversation/chat_log.py` y la integración `ollama`. Encontró que:
+    - Home Assistant no pone la hora al comienzo: pone primero nuestras instrucciones, después el texto de la API de las herramientas y al final su línea con la fecha y la hora, con segundos;
+    - las herramientas van después de esa línea, así que entre preguntas Ollama solo puede reutilizar nuestras instrucciones, y solo si no llevan la hora;
+    - Home Assistant omite su línea si hay una herramienta cuyo nombre termina en `GetDateTime`.
+
+    Se comprueba con `prompt_eval_count` en la C2. Las instrucciones del contrato no cambian hasta medir.
+  - El motivo del acceso total de `homeassistant` sale de la documentación del complemento oficial: Home Assistant espera que `homeassistant` y `addons` lean y escriban sin restricciones en todos los temas.
+  - Decisiones al escribir, para revisarlas en el PR:
+    - el plan B tiene dos partes: la base y el servidor van al portátil (escenario 2) si la Pi no alcanza, y Ollama solo con el visto bueno del profesor. Por eso `compose.escenario2.yaml` publica solo `mcp`;
+    - `infra/mosquitto/acl` y su prueba se ponen al día en la B4, porque la prueba es del servidor;
+    - P-04 nuevo: la RAM y la IP fija de la Pi, que se ven en la próxima clase;
+    - `CLAUDE.md` y la guía del día de clase también cambian, porque decían que la demo era el escenario 2.
+- Pruebas: no hay código que probar. Se revisó que cada archivo cambiado subiera su versión y su fecha, y que en las specs ya no quedara la demo en el escenario 2, salvo en lo que es historia (la tabla de D-21 y el registro). La CI del PR corre los cuatro workflows.
+- Cambios de contrato o de specs: `mqtt.md` 1.4 y `mcp-agente.md` 1.4, que solo cambian dónde está cada pieza, y las specs de arriba, con su registro en `decisiones.md` 1.12.
+- Pendiente:
+  - **B4**, que la sesión 3 agrega a las tareas del Día 4 (PR #18): los dos complementos, `scripts/empaquetar-complementos.ps1`, `complementos.yml`, y `infra/mosquitto/acl` con su prueba según `mqtt.md` 1.4.
+  - **La C2 ajustada:** empieza por lo que no espera a nadie; el MCP y la medición van con la B4 en `main`.
+  - Los valores de fábrica del firmware y los ejemplos del simulador pasan a la IP de la Pi, en su propia tarea. Hasta entonces, `infra/README.md`, `firmware/README.md` y `simulador/README.md` siguen con el escenario 2.
+  - P-04, en la próxima clase.
+  - El Hito 2 ahora espera a la B4 y a la C2.
+  - El PR #18 también toca `plan.md`, `decisiones.md` y la bitácora: quien fusione segundo trae `main` y resuelve.
 
 ## 2026-11-12 · Día 3 · Tarea B2 · El servidor en MQTT
 

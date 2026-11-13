@@ -4,7 +4,7 @@ Descripción: Enunciado del docente y dónde se cumple cada parte en AccesIA.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Enunciado
@@ -28,8 +28,8 @@ Interpretación: «assistant control» se entiende como control de **asistencia*
 | Modelo TinyML | Detección de caras de ESP-DL (int8) dentro del ESP32-S3. Ver «Hardware entregado» | RF-01, D-02, D-21 |
 | Agente de IA | Ollama con herramientas de solo lectura (MCP), usado desde Assist | RF-08, `contratos/mcp-agente.md` |
 | Base de datos PostgreSQL | PostgreSQL 18 con pgvector | `modelo-datos.md`, `contratos/base-de-datos.sql` |
-| Ollama local | Ollama en la Raspberry o, si va lento, en un portátil de la misma red. Ver «Hardware entregado» | D-06, D-21 |
-| Compatible con Raspberry Pi (Home Assistant) | Todo en Docker Compose con imágenes arm64. Ver «Hardware entregado» | RNF-04, D-09, D-21 |
+| Ollama local | Ollama en la Raspberry, con un complemento de Home Assistant OS. Si va lento, primero se ajusta en la Raspberry; pasarlo a un portátil solo vale con el visto bueno del docente. Ver «Hardware entregado» | D-06, D-22, RNF-03 |
+| Compatible con Raspberry Pi (Home Assistant) | Todo corre en la Raspberry como complementos de Home Assistant OS, construidos para arm64; Docker Compose en un portátil, para desarrollar y como plan B. Ver «Hardware entregado» | RNF-04, D-09, D-22 |
 | ESP32-S3 con cámara como hardware externo | Firmware ESP-IDF con perfiles de placa. Ver «Hardware entregado» | RF-01, RF-14, `arquitectura.md` |
 
 ## Hardware entregado el 12/11/2026
@@ -38,4 +38,4 @@ En clase entregaron una Seeed Studio XIAO ESP32-C6 (4 MB de flash, sin PSRAM ni 
 
 - Modelo TinyML: la detección en la placa espera al módulo de cámara. Mientras tanto, la cámara es el simulador, y el firmware del ESP32-S3 con ESP-DL queda como referencia (PR #7).
 - Hardware externo: la XIAO ESP32-C6 es la placa del punto de acceso. Abre la puerta con un LED y publica por MQTT, hacia Home Assistant, su estado y un sensor de temperatura y humedad (RF-14).
-- Raspberry Pi: trae Home Assistant OS. El servidor, PostgreSQL, Mosquitto y Ollama corren en un portátil junto a ella (escenario 2), en el hotspot de Windows del portátil.
+- Raspberry Pi: trae Home Assistant OS. Con D-21, el servidor, PostgreSQL, Mosquitto y Ollama iban en un portátil junto a ella (escenario 2). Con D-22, a pedido del docente, todo corre en la Raspberry como complementos de Home Assistant OS, en el hotspot de Windows del portátil, y el escenario 2 queda como plan B.

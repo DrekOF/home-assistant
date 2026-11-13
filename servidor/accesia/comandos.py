@@ -1,10 +1,10 @@
 """
 Nombre: comandos.py
-Descripción: Comando accesia del servidor: crear-camara registra una cámara y muestra su token una sola vez, sin pasar por la web (RF-10 · C5); descargar-modelos baja YuNet y SFace y comprueba su SHA-256.
+Descripción: Comando accesia del servidor: crear-camara registra una cámara y muestra su token una sola vez, sin pasar por la web (RF-10 · C5); descargar-modelos baja YuNet y SFace y comprueba su SHA-256; mcp arranca el servidor MCP del agente y semilla agente crea los datos de su evaluación.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import argparse
@@ -13,8 +13,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
-from accesia import camaras, db, modelos
+from accesia import camaras, db, modelos, semilla
 from accesia.errores import ErrorAccesIA
 from accesia.esquemas import DispositivoNuevo
 
@@ -46,6 +47,26 @@ def _lector() -> argparse.ArgumentParser:
         "Lo que ya está y coincide no se vuelve a bajar.",
     )
     descarga.add_argument("--carpeta", type=Path, default=None, help="por defecto, datos/modelos/ del repositorio")
+    comandos.add_parser(
+        "mcp",
+        help="arranca el servidor MCP del agente en el puerto 8001",
+        description="Arranca el servidor MCP «AccesIA» (contratos/mcp-agente.md) en http://0.0.0.0:8001/mcp. Solo se "
+        "conecta a la base con el usuario agente (D-15). Lo usa el servicio mcp de Docker Compose.",
+    )
+    sembrar_ = comandos.add_parser(
+        "semilla",
+        help="crea los datos de la evaluación del agente",
+        description="Crea los datos de la evaluación de contratos/mcp-agente.md con fechas relativas a hoy, en hora de "
+        "Colombia, y revisa las preguntas 1 a 9 con las herramientas. Volver a correrla reemplaza solo lo suyo.",
+    )
+    sembrar_.add_argument("conjunto", choices=["agente"], help="agente: los datos de la evaluación del agente")
+    sembrar_.add_argument(
+        "--con-datos-reales",
+        action="store_true",
+        help="la agrega aunque la base ya tenga personas o eventos que no son suyos (por ejemplo, del Hito 1); "
+        "nunca los cambia",
+    )
+    sembrar_.add_argument("--borrar", action="store_true", help="borra solo lo que creó la semilla")
     return lector
 
 
@@ -90,6 +111,29 @@ def descargar_modelos(argumentos: argparse.Namespace) -> int:
     return 0
 
 
+def sembrar(argumentos: argparse.Namespace) -> int:
+    """accesia semilla agente: crea, reemplaza o borra solo los datos de la semilla, en una transacción."""
+    try:
+        with db.transaccion() as conexion:
+            if argumentos.borrar:
+                lineas = semilla.describir_borrado(semilla.borrar(conexion))
+            else:
+                lineas = semilla.describir(semilla.crear(conexion, con_datos_reales=argumentos.con_datos_reales))
+    except semilla.ErrorDeSemilla as error:
+        print(error, file=sys.stderr)
+        return 1
+    except SQLAlchemyError as error:
+        print(
+            f"No se pudo escribir la semilla en la base ({type(error).__name__}). Córrela en el servicio servidor, que "
+            "usa el dueño de la base: docker compose -f infra/compose.yaml exec servidor accesia semilla agente",
+            file=sys.stderr,
+        )
+        return 1
+    for linea in lineas:
+        print(linea)
+    return 0
+
+
 def principal(argumentos: Sequence[str] | None = None) -> int:
     """Punto de entrada del comando accesia (pyproject.toml, [project.scripts])."""
     leidos = _lector().parse_args(argumentos)
@@ -97,6 +141,12 @@ def principal(argumentos: Sequence[str] | None = None) -> int:
         return crear_camara(leidos)
     if leidos.comando == "descargar-modelos":
         return descargar_modelos(leidos)
+    if leidos.comando == "mcp":
+        from accesia import servidor_mcp  # solo aquí: trae el SDK de MCP y uvicorn
+
+        return servidor_mcp.correr()
+    if leidos.comando == "semilla":
+        return sembrar(leidos)
     return 2
 
 

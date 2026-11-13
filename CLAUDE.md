@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -105,10 +105,14 @@ Se completan a medida que existan. Desde la raíz del repositorio, en PowerShell
 ```text
 .\infra\scripts\generar-env.ps1                       crea infra/.env con claves nuevas (una vez)
 .\infra\scripts\crear-claves-mqtt.ps1                 crea las claves de MQTT (una vez)
-docker compose -f infra/compose.yaml up -d --build    levanta postgres, mosquitto y servidor
+docker compose -f infra/compose.yaml up -d --build    levanta postgres, mosquitto, servidor y mcp
 docker compose -f infra/compose.yaml ps               estado y healthchecks
 docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador
                                                       registra una cámara y muestra su token una sola vez
+docker compose -f infra/compose.yaml exec servidor accesia semilla agente [--con-datos-reales]
+                                                      crea los datos de la evaluación del agente y revisa las preguntas 1 a 9
+docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borrar
+                                                      borra solo los datos de la semilla
 curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
 ```
@@ -120,6 +124,8 @@ uv sync                                               instala las dependencias
 uv run accesia descargar-modelos                      descarga YuNet y SFace a datos/modelos/ y comprueba su SHA-256 (una vez)
 uv run pytest                                         corre todas las pruebas, con su resumen por marca
 uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
+uv run pytest -k "agente or semilla or mcp or lectura"
+                                                      solo el agente: herramientas, semilla y servidor MCP
 ```
 
 Desde `simulador/` (necesita uv; para enviar, el servidor arriba y la cámara creada con `crear-camara`; para la puerta, el broker arriba):

@@ -1,10 +1,10 @@
 """
 Nombre: conftest.py
-Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada y marcas de las specs.
+Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada, la semilla del agente con el usuario agente y marcas de las specs.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 import itertools
@@ -252,3 +252,42 @@ def vision_real():
     except (OSError, RuntimeError) as error:
         pytest.skip(f"No están los modelos de cara y no se pudieron descargar: {error}")
     return VisionOpenCV()
+
+
+# --- Agente (B3 del Día 3) ---
+
+
+@pytest.fixture(scope="module")
+def motor_agente(url_base: str) -> Iterator[Engine]:
+    """Motor con el usuario agente, que solo lee las tres vistas del agente (D-15)."""
+    motor = create_engine(make_url(url_base).set(username="agente", password=CLAVE_AGENTE))
+    yield motor
+    motor.dispose()
+
+
+@pytest.fixture(scope="module")
+def semilla_confirmada(url_base: str, motor_agente: Engine) -> Iterator[Engine]:
+    """La semilla del agente guardada de verdad y con la hora fija de hora_fija.HOY: el usuario agente no ve lo que
+    otra conexión no confirmó. Al terminar el módulo se borra, y también la cámara entrada si la creó la semilla.
+
+    Devuelve el motor del usuario agente.
+    """
+    from hora_fija import ahora_fijo
+
+    from accesia import semilla
+
+    dueno = create_engine(url_base)
+    try:
+        with ahora_fijo():
+            with dueno.begin() as conexion:
+                resultado = semilla.crear(conexion)
+            try:
+                yield motor_agente
+            finally:
+                with dueno.begin() as conexion:
+                    semilla.borrar(conexion)
+                    if resultado.camara_creada:
+                        conexion.execute(text("DELETE FROM dispositivo WHERE codigo = :codigo"),
+                                         {"codigo": semilla.CAMARA})
+    finally:
+        dueno.dispose()

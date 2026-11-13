@@ -2,9 +2,9 @@
 Nombre: config.py
 Descripción: Configuración del servidor de AccesIA, leída del entorno (variables de specs/arquitectura.md).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 from functools import lru_cache
@@ -38,6 +38,10 @@ class Configuracion(BaseSettings):
     zona_horaria: str = "America/Bogota"
     ollama_modelo: str = "qwen2.5:3b"
 
+    # Servidor MCP del agente: encabezados Host que acepta además de mcp:8001, separados por comas. En el
+    # escenario 2 (D-21), Home Assistant OS lo llama por la IP del portátil en el hotspot.
+    mcp_hosts_permitidos: str = "192.168.137.1:8001"
+
     @field_validator("database_url")
     @classmethod
     def usar_psycopg(cls, valor: str) -> str:
@@ -59,6 +63,11 @@ class Configuracion(BaseSettings):
     def zona(self) -> ZoneInfo:
         """Zona de Colombia para fechas y horas (R8)."""
         return ZoneInfo(self.zona_horaria)
+
+    @property
+    def hosts_mcp_extra(self) -> list[str]:
+        """MCP_HOSTS_PERMITIDOS como lista, sin espacios ni elementos vacíos."""
+        return [host.strip() for host in self.mcp_hosts_permitidos.split(",") if host.strip()]
 
 
 @lru_cache

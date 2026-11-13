@@ -4,7 +4,7 @@ Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT y MCP (fren
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Servidor · frente B
@@ -12,7 +12,7 @@ Versión: 1.4
 Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las reglas, guarda en PostgreSQL con pgvector, publica en MQTT, sirve la web y, con otro comando, el servidor MCP del agente.
 
 - Specs: `specs/arquitectura.md`, `specs/reglas.md`, `specs/modelo-datos.md` y todos los contratos.
-- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta; MQTT y MCP son de B2 y B3.
+- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta, y B3 el servidor MCP del agente y su semilla; MQTT es de B2.
 
 ## Qué hay
 
@@ -27,10 +27,13 @@ Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las r
 | `accesia/asistencia.py` | R5 y R8: califica una llegada con el bloque del día (función pura) y registra la primera del día. La usan la cámara, el registro manual y la semilla del agente |
 | `accesia/mensajes.py` y `registro.py` | Las frases del campo `mensaje`; los avisos INFO en el registro, con la hora de Colombia |
 | `accesia/api/` | Rutas: `salud`, `sesion`, `personas`, `consentimiento`, `horarios`, `camaras`, `rostros`, `inscripciones`, `huellas`, `accesos`, `asistencia` y `configuracion` |
-| `accesia/comandos.py` | El comando `accesia`: `crear-camara` y `descargar-modelos` |
+| `accesia/agente.py` | Las cinco herramientas del agente (`mcp-agente.md`): consultas sobre las tres vistas del agente, cada una en una transacción `READ ONLY` de 3 s, que devuelven lo del contrato o `{"error": …}` |
+| `accesia/servidor_mcp.py` | El servidor MCP «AccesIA» con el SDK `mcp` 2.x (`MCPServer`): Streamable HTTP en `/mcp`, puerto 8001, sin sesiones y con el encabezado `Host` validado |
+| `accesia/semilla.py` | `semilla agente`: los datos de la evaluación del agente, la revisión de las preguntas 1 a 9 y cómo convive con datos reales |
+| `accesia/comandos.py` | El comando `accesia`: `crear-camara`, `descargar-modelos`, `mcp` y `semilla agente` |
 | `accesia/main.py` | La aplicación: al arrancar exige `SESION_SECRETO`, crea el primer administrador y carga los modelos de cara |
 | `migraciones/` | Alembic. La migración `0001` ejecuta tal cual `specs/contratos/base-de-datos.sql` y crea el usuario `agente` |
-| `pruebas/` | pytest con PostgreSQL 18 + pgvector y Mosquitto en contenedores (testcontainers); `armar.py` arma datos en la base y `vision_falsa.py` arma caras y huellas sin fotos |
+| `pruebas/` | pytest con PostgreSQL 18 + pgvector y Mosquitto en contenedores (testcontainers); `armar.py` arma datos en la base, `vision_falsa.py` arma caras y huellas sin fotos y `hora_fija.py` fija la hora de las pruebas del agente |
 | `Dockerfile` | Imagen multietapa con uv; se construye desde la raíz del repositorio, copia el SQL del contrato y `specs/consentimiento.md`, y descarga los modelos de cara comprobando su SHA-256 |
 | `pyproject.toml` y `uv.lock` | Dependencias, fijadas por uv |
 
@@ -49,9 +52,12 @@ Desde la carpeta `servidor/`:
 | Descargar YuNet y SFace a `datos/modelos/` y comprobar su SHA-256 (una vez; las pruebas también lo hacen si faltan) | `uv run accesia descargar-modelos` |
 | Correr todas las pruebas | `uv run pytest` |
 | Correr solo las de la ACL de MQTT | `uv run pytest -k acl` |
+| Correr solo las del agente: herramientas, semilla y servidor MCP | `uv run pytest -k "agente or semilla or mcp or lectura"` |
 | Correr la API en el PC, contra la base de Compose | `$env:DATABASE_URL = "postgresql+psycopg://accesia:<clave>@127.0.0.1:5434/accesia"` y `$env:SESION_SECRETO = "<de infra/.env>"`, y luego `uv run uvicorn accesia.main:app --reload` |
 | Aplicar las migraciones a mano | con `DATABASE_URL` y `AGENTE_DB_PASSWORD` en el entorno, `uv run alembic upgrade head` |
 | Registrar una cámara en el PC | con `DATABASE_URL` en el entorno, `uv run accesia crear-camara entrada --nombre Entrada --tipo simulador` |
+| Crear o borrar la semilla del agente en el PC | con `DATABASE_URL` del dueño de la base, `uv run accesia semilla agente` (o `--borrar`) |
+| Correr el servidor MCP en el PC, contra la base de Compose | `$env:DATABASE_URL = "postgresql+psycopg://agente:<AGENTE_DB_PASSWORD>@127.0.0.1:5434/accesia"` y luego `uv run accesia mcp`; escucha en el 8001 |
 
 La clave de PostgreSQL es `POSTGRES_PASSWORD` de `infra/.env`. En el contenedor no hace falta nada de esto: al arrancar aplica las migraciones y luego inicia Uvicorn con un solo proceso.
 
@@ -150,6 +156,63 @@ Con sesión:
   - Lleva las columnas del contrato, con coma y UTF-8, y el nombre `asistencia-<desde>-a-<hasta>.csv`.
   - Un nombre o un documento que empieza con `=`, `+`, `-` o `@` sale con un `'` delante, para que Excel o LibreOffice no lo ejecuten como fórmula.
 
+## Servidor MCP del agente
+
+`accesia mcp` arranca el servidor MCP «AccesIA» de `specs/contratos/mcp-agente.md` 1.3. En Compose lo corre el servicio `mcp`, con la misma imagen del servidor.
+
+- **SDK y transporte.**
+  - Usa el SDK oficial `mcp` 2.x, donde FastMCP se llama `MCPServer`.
+  - Sirve Streamable HTTP en `http://0.0.0.0:8001/mcp`, sin sesiones y con respuestas JSON: cada pedido es independiente, así que si el contenedor se reinicia, Home Assistant no queda con una sesión vieja.
+  - No pide autenticación (D-16).
+- **Solo lectura, en tres capas (D-15).**
+  - Solo arranca si `DATABASE_URL` usa el usuario `agente`, que solo lee las tres vistas del agente. Con otro usuario sale con un error.
+  - Cada herramienta corre en su propia transacción `READ ONLY`, con `statement_timeout` de 3 s.
+  - Las cinco herramientas solo consultan, y se anuncian con `readOnlyHint`.
+- **Encabezado `Host`.** El SDK lo valida contra DNS rebinding.
+  - Acepta `mcp:8001`, `localhost:8001`, `127.0.0.1:8001` y los de `MCP_HOSTS_PERMITIDOS`, separados por comas (por defecto, `192.168.137.1:8001`, la IP del portátil en el hotspot).
+  - Otro `Host` recibe 421, y un pedido con encabezado `Origin` (un navegador), 403.
+  - Al arrancar, el registro dice qué `Host` acepta: `docker compose -f infra/compose.yaml logs mcp`.
+- **Respuestas.**
+  - Un error de regla (fecha mal escrita, más de 31 días, horas fuera de 1 a 168, nombre de menos de 2 caracteres) o de la base vuelve como `{"error": "…"}` en español, nunca como excepción.
+  - Un tipo que no se puede convertir, como `horas = "mucho"`, lo rechaza el SDK antes de llegar a la herramienta, como un resultado de error de MCP.
+  - Lo que el contrato no decía quedó en `mcp-agente.md` 1.3:
+    - con más de 50 accesos van los 50 más recientes, en orden de hora, y `total` cuenta todos;
+    - `ultimos` lleva las 10 horas más recientes, de la más antigua a la más nueva;
+    - una persona sin horario tiene `"horario": null`.
+  - Las palabras `hoy`, `ayer` y `antier` se aceptan sin importar mayúsculas.
+  - Las listas van por hora, y los ausentes y las coincidencias por nombre.
+
+## Semilla del agente
+
+`accesia semilla agente` crea los datos de la evaluación de `mcp-agente.md`:
+
+- las seis personas, con los documentos `SEMILLA-01` a `SEMILLA-06`;
+- el horario «Clase todos los días» y sus consentimientos;
+- los 14 eventos de la tabla en la cámara `entrada`, con fechas relativas a hoy en hora de Colombia, y sus 8 llegadas calificadas con `registrar_llegada` (R5).
+
+Con Compose arriba, desde la raíz del repositorio (con el servicio `servidor`, que usa el dueño de la base):
+
+```powershell
+docker compose -f infra/compose.yaml exec servidor accesia semilla agente
+```
+
+- **Con datos reales**, por ejemplo los del Hito 1:
+  - Si la base tiene personas o eventos que no son de la semilla, no escribe nada y lo explica: las preguntas 2, 4 y 6 cuentan a todos, así que su respuesta puede cambiar.
+  - Con `--con-datos-reales`, agrega sus datos junto a los reales. Nunca cambia ni borra lo que no creó.
+- **La cámara `entrada`:** si existe, la usa sin tocarla. Si no, la crea como `simulador` y no muestra su token; si la vas a usar, cámbiale el token en la web.
+- **Repetirla** reemplaza solo lo suyo, con las fechas de ese día: así se mide otro día sin borrar nada a mano.
+- **`--borrar`** quita solo lo que creó: sus eventos, sus personas (con sus consentimientos y llegadas) y su horario, si nadie más lo usa. La cámara se queda.
+- **Revisión.** Al terminar, responde las preguntas 1 a 9 con las mismas consultas de las herramientas y dice cuáles dan la respuesta del contrato. Por ejemplo, con una persona real que faltó ayer:
+
+  ```text
+  Preguntas 1 a 9 con las herramientas: 8 de 9 como dice el contrato.
+    ✓ 1. ¿Quién llegó tarde ayer? Carla Ruiz, 12 minutos
+    ✗ 2. ¿Quién faltó ayer? El contrato espera «Felipe Soto»; con los datos de ahora, asistencia_del_dia da «Felipe Soto, Rosa Real».
+  ```
+
+  Así, quien mide el agente (C2) sabe contra qué respuesta comparar.
+- Lo suyo lo reconoce por identificadores fijos (uuid5 de un espacio propio): sus personas, su horario y sus eventos.
+
 ## Registro
 
 Los avisos INFO del paquete `accesia` salen por la salida de errores, y así se ven en `docker compose -f infra/compose.yaml logs servidor`. Antes, uvicorn solo configuraba sus propios registros, y los de `accesia` solo salían desde WARNING. Cada recorte deja una línea, sin imagen y sin decir a quién se parece un desconocido:
@@ -208,7 +271,13 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `contrato BD · esquema` | La base migrada tiene las mismas tablas, columnas, restricciones, índices, vistas y permisos que el contrato cargado aparte |
 | `contrato BD · vector` | La búsqueda central de `modelo-datos.md` devuelve la muestra más parecida (R2) |
 | `contrato BD · horarios` | Horarios por bloques (D-20): cinco bloques en «Clase IA», un bloque por día, borrado en cascada, `restrict_violation` (23001) al borrar uno en uso y días de la vista del agente |
-| `RF-08 · C4` | El usuario `agente` lee sus tres vistas y no puede leer `persona`, `rostro` ni `horario_bloque`, ni insertar |
+| `RF-08 · C4` | El usuario `agente` lee sus tres vistas y no puede leer `persona`, `rostro` ni `horario_bloque`, ni cambiar las tablas. Cada herramienta corre en una transacción de solo lectura con 3 s de límite, y el servidor MCP no arranca con otro usuario |
+| `contrato agente · <herramienta>` | Las cinco herramientas con los datos de la semilla y el usuario `agente`: lo que devuelven, sus límites (10 personas, 31 días, 50 accesos, de 1 a 168 horas y 10 en `ultimos`) y sus errores como `{"error": …}` |
+| `contrato agente · preguntas` | Las preguntas 1 a 9 de la evaluación, cada una con su herramienta esperada |
+| `contrato agente · evaluación` | `semilla agente` crea la tabla de la evaluación con fechas relativas a hoy; con datos reales no escribe sin `--con-datos-reales` y nunca los toca; se repite y se borra sola |
+| `contrato agente · host` | El servidor MCP acepta el `Host` de `mcp:8001`, `localhost:8001`, `127.0.0.1:8001` y `MCP_HOSTS_PERMITIDOS`; otro `Host` recibe 421 y un pedido con `Origin`, 403 |
+| `RF-08 · C1` | Un cliente MCP real, por Streamable HTTP contra el servidor en uvicorn, lista las cinco herramientas (en español y de solo lectura) y las llama |
+| `RNF-01 · C4` | Ninguna respuesta de las herramientas trae documentos, huellas ni similitudes |
 | `contrato API · salud` | `GET /api/v1/salud` cumple el esquema `Salud` y da la hora con `-05:00` |
 | `contrato API · error` | Validación, ruta inexistente, método no permitido (405 con `Allow`) y error interno responden con el esquema `Error` |
 | `contrato API · <operationId>` | Cada operación de sesión, personas, consentimiento, horarios, cámaras, huellas, accesos, asistencia y configuración responde con su esquema y con los códigos de error del contrato |
@@ -244,5 +313,7 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `modelos · SHA-256` | Un modelo que no coincide con su tamaño o su SHA-256 no se acepta ni queda en la carpeta |
 | `registro · INFO` | Un aviso INFO de `accesia` sale en la salida de errores del proceso, con la hora de Colombia |
 | `contrato MQTT · acl` | Mosquitto con el `mosquitto.conf` y la ACL del repositorio: rechaza la conexión anónima, deja entrar a los tres usuarios, y la cámara solo publica en los temas de su client id, nunca en `accesia/servidor/…` |
+
+Las pruebas del agente usan la hora fija de `pruebas/hora_fija.py` (viernes 2026-11-20 a las 10:00) y una semilla guardada de verdad en la base de prueba, porque el usuario `agente` no ve lo que otra conexión no confirmó; al terminar cada módulo se borra.
 
 La CI corre `uv run pytest` en cada PR y en cada push a `main` (`.github/workflows/servidor.yml`), con los modelos de cara en caché.

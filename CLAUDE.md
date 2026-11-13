@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -122,7 +122,7 @@ uv run pytest                                         corre todas las pruebas, c
 uv run pytest -k acl                                  solo la ACL de MQTT (contrato MQTT · acl)
 ```
 
-Desde `simulador/` (necesita uv; para enviar, el servidor arriba y la cámara creada con `crear-camara`):
+Desde `simulador/` (necesita uv; para enviar, el servidor arriba y la cámara creada con `crear-camara`; para la puerta, el broker arriba):
 
 ```text
 uv sync                                               instala las dependencias
@@ -132,6 +132,10 @@ uv run simulador webcam --codigo entrada --como-camara
                                                       detecta con la webcam y envía; q o Esc para salir
 uv run simulador carpeta datos/prueba --codigo entrada --como-camara
                                                       envía las fotos y las compara con su esperado.json
+$env:MQTT_CAMARA_CLAVE = (Select-String -Path ..\infra\.env -Pattern '^MQTT_CAMARA_CLAVE=(.+)$').Matches[0].Groups[1].Value
+                                                      clave del usuario camara del broker, sin mostrarla (solo para --puerta)
+uv run simulador webcam --codigo entrada --puerta     también hace la puerta por MQTT (ABRIR y CERRAR); sin --puerta no se
+                                                      conecta al broker y la placa conserva su código
 uv run pytest                                         corre las pruebas del simulador, con su resumen por marca
 ```
 

@@ -1,10 +1,10 @@
 <!--
 Nombre: README.md
-Descripción: Simulador de la cámara de AccesIA con la webcam o con una carpeta de fotos (frente A): instalación, comandos, respuestas esperadas y pruebas.
+Descripción: Simulador de la cámara de AccesIA con la webcam o con una carpeta de fotos (frente A): instalación, comandos, respuestas esperadas, la puerta por MQTT y pruebas.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Simulador · frente A
@@ -15,9 +15,11 @@ Hace lo mismo que la cámara, con la webcam del portátil o con una carpeta de f
 2. Elige la cara de mayor área y la recorta con la fórmula del contrato.
 3. Envía el recorte al servidor y espera lo que dice el contrato antes de enviar otro.
 
-Sirve para desarrollar sin hardware y es el plan C de la demo (D-10). Mientras llega el módulo de cámara, el simulador es la cámara del proyecto. La puerta por MQTT llega el Día 3.
+Con `--puerta`, también hace la parte MQTT de la cámara: recibe `ABRIR` y `CERRAR` y publica la puerta, su estado y su disponibilidad (ver «Puerta por MQTT»).
 
-- Specs: `specs/arquitectura.md` (Simulador) y los contratos `api-dispositivo.md`, `casos-recorte.json` y, el Día 3, `mqtt.md`.
+Sirve para desarrollar sin hardware y es el plan C de la demo (D-10). Mientras llega el módulo de cámara, el simulador es la cámara del proyecto.
+
+- Specs: `specs/arquitectura.md` (Simulador) y los contratos `api-dispositivo.md`, `casos-recorte.json` y `mqtt.md` (la puerta).
 - Nunca guarda imágenes: ni cuadros, ni recortes, ni fotos para depurar (RNF-01 · C1). Las fotos de prueba del equipo viven solo en `datos/prueba/`, que Git ignora.
 
 ## Instalación
@@ -48,8 +50,8 @@ $env:TOKEN_CAMARA = "<el token que mostró el comando>"
 ## Comandos
 
 ```powershell
-uv run simulador webcam --codigo entrada [--como-camara] [--camara 0]
-uv run simulador carpeta datos/prueba --codigo entrada [--como-camara]
+uv run simulador webcam --codigo entrada [--como-camara] [--camara 0] [--puerta]
+uv run simulador carpeta datos/prueba --codigo entrada [--como-camara] [--puerta]
 uv run simulador modelo
 ```
 
@@ -61,6 +63,9 @@ uv run simulador modelo
 | `--cara-min` | `80` | No envía caras de menos píxeles de alto; igual que `CARA_MIN_PX` |
 | `--puntaje-min` | `0.9` | Puntaje mínimo de YuNet, el del paso 1 de R7 |
 | `--camara` | `0` | Número de la webcam (solo en `webcam`) |
+| `--puerta` | apagado | También hace la puerta por MQTT. Sin ella no se conecta al broker |
+| `--broker` | `mqtt://127.0.0.1:1883` | Broker de la puerta; en el hotspot, `mqtt://192.168.137.1:1883`. Solo con `--puerta` |
+| `--puerta-segundos` | `3` | Segundos que la puerta queda abierta con `ABRIR`, de 1 a 60. Solo con `--puerta` |
 
 ### Modo webcam
 
@@ -86,7 +91,7 @@ uv run simulador modelo
 | --- | --- |
 | 0 | Todo coincide, o la carpeta no trae `esperado.json` |
 | 1 | Alguna respuesta no coincide con la esperada |
-| 2 | No se pudo probar: falta el token, la carpeta no tiene fotos, `esperado.json` está mal escrito, o el servidor respondió 401 o 403 |
+| 2 | No se pudo probar: falta el token, la carpeta no tiene fotos, `esperado.json` está mal escrito, o el servidor respondió 401 o 403. Con `--puerta`, también si falta `MQTT_CAMARA_CLAVE` o el código no sirve de client id |
 
 Con 401 o 403 se detiene: con el mismo token, las demás fotos recibirían lo mismo.
 
@@ -141,6 +146,115 @@ Una foto vertical pierde arriba y abajo: toma las fotos de prueba horizontales. 
 
 Sin `--como-camara`, una foto de celular de alta resolución da recortes grandes. Si un recorte pasa de 100 000 bytes, el simulador no lo envía y lo dice en la consola, porque el contrato no lo permite (máximo 100 KB, leído de la forma más estricta).
 
+## Puerta por MQTT (`--puerta`)
+
+Con `--puerta`, el simulador también hace la parte MQTT de la cámara (`mqtt.md`), igual que la placa del PR #11. Está apagada por defecto: en la demo, la placa maneja la puerta de `entrada` y el simulador solo envía los recortes de `entrada` por HTTP.
+
+### La clave del usuario `camara`
+
+Se conecta con el usuario `camara`. Su clave sale de la variable `MQTT_CAMARA_CLAVE`, la misma de `infra/.env`, y nunca va en una opción, para que no quede en el historial de PowerShell.
+
+En el portátil del compose, desde `simulador/`, se carga sin mostrarla:
+
+```powershell
+$env:MQTT_CAMARA_CLAVE = (Select-String -Path ..\infra\.env -Pattern '^MQTT_CAMARA_CLAVE=(.+)$').Matches[0].Groups[1].Value
+```
+
+En otro PC, se escribe sin que se vea:
+
+```powershell
+$env:MQTT_CAMARA_CLAVE = [System.Net.NetworkCredential]::new("", (Read-Host "Clave de camara" -AsSecureString)).Password
+```
+
+En los dos casos, la clave vive solo en esa terminal.
+
+Ejemplos:
+
+```powershell
+uv run simulador webcam --codigo entrada --como-camara --puerta
+uv run simulador carpeta datos/prueba --codigo entrada --puerta --broker mqtt://192.168.137.1:1883
+```
+
+### Qué publica y qué escucha
+
+| Tema | Cuándo | Mensaje | QoS | Retenido |
+| --- | --- | --- | --- | --- |
+| `accesia/{codigo}/disponible` | Al conectarse, al salir y como último deseo | `online` / `offline` | 1 | Sí |
+| `accesia/{codigo}/puerta/set` | Lo escucha | `ABRIR` o `CERRAR` | 1 | No |
+| `accesia/{codigo}/puerta/estado` | Al conectarse y cada vez que cambia | `abierta` / `cerrada` | 1 | Sí |
+| `accesia/{codigo}/estado` | Al conectarse y cada 60 s | EstadoCamara | 0 | Sí |
+
+- El client id es el código y el usuario es `camara`: la ACL lo deja solo en los temas de su código. Por eso, con `--puerta` el código debe tener de 3 a 32 minúsculas, números o guiones, y no puede ser `servidor`.
+- `ABRIR` abre la puerta los segundos de `--puerta-segundos` y publica `abierta`; al cumplirse, publica `cerrada`. `CERRAR` la cierra antes.
+- Igual que la placa:
+  - un `ABRIR` con la puerta abierta vuelve a contar los segundos y no publica `abierta` otra vez;
+  - un `CERRAR` con la puerta cerrada no publica nada;
+  - cualquier otro mensaje (`abrir`, `ABRIR ` con espacio…) se ignora.
+
+  El simulador, además, lo dice en la consola.
+- EstadoCamara lleva solo `firmware` (el mismo texto de `X-AccesIA-Firmware`), `ip` y `segundos_encendida`:
+
+  ```json
+  {"firmware":"simulador-0.2.0","ip":"127.0.0.1","segundos_encendida":12}
+  ```
+
+  `ip` es la de este lado de la conexión con el broker: `127.0.0.1` si el broker corre en el mismo portátil.
+- Al salir (`q`, Esc, Ctrl+C o el fin del modo carpeta):
+  - si la puerta quedó abierta, publica `cerrada`;
+  - después publica `offline` y se desconecta.
+
+  Si el simulador se corta de golpe, el broker publica el último deseo, `offline`.
+- El modo carpeta se desconecta al terminar la última foto: un `ABRIR` que llegue después ya no lo recibe.
+- La conexión corre en su propio hilo, así que los recortes nunca esperan al broker.
+  - Sin broker, reintenta a los 1, 2, 4, 8 y después cada 10 s, y lo avisa una sola vez en la consola.
+  - Si el broker rechaza la clave, lo dice y no reintenta: la puerta queda apagada y los recortes siguen.
+
+### Cómo se ve
+
+- En la webcam, mientras la puerta está abierta, sale una franja verde arriba de la ventana: «PUERTA ABIERTA (2 s)».
+- En los dos modos sale una línea con la hora en la consola:
+
+  ```text
+  19:31:40 Puerta conectada al broker 127.0.0.1:1883 como entrada: escucha ABRIR y CERRAR en accesia/entrada/puerta/set
+  19:31:41 PUERTA ABIERTA (3 s)
+  19:31:44 Puerta cerrada
+  ```
+
+### Con la placa
+
+Dos clientes con el mismo client id no pueden estar conectados a la vez (`mqtt.md`, Broker): el broker saca al que ya estaba.
+
+- Sin `--puerta`, el simulador no se conecta al broker. Así corre en el Hito 2, mientras la placa tiene la puerta de `entrada`.
+- Si alguien usa `--puerta` con el código de la placa:
+  1. El broker saca a la placa.
+  2. La placa se reconecta a los 5 s y entonces el broker saca al simulador.
+  3. El simulador se entera por MQTT 5 (DISCONNECT 0x8E, «sesión tomada»). Avisa en la consola, no se reconecta y sigue enviando recortes.
+
+  Así, la placa siempre se queda con la puerta.
+- Cuando la placa toma el código, el broker publica el último deseo del simulador (`offline`) y enseguida el `online` de la placa. Lo que queda retenido es lo de la placa.
+
+### Probar a mano con el compose
+
+Con el compose arriba, desde la raíz y en dos terminales. Las claves se cargan de `infra/.env` sin mostrarlas:
+
+```powershell
+$servidor = (Select-String -Path infra\.env -Pattern '^MQTT_SERVIDOR_CLAVE=(.+)$').Matches[0].Groups[1].Value
+docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P $servidor -t "accesia/entrada/#" -v
+```
+
+```powershell
+$ha = (Select-String -Path infra\.env -Pattern '^MQTT_HA_CLAVE=(.+)$').Matches[0].Groups[1].Value
+docker compose -f infra/compose.yaml exec mosquitto mosquitto_pub -u homeassistant -P $ha -t "accesia/entrada/puerta/set" -m ABRIR -q 1
+```
+
+`mosquitto_sub` muestra `abierta` y, a los 3 s, `cerrada`.
+
+Lo que publica el simulador queda retenido en `entrada` hasta que la placa lo reemplaza al conectarse. Para borrarlo antes, se publica un mensaje vacío retenido en cada tema:
+
+```powershell
+foreach ($tema in "disponible", "estado", "puerta/estado") { docker compose -f infra/compose.yaml exec mosquitto mosquitto_pub -u servidor -P $servidor -r -n -t "accesia/entrada/$tema" }
+```
+
 ## Cómo está hecho
 
 Cada imagen pasa por cinco etapas:
@@ -158,6 +272,13 @@ fuente (webcam | carpeta) → preparar (--como-camara) → detectar y recortar �
 | Esperar | `ritmo.py`: la tabla de esperas, con un reloj que las pruebas reemplazan |
 
 «Detectar y recortar» es una pieza aparte, con un solo método (`procesar`). Si algún día el simulador tiene que imitar a una cámara que envía el cuadro completo, se cambia solo esa pieza: el envío y las esperas no se tocan.
+
+La puerta va aparte de esas etapas:
+
+- `puerta.py` tiene la lógica pura, como `PuertaLogica` de la placa, con el reloj aparte.
+- `mqtt.py` tiene la conexión con paho-mqtt, que corre en su propio hilo, y otro hilo que cierra la puerta a tiempo.
+
+La ventana de la webcam solo le pregunta si debe mostrar la franja.
 
 ## Pruebas
 
@@ -182,5 +303,12 @@ Cada prueba lleva su marca y al final sale el resumen por marca:
 | `RNF-04 · C3 · modelo` | El SHA-256 del modelo, sin red, y que la URL y el hash son los de `arquitectura.md` |
 | `RF-01 · C6 · YuNet` | YuNet real (necesita el modelo) no encuentra caras donde no las hay |
 | `RF-01 · C6 · fotos reales` | Con las fotos de `datos/prueba/`, cada recorte cumple el contrato. Sin la carpeta, se salta y dice por qué |
+| `contrato MQTT · puerta` | `ABRIR` y `CERRAR` exactos, los segundos configurados, `ABRIR` con la puerta abierta, los mensajes que no son órdenes y la franja de la ventana |
+| `contrato MQTT · disponible` | El último deseo, `online` al conectarse, `offline` al salir (antes, `cerrada` si la puerta quedó abierta) y la reconexión |
+| `contrato MQTT · estado del simulador` | Solo `firmware`, `ip` y `segundos_encendida`, con QoS 0, retenido y cada 60 s |
+| `contrato MQTT · broker` | Sin `--puerta` no se crea el cliente MQTT. Además: las opciones, el código y la clave; que sin broker los recortes siguen; y que con «sesión tomada» o con la clave rechazada no reintenta |
 
-Las pruebas no usan fotos de caras: usan imágenes sintéticas y un detector falso. En GitHub Actions corren con `.github/workflows/simulador.yml`, con el modelo en caché.
+- Las pruebas no usan fotos de caras: usan imágenes sintéticas y un detector falso.
+- Casi todas las de MQTT usan un cliente paho falso y un reloj falso.
+- `test_mqtt_broker.py` levanta su propio Mosquitto en un contenedor, con la configuración y la ACL de `infra/mosquitto/`, como `test_mqtt_acl.py` del servidor. Necesita Docker Desktop abierto; sin Docker se salta, y en la CI falla.
+- En GitHub Actions corren con `.github/workflows/simulador.yml`, con el modelo en caché y Mosquitto en un contenedor.

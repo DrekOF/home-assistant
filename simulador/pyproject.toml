@@ -1,14 +1,14 @@
 # Nombre: pyproject.toml
-# Descripción: Proyecto Python del simulador de la cámara de AccesIA (frente A): dependencias, comando y pruebas con uv.
+# Descripción: Proyecto Python del simulador de la cámara de AccesIA (frente A): dependencias, comando y pruebas con uv, con la puerta por MQTT.
 # Fecha de creación: 2026-11-12
 # Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 
 [project]
 name = "simulador"
-version = "0.1.0"
-description = "Simulador de la cámara de AccesIA: detecta con YuNet, recorta con la fórmula del contrato y envía al servidor."
+version = "0.2.0"
+description = "Simulador de la cámara de AccesIA: detecta con YuNet, recorta con la fórmula del contrato, envía al servidor y, con --puerta, simula la puerta por MQTT."
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
@@ -16,6 +16,8 @@ dependencies = [
     "numpy>=2.3",
     # Con ventanas, para la webcam. La misma versión 4.x que usa el servidor; YuNet 2023mar pide 4.8 o más reciente.
     "opencv-python>=4.14.0.94,<5",
+    # La puerta por MQTT (--puerta): la misma librería y versión mínima que el servidor.
+    "paho-mqtt>=2.1",
 ]
 
 [project.scripts]
@@ -25,6 +27,8 @@ simulador = "simulador.comandos:principal"
 [dependency-groups]
 dev = [
     "pytest>=9.0",
+    # Mosquitto en un contenedor, con la configuración del repositorio, como test_mqtt_acl.py del servidor.
+    "testcontainers>=4.8",
 ]
 
 [build-system]

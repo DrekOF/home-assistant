@@ -1,10 +1,10 @@
 """
 Nombre: webcam.py
-Descripción: Modo webcam: una ventana con la imagen, la caja de la cara elegida y el último mensaje del servidor; se cierra con q o Esc y no guarda cuadros ni recortes.
+Descripción: Modo webcam: una ventana con la imagen, la caja de la cara elegida, el último mensaje del servidor y, con --puerta, la franja «PUERTA ABIERTA»; se cierra con q o Esc y no guarda cuadros ni recortes.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import threading
@@ -26,12 +26,20 @@ TITULO = "AccesIA - simulador (q o Esc para salir)"
 TECLAS_SALIR = (ord("q"), ord("Q"), 27)
 VERDE = (60, 200, 60)
 NARANJA = (0, 165, 255)
+NEGRO = (0, 0, 0)
+ALTO_FRANJA = 40
 
 
 class Captura(Protocol):
     def isOpened(self) -> bool: ...  # noqa: N802 (nombre de OpenCV)
     def read(self) -> tuple[bool, np.ndarray | None]: ...
     def release(self) -> None: ...
+
+
+class AvisoPuerta(Protocol):
+    def aviso(self) -> str | None:
+        """«PUERTA ABIERTA (2 s)» mientras la puerta está abierta; None si está cerrada."""
+        ...
 
 
 class Ventana(Protocol):
@@ -102,8 +110,9 @@ class EnvioEnSegundoPlano:
             self._hilo.join(segundos)
 
 
-def dibujar(imagen: np.ndarray, resultado: Envio | SinEnvio, mensaje: str) -> np.ndarray:
-    """Una copia para la ventana, con la caja de la cara elegida y dos líneas de texto.
+def dibujar(imagen: np.ndarray, resultado: Envio | SinEnvio, mensaje: str, aviso: str | None = None) -> np.ndarray:
+    """Una copia para la ventana, con la caja de la cara elegida, dos líneas de texto abajo y, si llega `aviso`,
+    una franja verde arriba con «PUERTA ABIERTA».
 
     Si la imagen es de 320 × 240 (modo «como la cámara»), se muestra al doble.
     """
@@ -123,6 +132,10 @@ def dibujar(imagen: np.ndarray, resultado: Envio | SinEnvio, mensaje: str) -> np
     for fila, texto in enumerate((mensaje, estado)):
         cv2.putText(vista, sin_tildes(texto), (8, alto - 32 + fila * 22), cv2.FONT_HERSHEY_SIMPLEX, 0.55,
                     (255, 255, 255), 1, cv2.LINE_AA)
+
+    if aviso is not None:
+        cv2.rectangle(vista, (0, 0), (ancho, ALTO_FRANJA), VERDE, -1)
+        cv2.putText(vista, sin_tildes(aviso), (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, NEGRO, 2, cv2.LINE_AA)
     return vista
 
 
@@ -136,6 +149,7 @@ def correr_webcam(
     abrir: Callable[[int], Captura] = abrir_webcam,
     crear_ventana: Callable[[], Ventana] = VentanaOpenCV,
     salida: Callable[[str], None] = print,
+    puerta: AvisoPuerta | None = None,
 ) -> int:
     captura = abrir(indice)
     if not captura.isOpened():
@@ -161,7 +175,8 @@ def correr_webcam(
                 salida(resultado.detalle)
                 ultimo_aviso = time.monotonic()
 
-            if not ventana.mostrar(dibujar(imagen, resultado, envios.ultimo)):
+            aviso = puerta.aviso() if puerta is not None else None
+            if not ventana.mostrar(dibujar(imagen, resultado, envios.ultimo, aviso)):
                 return 0
     except KeyboardInterrupt:
         return 0

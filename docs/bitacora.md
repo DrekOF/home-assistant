@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.17
+Versión: 1.18
 -->
 
 # Bitácora
@@ -22,6 +22,45 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 3 · Tareas del Día 4
+
+- Quién: el frente B, para todo el equipo.
+- Qué: las tareas del Día 4 en `tareas/dia-4/`, con la plantilla de `tareas/README.md`. Cada tarea dice de qué depende.
+  - `00-todos-orden-y-listo-para-el-ensayo.md`:
+    - lo que sigue del Día 3: el Hito 1, que empezó; C1 y C2; A2, si llega el módulo, y el Hito 2;
+    - el reparto entre tres sesiones y los acuerdos, con el del hito ya ajustado;
+    - la lista de lo que debe quedar listo para el ensayo del Día 5 (L1 a L7).
+  - `A1-julian-calibracion-del-umbral.md`: `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` con los tres integrantes y un dataset público de impostores (RNF-07), sin crear llegadas ni alertas en la base compartida.
+  - `A2-julian-placa-con-home-assistant.md`: RF-14 · C2 a C6 con Home Assistant OS, la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
+  - `B1-cristhian-web-en-el-servidor.md`: la web compilada dentro de la imagen y servida por el servidor (D-04).
+  - `B2-cristhian-modo-extraer.md`: las cámaras de respaldo (RF-10 · C4).
+  - `B3-cristhian-evaluacion-del-agente-y-cobertura.md`: la evaluación final de las 10 preguntas (RF-08 · C3) y una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1).
+  - `C1-jhon-kit-del-dia-de-clase.md`: el kit en el portátil (RF-11), con versiones fijas, `instalar` y `verificar`, y la guía al día.
+  - `C2-jhon-playwright-y-arm64.md`: Playwright sobre toda la web en la CI (RF-09 · C3) y las imágenes arm64 con emulación (RNF-04 · C1).
+- Cómo:
+  - **Dónde.** Se le pidió a Claude Code escribir las tareas sin escribir código, después de fusionar B2 del Día 3. Trabajó en un worktree aparte (`AccesIA-tareas-dia-4`, desde `main` con B2), sin tocar la carpeta principal, porque el Hito 1 está en curso.
+  - **Qué leyó:**
+    - el plan, D-21 y su tabla de cambios;
+    - los requisitos, la evaluación de `mcp-agente.md`, el modo extraer de `api-dispositivo.md` y la guía del día de clase;
+    - los pendientes de cada entrada de esta bitácora.
+  - **Lo que encontró al comparar el plan con el estado real:**
+    - **Las reglas ya están cubiertas.** Los 64 casos de `reglas.md` ya tienen una prueba con su marca. Por eso «pruebas de las reglas completas» pasa a ser una prueba de cobertura que falle si aparece un caso o un criterio sin prueba.
+    - **La web.** El servidor todavía no sirve la web, aunque D-04 y `arquitectura.md` lo dicen. Sin eso, la demo necesitaría Node: va en B1.
+    - **El binario del C6.** `firmware.yml` compila el binario pero no lo guarda como artefacto. A2 propone de dónde sale el binario del kit.
+    - **Ollama y el kit.** Con D-21, Ollama ya corre en el portátil, así que `compose.ollama-portatil.yaml` solo serviría en el escenario 1. Además, el portátil es Windows, así que el kit necesita sus scripts también en PowerShell.
+- Decisiones al escribir, para revisarlas en el PR:
+  - **Calibración sin ensuciar la base.** A1 calibra sin pasar por la base compartida, porque cada `permitido` crea una llegada y tres desconocidos crean una alerta en Home Assistant.
+  - **B1 primero.** B1 va antes que B2 y B3, porque el kit arma la imagen del servidor con ella.
+  - **Scripts del kit en dos lenguajes.** `instalar` y `verificar` van en PowerShell para el portátil y en `.sh` para el escenario 1, como `generar-env`. RF-11 · C1 nombra solo los `.sh`.
+  - **`compose.ollama-portatil.yaml`.** No se decide aquí: C1 lo propone en su PR, porque cambia RNF-03 · C3, D-19 y la guía.
+  - **Lista para el Día 5.** La lista L1 a L7 dice qué debe quedar listo para el ensayo. Lo que falte pasa al Día 5, o al corte mínimo si la clase llega antes (P-01).
+- Pruebas: no hay código. Un script revisó las referencias de las tareas: archivos, criterios RF y RNF, decisiones, reglas, secciones citadas y enlaces. Solo señaló `infra/.env`, que Git ignora y que la tarea dice que se genera en el portátil.
+- Cambios de contrato o de specs: ninguno en los contratos. `specs/plan.md` 1.7 tiene una fila por tarea del Día 4, `specs/decisiones.md` 1.12 lo anota en su registro, y `tareas/README.md` 1.3 suma el Día 4.
+- Pendiente:
+  - el Hito 1, que está en curso; C1 y C2 del Día 3, y después el Hito 2;
+  - P-03, el módulo de cámara;
+  - las tareas del Día 5 (ensayo general e Hito 3), al cerrar el Día 4.
 
 ## 2026-11-12 · Día 3 · Tarea B2 · El servidor en MQTT
 

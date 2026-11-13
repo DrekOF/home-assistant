@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.11
+Versión: 1.12
 -->
 
 # Decisiones
@@ -107,3 +107,4 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-12 | Contratos API 1.4 y MQTT 1.3 | `openapi.yaml` 1.4: `EstadoCamara` suma `sensor` y `antena`, opcionales, como ya decía `mqtt.md` 1.2; la API devuelve solo los campos que mandó la cámara. `mqtt.md` 1.3: al conectarse al broker, el servidor borra con un mensaje vacío retenido los config que publicó (nodo `accesia_{codigo}`) para cámaras que ya no existen; los de la placa se siguen borrando a mano. Los dos solo agregan. Tarea B2 del Día 3. |
 | 2026-11-12 | Tarea B2 del Día 3 | Donde el contrato no decía nada: el client id del servidor es `servidor`, un código reservado; el Evento, la Alerta y el Resumen se publican en una tarea de fondo, después de confirmar la transacción, y solo con conexión (sin ella se descartan, para que un `permitido` viejo no abra la puerta al reconectar); la hora de la última alerta de R6 vive en memoria; el `model` es «XIAO ESP32-C6» en todas las cámaras, también las de tipo `simulador`; `device.identifiers` y el nodo llevan el código tal cual, como la placa; `en_linea` es `online` en MQTT o un contacto en los últimos 2 minutos; `ultima_llegada` es `null` si nadie ha llegado; `crear-camara` publica su propio descubrimiento con una conexión corta. |
 | 2026-11-12 | Plan · hitos | Durante un hito sí se fusiona; lo que no se hace es `git pull` ni reconstruir el Compose en la carpeta principal hasta que termine. Ajuste del equipo al acuerdo del 00 del Día 3. |
+| 2026-11-12 | Plan | Tareas del Día 4 en `tareas/dia-4/`, desde el plan y el estado real. A se divide en A1 (calibración, RNF-07, sin ensuciar la base) y A2 (la placa con Home Assistant OS y su binario para el kit); B en B1 (la web servida por el servidor, que D-04 pedía y la imagen no traía), B2 (modo extraer, RF-10 · C4) y B3 (evaluación final del agente, RF-08 · C3, y una prueba de cobertura de las reglas y los requisitos, RNF-06 · C1, en lugar de «pruebas de las reglas completas», porque los 64 casos de las reglas ya tienen su prueba); C en C1 (kit, RF-11, con `instalar` y `verificar` en PowerShell para el portátil y en `.sh` para el escenario 1) y C2 (Playwright en la CI y arm64 con emulación, que con D-21 solo hace falta en el escenario 1). C1 propone si `compose.ollama-portatil.yaml` queda solo como plan B del escenario 1 o se quita, porque con D-21 Ollama ya corre en el portátil. Lo que sigue del Día 3 (Hito 1, C1, C2, A2 y el Hito 2) va primero. |

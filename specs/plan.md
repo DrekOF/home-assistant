@@ -4,7 +4,7 @@ Descripción: Plan de AccesIA por días, frentes e hitos, con el corte mínimo.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Plan
@@ -46,9 +46,14 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | 3 | C1 | Pantallas Accesos, Asistencia (con el botón de registro manual) y Horarios (RF-13), y los datos de la persona en su ficha (RF-12) | `tareas/dia-3/C1-jhon-accesos-asistencia-y-horarios.md` |
 | 3 | C2 | Home Assistant OS: MQTT, panel, automatizaciones y Assist con Ollama y MCP; Ollama, el firewall del hotspot y `compose.escenario2.yaml`, adelantado del Día 4 por D-21; copia de seguridad de Home Assistant OS; primera medición de las 10 preguntas del agente en el portátil | `tareas/dia-3/C2-jhon-home-assistant-y-agente.md` |
 | 3 | Todos | **Hito 2:** con el simulador, Home Assistant abre la puerta y Assist dice quién llegó tarde | `tareas/dia-3/00-todos-orden-e-hito-2.md` |
-| 4 | A | Calibración del umbral y prueba de la placa con Home Assistant; `firmware.yml` ya se adelantó el Día 2 (D-21). El diagnóstico y el respaldo del S3 quedan para cuando vuelva | — |
-| 4 | B | Modo extraer, pruebas de las reglas completas y evaluación del agente con 10 preguntas | — |
-| 4 | C | Imágenes arm64 probadas con emulación, kit en el portátil, Compose del portátil con solo Ollama (`infra/compose.ollama-portatil.yaml`), scripts `instalar.sh` y `verificar.sh`, y Playwright sobre toda la web | — |
+| 4 | Todos | Lo que sigue del Día 3 (Hito 1, C1, C2, A2 y el Hito 2), dependencias y reparto entre tres sesiones, acuerdos y lo que debe quedar listo para el ensayo del Día 5 | `tareas/dia-4/00-todos-orden-y-listo-para-el-ensayo.md` |
+| 4 | A1 | Calibración de `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` con los tres integrantes y un dataset público de impostores (RNF-07), sin ensuciar la base | `tareas/dia-4/A1-julian-calibracion-del-umbral.md` |
+| 4 | A2 | La placa con Home Assistant OS (RF-14 · C2 a C6), la lista «Por verificar» del firmware, el tiempo de la puerta y el binario para el kit. `firmware.yml` ya se adelantó el Día 2 (D-21); el diagnóstico y el respaldo del S3 quedan para cuando vuelva | `tareas/dia-4/A2-julian-placa-con-home-assistant.md` |
+| 4 | B1 | La web compilada dentro de la imagen y servida por el servidor (D-04), para que el kit y el ensayo no necesiten Node | `tareas/dia-4/B1-cristhian-web-en-el-servidor.md` |
+| 4 | B2 | Modo extraer para las cámaras de respaldo (RF-10 · C4) | `tareas/dia-4/B2-cristhian-modo-extraer.md` |
+| 4 | B3 | Evaluación final del agente con 10 preguntas (RF-08 · C3) y una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1), que reemplaza «pruebas de las reglas completas»: los 64 casos de las reglas ya tienen su prueba | `tareas/dia-4/B3-cristhian-evaluacion-del-agente-y-cobertura.md` |
+| 4 | C1 | Kit del día de clase en el portátil (RF-11): versiones fijas, imágenes en `.tar`, modelo de Ollama, copia de Home Assistant OS, binario del C6, `instalar` y `verificar` (en PowerShell y en `.sh`) y la guía. Con D-21, `compose.ollama-portatil.yaml` se propone solo como plan B del escenario 1, o se quita | `tareas/dia-4/C1-jhon-kit-del-dia-de-clase.md` |
+| 4 | C2 | Playwright sobre toda la web en la CI (RF-09 · C3) e imágenes arm64 probadas con emulación (RNF-04 · C1), que con D-21 solo hacen falta en el escenario 1 | `tareas/dia-4/C2-jhon-playwright-y-arm64.md` |
 | 5 | Todos | Ensayo general del día de clase desde cero, con el kit y cronómetro | — |
 | 5 | Todos | **Hito 3:** kit probado y guion de la sustentación listo | — |
 

@@ -4,15 +4,15 @@ Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Infraestructura · frentes B y C
 
 | Qué | Archivo |
 | --- | --- |
-| Servicios (`specs/arquitectura.md`) | `compose.yaml`: `postgres`, `mosquitto` y `servidor`; Home Assistant, Ollama y el MCP llegan el Día 3 |
-| Escenario 2: Home Assistant OS en la Raspberry y el resto en el portátil | `compose.escenario2.yaml` (Día 4) |
+| Servicios (`specs/arquitectura.md`) | `compose.yaml`: `postgres`, `mosquitto` y `servidor`; el Día 3 llegan `mcp` (tarea B3) y `ollama` (tarea C2) |
+| Escenario 2: Home Assistant OS en la Raspberry y el resto en el portátil, el de la demo (D-21) | `compose.escenario2.yaml` (Día 3, tarea C2) |
 | Variables (Git ignora `.env`) | `.env.example`; `scripts/generar-env` crea `.env` con claves nuevas |
 | Broker MQTT | `mosquitto/mosquitto.conf`, `mosquitto/acl` y `mosquitto/claves/` (ignorada) |
 | Scripts | `scripts/`: `generar-env` y `crear-claves-mqtt`, en `.ps1` (Windows) y `.sh` (Linux y Raspberry); el Día 4, `instalar.sh` y `verificar.sh` del kit |

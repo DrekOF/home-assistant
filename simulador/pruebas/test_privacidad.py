@@ -1,10 +1,10 @@
 """
 Nombre: test_privacidad.py
-Descripción: Prueba de RNF-01 · C1 en el simulador: ningún modo escribe imágenes; falla si se llama a cv2.imwrite, si se abre un archivo para escribir o si aparece un archivo de imagen.
+Descripción: Prueba de RNF-01 · C1 en el simulador: ningún modo escribe imágenes, tampoco con --puerta; falla si se llama a cv2.imwrite, si se abre un archivo para escribir o si aparece un archivo de imagen.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import builtins
@@ -16,9 +16,22 @@ from pathlib import Path
 
 import cv2
 import pytest
-from dobles import CapturaFalsa, DetectorFalso, ServidorFalso, VentanaFalsa, escribir_foto, imagen_sintetica
+from dobles import (
+    CLAVE_MQTT,
+    CapturaFalsa,
+    DetectorFalso,
+    FabricaMqtt,
+    RelojFalso,
+    ServidorFalso,
+    VentanaFalsa,
+    escribir_foto,
+    imagen_sintetica,
+    preparar_principal,
+)
 
 from simulador.carpeta import correr_carpeta
+from simulador.comandos import principal
+from simulador.mqtt import Broker, PuertaMqtt
 from simulador.recortador import RecortadorYuNet
 from simulador.recorte import Cara
 from simulador.ritmo import Ritmo
@@ -111,4 +124,51 @@ def test_modo_webcam_no_escribe_imagenes(
 
     assert codigo == 0
     assert captura.liberada
+    assert len(servidor.peticiones) == 1
+
+
+@pytest.mark.parametrize("modo_camara", [False, True], ids=["normal", "como la cámara"])
+def test_modo_carpeta_con_puerta_no_escribe_imagenes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, servidor: ServidorFalso, modo_camara: bool
+) -> None:
+    fotos = tmp_path / "fotos"
+    fotos.mkdir()
+    for numero in range(3):
+        escribir_foto(fotos / f"foto-{numero}.jpg", imagen_sintetica(1280, 720, numero))
+    trabajo = tmp_path / "trabajo"
+    trabajo.mkdir()
+    monkeypatch.chdir(trabajo)
+    creados = preparar_principal(monkeypatch, servidor, [Cara(100, 60, 90, 110)])
+    opciones = ["--como-camara"] if modo_camara else []
+
+    with sin_escribir(monkeypatch, tmp_path, RAIZ / "simulador", RAIZ / "datos"):
+        codigo = principal(["carpeta", str(fotos), "--codigo", "entrada", "--puerta", *opciones])
+
+    assert codigo == 0
+    assert len(creados) == 1 and creados[0].publicados  # la puerta sí se conectó y publicó
+    assert len(servidor.peticiones) == 3
+
+
+def test_modo_webcam_con_la_puerta_abierta_no_escribe_imagenes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, servidor: ServidorFalso
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    captura = CapturaFalsa([imagen_sintetica(1280, 720, numero) for numero in range(5)])
+    fabrica = FabricaMqtt()
+    puerta = PuertaMqtt(Broker("localhost"), "entrada", CLAVE_MQTT, reloj=RelojFalso(), salida=lambda _: None,
+                        crear_cliente=fabrica)
+    [cliente] = fabrica.clientes
+    cliente.conectar()
+    cliente.recibir("accesia/entrada/puerta/set", b"ABRIR")
+    ventana = VentanaFalsa(5)
+
+    with sin_escribir(monkeypatch, tmp_path, RAIZ / "simulador", RAIZ / "datos"):
+        codigo = correr_webcam(
+            RecortadorYuNet(DetectorFalso([Cara(100, 60, 90, 110)])), servidor.cliente(), Ritmo(),
+            modo_camara=False, abrir=lambda _: captura, crear_ventana=lambda: ventana, salida=lambda _: None,
+            puerta=puerta,
+        )
+
+    assert codigo == 0
+    assert puerta.aviso() is not None  # la franja «PUERTA ABIERTA» se dibujó en cada cuadro
     assert len(servidor.peticiones) == 1

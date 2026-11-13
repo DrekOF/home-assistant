@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.14
+Versión: 1.15
 -->
 
 # Bitácora
@@ -41,7 +41,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - `modelos.py` suma los nombres cortos `yunet_2023mar` y `sface_2021dec`.
 - Cómo:
   - Claude Code trabajó en un worktree aparte (`AccesIA-b-asistencia`, rama `b/asistencia`, desde `main` con el PR #12). No tocó el Compose, que en ese momento corría desde `AccesIA-b2` para el e2e de C: las pruebas levantan sus propios contenedores.
-  - Antes del PR se trajo `main` con el PR #13 (la C del Día 2). Solo chocó la bitácora, y se conservaron las dos entradas.
+  - Se trajo `main` dos veces: con el PR #13 (la C del Día 2) antes del PR, y con el PR #15 (A1) antes de fusionar. Solo chocó la bitácora, y se conservaron todas las entradas.
   - Propuso el plan y el equipo lo aprobó tal como estaba.
   - Pruebas primero:
     - se escribieron antes del código;
@@ -97,6 +97,69 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - B2: publicar la llegada en el Evento y el resumen después de cada llegada manual. B3: la semilla del agente con `calificar_llegada`.
   - C1 programa Accesos y Asistencia contra el servidor real cuando esto esté en `main`.
   - Al reconstruir el Compose, la imagen vuelve a bajar los modelos una vez, porque `modelos.py` cambió. La caché de `servidor.yml` también se renueva una vez.
+
+## 2026-11-12 · Día 3 · A1 · La puerta del simulador por MQTT
+
+- Quién: el frente A.
+- Qué:
+  - Con `--puerta`, el simulador hace la parte MQTT de la cámara (`mqtt.md` 1.2), igual que la placa del PR #11:
+    - se conecta con el código como client id y el usuario `camara`, con último deseo `offline`;
+    - al conectarse publica `online`, la puerta y EstadoCamara, y repite EstadoCamara cada 60 s;
+    - `ABRIR` abre la puerta los segundos de `--puerta-segundos` (3 por defecto) y `CERRAR` la cierra antes;
+    - al salir publica `cerrada`, si la puerta quedó abierta, y después `offline`.
+  - Sin `--puerta` no se crea el cliente MQTT. Así corre en el Hito 2, con la placa a cargo de la puerta de `entrada` (C2).
+  - La clave del usuario `camara` sale de la variable `MQTT_CAMARA_CLAVE`.
+  - `--broker` (por defecto `mqtt://127.0.0.1:1883`) no acepta usuario ni clave. Si alguien escribe la clave ahí, el error no la repite.
+  - Cómo se ve: en la webcam, una franja verde «PUERTA ABIERTA (2 s)»; en los dos modos, una línea con la hora en la consola.
+  - Dos archivos nuevos:
+    - `puerta.py`: la lógica pura, como `PuertaLogica` de la placa;
+    - `mqtt.py`: paho-mqtt 2.2 en su propio hilo, y otro hilo que cierra la puerta a tiempo.
+  - El simulador pasa a la versión 0.2.0: `simulador-0.2.0` va en `X-AccesIA-Firmware` y en EstadoCamara.
+  - Documentación: `simulador/README.md` 1.2 (sección «Puerta por MQTT»), `CLAUDE.md` 1.6 y el encabezado de `simulador.yml` 1.1.
+- Cómo:
+  - Claude Code leyó la tarea, el contrato y la placa del PR #11, y propuso el plan. El equipo lo aprobó con tres puntos:
+    - testcontainers en el grupo de desarrollo;
+    - MQTT 5 en el simulador;
+    - `cerrada` al salir.
+
+    La prueba de punta a punta se pidió en modo carpeta, porque la webcam la usaba el Hito 1.
+  - Decisiones de implementación:
+    - MQTT 5, para enterarse de la «sesión tomada» (DISCONNECT 0x8E). Si la placa toma el código, el simulador avisa, no se reconecta y sigue enviando recortes. La placa sigue en MQTT 3.1.1; el contrato no fija la versión.
+    - Las órdenes se comportan igual que en la placa:
+      - un `ABRIR` con la puerta abierta vuelve a contar los segundos y no publica `abierta` otra vez;
+      - un `CERRAR` con la puerta cerrada no publica nada;
+      - lo que no sea `ABRIR` o `CERRAR` exactos se ignora. El simulador, además, lo dice en la consola.
+    - Solo publica con conexión, como la placa: si no, paho guardaría los mensajes QoS 1 y los enviaría ya viejos al reconectarse. Al reconectarse publica la puerta como esté en ese momento.
+    - Reintentos:
+      - si el broker rechaza el client id, el usuario o la clave (0x85, 0x86 o 0x87), no reintenta;
+      - sin broker o con otro rechazo, reintenta a los 1, 2, 4, 8 y 10 s y avisa una sola vez.
+    - El `ip` de EstadoCamara es el de este lado de la conexión con el broker.
+      - El broker por defecto es `127.0.0.1` y no `localhost`: en Windows, `localhost` prueba primero `::1`, y en la prueba de punta a punta el `ip` salió `::1`.
+    - El código se valida como en la placa y en `openapi.yaml`, pero solo con `--puerta`, porque ahí pasa a ser el client id y parte de los temas.
+  - Con Mosquitto de verdad se comprobó qué pasa cuando la placa toma el código: el broker publica el último deseo del simulador (`offline`) y enseguida el `online` de la placa.
+- Pruebas:
+  - `uv run pytest` en `simulador/`: 186 en verde y 2 saltadas (las de fotos reales, porque no hay `datos/prueba`).
+    - Marcas nuevas: `contrato MQTT · puerta` (38), `· disponible` (9), `· estado del simulador` (7) y `· broker` (50).
+    - `RNF-01 · C1` suma tres casos con `--puerta` (7 en total).
+  - `test_mqtt_broker.py`: 6 pruebas contra Mosquitto en un contenedor, con el `mosquitto.conf` y la ACL del repositorio.
+  - Punta a punta (C3), con el compose que estaba arriba y sin reiniciarlo:
+    - Montaje:
+      - el simulador corrió en modo carpeta con `--puerta`;
+      - usó 150 fotos sintéticas sin caras, para que durara unos 45 s;
+      - el servidor apuntaba a un puerto cerrado.
+    - Con `mosquitto_pub` y el usuario `homeassistant` se envió:
+      - `ABRIR`;
+      - `ABRIR` dos veces seguidas;
+      - `ABRIR` y luego `CERRAR`;
+      - `CERRAR` con la puerta cerrada;
+      - `abrir`, que no es una orden.
+    - `mosquitto_sub` vio `abierta` y `cerrada` (QoS 1, retenidos) en los tiempos esperados, y `offline` al terminar.
+    - Una segunda corrida con `--puerta-segundos 60` publicó `cerrada` y `offline` al salir.
+    - Al final se borraron los retenidos de `entrada`.
+- Cambios de contrato o de specs: ninguno. `mqtt.md` 1.2 ya cubre todo lo que hace el simulador y no fija la versión de MQTT.
+- Pendiente:
+  - Con la placa, cuando el equipo tenga el hardware: comprobar que recupera la puerta si alguien corre `--puerta` con su código.
+  - En el modo carpeta, un `ABRIR` que llegue después de la última foto ya no se recibe, porque el simulador se desconecta al terminar.
 
 ## 2026-11-12 · Día 2 · Tarea C · Inscripción y Cámaras
 

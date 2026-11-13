@@ -1,16 +1,17 @@
 """
 Nombre: comandos.py
-Descripción: El comando simulador: modos webcam y carpeta, y modelo para descargar YuNet antes de clase.
+Descripción: El comando simulador: modos webcam y carpeta, con la puerta por MQTT si se pide con --puerta, y modelo para descargar YuNet antes de clase.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 
-    uv run simulador webcam --codigo entrada [--como-camara] [--camara 0]
-    uv run simulador carpeta datos/prueba --codigo entrada [--como-camara]
+    uv run simulador webcam --codigo entrada [--como-camara] [--camara 0] [--puerta]
+    uv run simulador carpeta datos/prueba --codigo entrada [--como-camara] [--puerta]
     uv run simulador modelo
 
-El token de la cámara sale de la variable TOKEN_CAMARA: nunca va en un archivo ni en la salida.
+El token de la cámara sale de la variable TOKEN_CAMARA y, con --puerta, la clave del usuario camara del broker sale
+de MQTT_CAMARA_CLAVE: ninguno va en un archivo, en una opción ni en la salida.
 """
 
 import argparse
@@ -24,12 +25,19 @@ from simulador.consola import preparar_salida
 from simulador.deteccion import PUNTAJE_MIN, DetectorYuNet
 from simulador.envio import ClienteCamara
 from simulador.modelo import YUNET_SHA256, ErrorModelo, asegurar_modelo
+from simulador.mqtt import BROKER, VARIABLE_CLAVE, Broker, PuertaMqtt, codigo_valido, leer_broker
+from simulador.puerta import SEGUNDOS_MAX, SEGUNDOS_MIN, SEGUNDOS_POR_DEFECTO
 from simulador.recortador import CARA_MIN, RecortadorYuNet
 from simulador.ritmo import Ritmo
 from simulador.rutas import resolver_carpeta
 from simulador.webcam import correr_webcam
 
 SERVIDOR = "http://localhost:8000"
+# Carga la clave desde infra/.env sin mostrarla y sin que quede en el historial (desde simulador/).
+CARGAR_CLAVE = (
+    f"$env:{VARIABLE_CLAVE} = (Select-String -Path ..\\infra\\.env "
+    f"-Pattern '^{VARIABLE_CLAVE}=(.+)$').Matches[0].Groups[1].Value"
+)
 
 
 def _puntaje(texto: str) -> float:
@@ -44,6 +52,23 @@ def _pixeles(texto: str) -> int:
     if valor < 0:
         raise argparse.ArgumentTypeError("no puede ser negativo")
     return valor
+
+
+def _segundos_puerta(texto: str) -> int:
+    try:
+        valor = int(texto)
+    except ValueError:
+        raise argparse.ArgumentTypeError("debe ser un número entero de segundos") from None
+    if not SEGUNDOS_MIN <= valor <= SEGUNDOS_MAX:
+        raise argparse.ArgumentTypeError(f"debe estar entre {SEGUNDOS_MIN} y {SEGUNDOS_MAX}")
+    return valor
+
+
+def _broker(texto: str) -> Broker:
+    try:
+        return leer_broker(texto)
+    except ValueError as error:  # el mensaje nunca repite el texto, por si trae una clave
+        raise argparse.ArgumentTypeError(str(error)) from None
 
 
 def construir_parser() -> argparse.ArgumentParser:
@@ -74,6 +99,26 @@ def construir_parser() -> argparse.ArgumentParser:
         type=_puntaje,
         default=PUNTAJE_MIN,
         help=f"puntaje mínimo de YuNet (por defecto {PUNTAJE_MIN}, el del paso 1 de R7)",
+    )
+    comunes.add_argument(
+        "--puerta",
+        action="store_true",
+        help="también hace la parte MQTT de la cámara: recibe ABRIR y CERRAR y publica la puerta, su estado y su "
+        "disponibilidad. Apagada por defecto, para no quitarle el código a la placa. La clave del usuario camara "
+        f"sale de la variable {VARIABLE_CLAVE}",
+    )
+    comunes.add_argument(
+        "--broker",
+        type=_broker,
+        default=None,
+        help=f"broker de la puerta (por defecto {BROKER}; en el hotspot, mqtt://192.168.137.1:1883)",
+    )
+    comunes.add_argument(
+        "--puerta-segundos",
+        type=_segundos_puerta,
+        default=None,
+        help=f"segundos que la puerta queda abierta con ABRIR (por defecto {SEGUNDOS_POR_DEFECTO}, "
+        f"de {SEGUNDOS_MIN} a {SEGUNDOS_MAX})",
     )
 
     webcam = modos.add_parser("webcam", parents=[comunes], help="detecta y envía con la webcam")
@@ -120,6 +165,21 @@ def _correr(args: argparse.Namespace) -> int:
             print(f"No existe la carpeta {args.carpeta}", file=sys.stderr)
             return 2
 
+    clave_mqtt = ""
+    if args.puerta:
+        if not codigo_valido(args.codigo):
+            print("Con --puerta, --codigo es el client id y va en los temas: de 3 a 32 minúsculas, números o "
+                  "guiones, y no puede ser servidor.", file=sys.stderr)
+            return 2
+        clave_mqtt = os.environ.get(VARIABLE_CLAVE, "").strip()
+        if not clave_mqtt:
+            print(f"Falta la clave del usuario camara del broker. Desde simulador/, en PowerShell: {CARGAR_CLAVE}",
+                  file=sys.stderr)
+            return 2
+    elif args.broker is not None or args.puerta_segundos is not None:
+        print("--broker y --puerta-segundos solo sirven con --puerta.", file=sys.stderr)
+        return 2
+
     try:
         modelo = asegurar_modelo()
     except ErrorModelo as error:
@@ -129,11 +189,20 @@ def _correr(args: argparse.Namespace) -> int:
     recortador = RecortadorYuNet(DetectorYuNet(modelo, args.puntaje_min), args.cara_min)
     cliente = ClienteCamara(args.servidor, args.codigo, token)
     ritmo = Ritmo()
+    # Sin --puerta no se crea el cliente MQTT: el simulador no se conecta y la placa conserva su código.
+    puerta = None
+    if args.puerta:
+        puerta = PuertaMqtt(args.broker or leer_broker(BROKER), args.codigo, clave_mqtt,
+                            segundos=args.puerta_segundos or SEGUNDOS_POR_DEFECTO)
+        puerta.arrancar()
     try:
         if args.modo == "webcam":
-            return correr_webcam(recortador, cliente, ritmo, modo_camara=args.como_camara, indice=args.camara)
+            return correr_webcam(recortador, cliente, ritmo, modo_camara=args.como_camara, indice=args.camara,
+                                 puerta=puerta)
         return correr_carpeta(carpeta, recortador, cliente, ritmo, modo_camara=args.como_camara)
     finally:
+        if puerta is not None:
+            puerta.cerrar()
         cliente.cerrar()
 
 

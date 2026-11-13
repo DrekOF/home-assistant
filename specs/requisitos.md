@@ -4,7 +4,7 @@ Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criteri
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Requisitos
@@ -95,8 +95,8 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 ### RF-11 Kit del día de clase · frente C, con A y B
 
-- C1 Scripts `instalar.sh` y `verificar.sh`.
-- C2 Imágenes de Docker en archivos `.tar`, modelo de Ollama, copia de seguridad de Home Assistant OS, el binario del firmware de la XIAO ESP32-C6 y esptool (D-21). Las imágenes arm64 solo hacen falta en el escenario 1. Los binarios del ESP32-S3 (`octal` y `quad`), el de diagnóstico y el de respaldo quedan como referencia.
+- C1 Scripts `instalar` y `verificar`. Con D-22, `verificar` revisa la Pi desde el portátil: los complementos, MQTT, las entidades en Home Assistant, Ollama y la placa en línea. `instalar` queda para los planes B y C (el portátil y el escenario 1).
+- C2 Las carpetas de los complementos `accesia_base` y `accesia_servidor`, con los modelos de cara; los archivos del modelo de Ollama, para copiarlos a la Pi sin internet; la copia de seguridad cifrada de Home Assistant OS, sin inscripciones; el binario del firmware de la XIAO ESP32-C6 y esptool (D-21 y D-22). Para el plan B, las imágenes de Docker del portátil; para el plan C, las imágenes arm64 en archivos `.tar`. Los binarios del ESP32-S3 (`octal` y `quad`), el de diagnóstico y el de respaldo quedan como referencia.
 - C3 Ensayo desde cero hasta la primera persona reconocida en menos de 45 minutos (meta propuesta).
 
 ### RF-12 Derechos del titular (Ley 1581) · frentes B y C
@@ -144,13 +144,13 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 - C1 Respuesta a la cámara en menos de 1 s en el portátil y de 2 s en la Raspberry.
 - C2 Puerta abierta en menos de 2 s desde que llega el recorte.
-- C3 Se mide la respuesta de Assist en la Raspberry con el modelo elegido; si pasa de 15 s, Ollama va al portátil con `infra/compose.ollama-portatil.yaml`.
+- C3 Se mide la respuesta de Assist en la Raspberry con el modelo elegido (D-22). Si pasa de 15 s, primero se prueba en la Pi: las variantes Q4_0 del modelo, descripciones más cortas de las herramientas, `qwen2.5:0.5b` si responde bien, y que el comienzo del prompt no cambie entre preguntas (`arquitectura.md`, «Velocidad del agente en la Pi»). Pasar Ollama al portátil, con `infra/compose.ollama-portatil.yaml`, solo vale con el visto bueno del profesor, que pide Ollama dentro de la Pi.
 
 ### RNF-04 Portabilidad
 
 - C1 Imágenes para arm64 y amd64.
-- C2 Corre en Windows con Docker Desktop y en Raspberry Pi OS de 64 bits. En la demo (D-21), Docker Compose corre en el portátil con Windows y la Pi solo trae Home Assistant OS.
-- C3 En clase no necesita internet.
+- C2 Corre en Windows con Docker Desktop, en Raspberry Pi OS de 64 bits y como complementos de Home Assistant OS. En la demo (D-22), todo corre en la Pi como complementos; Docker Compose en el portátil con Windows queda para desarrollar y como plan B.
+- C3 En clase no necesita internet. La excepción es instalar los complementos en la Pi, que baja las imágenes base y los paquetes de Python: si la Pi solo está disponible en clase, se instala allá con el internet del celular (D-22). Los modelos van en el kit.
 
 ### RNF-05 Idioma y hora
 
@@ -161,7 +161,7 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 - C1 Cada requisito y cada regla tiene pruebas que citan su código.
 - C2 Un PR se fusiona solo con las pruebas en verde.
-- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por pieza para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). Desde el Día 2 se suma `.github/workflows/simulador.yml` (pytest del simulador con el modelo YuNet en caché, tarea A). El firmware se suma con `.github/workflows/firmware.yml`, que D-21 adelanta: compila el binario de la XIAO ESP32-C6 y corre las pruebas de la lógica pura. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
+- C3 GitHub Actions corre las pruebas en cada PR desde el Día 1, en un workflow por pieza para no chocar: `.github/workflows/servidor.yml` (pytest, tarea B) y `.github/workflows/web.yml` (build y Vitest, tarea C). Desde el Día 2 se suma `.github/workflows/simulador.yml` (pytest del simulador con el modelo YuNet en caché, tarea A). El firmware se suma con `.github/workflows/firmware.yml`, que D-21 adelanta: compila el binario de la XIAO ESP32-C6 y corre las pruebas de la lógica pura. Con D-22 se suma `.github/workflows/complementos.yml` (B4 del Día 4): construye los dos complementos para arm64 y amd64 y arranca los de amd64. Como `main` no está protegida, la regla de fusionar solo en verde se cumple por disciplina.
 
 ### RNF-07 Precisión del reconocimiento (meta propuesta)
 

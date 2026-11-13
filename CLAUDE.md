@@ -2,9 +2,9 @@
 Nombre: CLAUDE.md
 Descripción: Reglas e instrucciones para Claude Code en el repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.9
+Versión: 1.10
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -62,7 +62,7 @@ SQL               líneas que empiezan con --
 - Entregado el 12/11/2026 (D-21): una Seeed Studio XIAO ESP32-C6 (4 MB de flash, sin PSRAM ni interfaz de cámara) y una Raspberry Pi 5 con Home Assistant OS. El módulo de cámara llega la próxima clase (P-03).
 - Hasta entonces, la cámara es el simulador (`simulador/`), que cumple el mismo contrato. Todo se sigue probando con él.
 - Los pines de la XIAO ESP32-C6 están en `specs/arquitectura.md`; no asumas otros. El firmware del ESP32-S3, con sus perfiles de placa, queda como referencia en el PR #7.
-- La demo usa el escenario 2: Docker Compose corre en el portátil, en el hotspot de Windows, y la Pi solo trae Home Assistant OS. Las imágenes Docker se siguen construyendo para arm64 y amd64.
+- La demo corre todo en la Pi (D-22): la base, el servidor (con la web y el MCP), Mosquitto y Ollama son complementos de Home Assistant OS, en el hotspot de Windows del portátil. Docker Compose en el portátil queda para desarrollar y como plan B (escenario 2). Las imágenes se siguen construyendo para arm64 y amd64.
 
 ## Web
 

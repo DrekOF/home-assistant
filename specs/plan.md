@@ -4,7 +4,7 @@ Descripción: Plan de AccesIA por días, frentes e hitos, con el corte mínimo.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Plan
@@ -18,7 +18,7 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | Frente | Responsable | Entrega |
 | --- | --- | --- |
 | A · Cámara y TinyML | Julián Andrés Silva Morales | Firmware de la XIAO ESP32-C6 (puerta, estado y sensor de ambiente; la cámara cuando llegue el módulo, D-21), simulador y calibración del umbral. El firmware del ESP32-S3 queda como referencia (PR #7) |
-| B · Servidor, datos y agente | Cristhian Eduardo Sánchez Mosquera | API, reconocimiento, reglas, base de datos, MQTT y servidor MCP |
+| B · Servidor, datos y agente | Cristhian Eduardo Sánchez Mosquera | API, reconocimiento, reglas, base de datos, MQTT, servidor MCP y los complementos de Home Assistant OS de la base y del servidor (D-22) |
 | C · Web, Home Assistant y despliegue | Jhon Jairo Perdomo Perdomo | Web, configuración de Home Assistant, imágenes arm64, kit del día de clase y pruebas de la web |
 
 ## Días
@@ -43,8 +43,9 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | 3 | B1 | Asistencia (R5) desde la cámara y su registro manual; API de accesos, reporte del día, asistencia de una persona, huellas (RF-12 · C1) y configuración | `tareas/dia-3/B1-cristhian-asistencia-y-consultas.md` |
 | 3 | B2 | MQTT: disponibilidad, descubrimiento (con el `model` de D-21 y su limpieza), eventos (con la repetición de R4), alertas (R6), resumen y estado de las cámaras | `tareas/dia-3/B2-cristhian-mqtt.md` |
 | 3 | B3 | Servidor MCP con las cinco herramientas, servicio `mcp` y comando `semilla agente` | `tareas/dia-3/B3-cristhian-mcp-y-semilla.md` |
+| 3 | B | Specs de D-22, todo en la Raspberry Pi: la decisión, la arquitectura, los requisitos, `mqtt.md` 1.4, `mcp-agente.md` 1.4 y la C2 ajustada (rama `b/d-22-todo-en-la-pi`) | — |
 | 3 | C1 | Pantallas Accesos, Asistencia (con el botón de registro manual) y Horarios (RF-13), y los datos de la persona en su ficha (RF-12) | `tareas/dia-3/C1-jhon-accesos-asistencia-y-horarios.md` |
-| 3 | C2 | Home Assistant OS: MQTT, panel, automatizaciones y Assist con Ollama y MCP; Ollama, el firewall del hotspot y `compose.escenario2.yaml`, adelantado del Día 4 por D-21; copia de seguridad de Home Assistant OS; primera medición de las 10 preguntas del agente en el portátil | `tareas/dia-3/C2-jhon-home-assistant-y-agente.md` |
+| 3 | C2 | Home Assistant OS con todo en la Pi (D-22): Mosquitto oficial con la ACL, el complemento de Ollama y su modelo, MQTT, panel, automatizaciones y Assist con Ollama y el MCP del complemento del servidor (con la B4 del Día 4); ensayo en el devcontainer; `compose.escenario2.yaml` como plan B; copia de seguridad de Home Assistant OS; primera medición de las 10 preguntas del agente | `tareas/dia-3/C2-jhon-home-assistant-y-agente.md` |
 | 3 | Todos | **Hito 2:** con el simulador, Home Assistant abre la puerta y Assist dice quién llegó tarde | `tareas/dia-3/00-todos-orden-e-hito-2.md` |
 | 4 | A | Calibración del umbral y prueba de la placa con Home Assistant; `firmware.yml` ya se adelantó el Día 2 (D-21). El diagnóstico y el respaldo del S3 quedan para cuando vuelva | — |
 | 4 | B | Modo extraer, pruebas de las reglas completas y evaluación del agente con 10 preguntas | — |

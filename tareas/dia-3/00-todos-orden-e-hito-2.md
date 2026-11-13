@@ -4,7 +4,7 @@ Descripción: Día 3 para los tres integrantes: el Hito 1 primero, dependencias 
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Día 3 · Todos · Orden de las tareas e Hito 2
@@ -46,7 +46,7 @@ Que las tareas del Día 3 avancen en tres sesiones sin pisarse y que al final de
 
 - El Hito 1 del Día 2 (`tareas/dia-2/00-todos-orden-e-hito-1.md`) todavía no se ha corrido. Va primero: apenas se fusione la C del Día 2, y antes del Hito 2.
 - Para el Hito 1, el Compose pasa a la carpeta principal. Se baja el de `AccesIA-b2` sin `-v`, para conservar los datos, y se levanta desde la carpeta principal, en `main` (ver «Docker Compose» en los acuerdos).
-- Las tareas del Día 3 siguen mientras tanto. Durante un hito no se fusiona nada que obligue a reconstruir el Compose.
+- Las tareas del Día 3 siguen mientras tanto. Durante un hito sí se fusiona, pero nadie hace `git pull` ni reconstruye el Compose en la carpeta principal hasta que el hito termine.
 - Si el Hito 1 no se cumple, se resuelve antes del Hito 2.
 
 ## Qué va en paralelo (tres sesiones)
@@ -78,7 +78,7 @@ El camino crítico es B: B2 y B3 necesitan B1, y el Hito 2 necesita las tres. Po
 
 - Docker Compose, desde el Hito 1:
   - corre solo desde la carpeta principal (`AccesIA`), que siempre está en `main`. Ninguna sesión lo levanta desde su worktree;
-  - quien fusiona un PR que cambia el servidor, la web o la infra hace `git pull` en la carpeta principal y lo reconstruye, avisando a las demás sesiones. Lo levanta con `docker compose -f infra/compose.yaml up -d --build`, y con `-f infra/compose.escenario2.yaml` cuando exista;
+  - quien fusiona un PR que cambia el servidor, la web o la infra hace `git pull` en la carpeta principal y lo reconstruye, avisando a las demás sesiones. Si hay un hito en curso, espera a que termine. Lo levanta con `docker compose -f infra/compose.yaml up -d --build`, y con `-f infra/compose.escenario2.yaml` cuando exista;
   - las pruebas de cada tarea no lo necesitan: el servidor usa testcontainers, la web su simulacro y el simulador sus dobles;
   - una tarea que cambia la infra la revisa antes de fusionar con `docker compose … config` y sus pruebas. El arranque real se comprueba al reconstruir.
 - Contratos:

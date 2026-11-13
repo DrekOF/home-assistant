@@ -1,17 +1,20 @@
 """
 Nombre: conftest.py
-Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada, la semilla del agente con el usuario agente y marcas de las specs.
+Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector y Mosquitto con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada, el cliente MQTT del servidor con un suscriptor de prueba, la semilla del agente con el usuario agente y marcas de las specs.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 """
 
 import itertools
 import os
 import sys
+import threading
+import uuid
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -135,7 +138,15 @@ NOMBRE_ADMIN = "Administrador de prueba"
 
 
 @pytest.fixture
-def app(conexion: Connection) -> FastAPI:
+def candado_de_la_base() -> threading.Lock:
+    """La conexión de la prueba es una sola, y SQLAlchemy no deja usarla desde dos hilos a la vez: las peticiones y el
+    cliente MQTT del servidor, que trabaja en sus propios hilos, la toman por turnos. Es un Lock y no un RLock porque
+    FastAPI puede abrir y cerrar la dependencia de la conexión en hilos distintos."""
+    return threading.Lock()
+
+
+@pytest.fixture
+def app(conexion: Connection, candado_de_la_base: threading.Lock) -> FastAPI:
     """La API usando la conexión de la prueba: al final se deshace todo lo que escribió.
 
     Cada petición corre en su propio savepoint, como una transacción del servidor real: si la petición falla
@@ -147,7 +158,7 @@ def app(conexion: Connection) -> FastAPI:
     aplicacion = crear_app()
 
     def conexion_de_la_peticion() -> Iterator[Connection]:
-        with conexion.begin_nested():
+        with candado_de_la_base, conexion.begin_nested():
             yield conexion
 
     aplicacion.dependency_overrides[obtener_conexion] = conexion_de_la_peticion
@@ -252,6 +263,82 @@ def vision_real():
     except (OSError, RuntimeError) as error:
         pytest.skip(f"No están los modelos de cara y no se pudieron descargar: {error}")
     return VisionOpenCV()
+
+
+# --- MQTT (B2 del Día 3) ---
+
+
+@pytest.fixture(scope="session")
+def broker_mqtt() -> Iterator[tuple[str, int]]:
+    """Un Mosquitto con la configuración y la ACL del repositorio para todas las pruebas de MQTT del servidor."""
+    from mqtt_de_prueba import broker_de_prueba
+
+    with broker_de_prueba() as direccion:
+        yield direccion
+
+
+@pytest.fixture
+def escucha(broker_mqtt: tuple[str, int]):
+    """Home Assistant visto desde el broker: recibe todo accesia/# y homeassistant/# con su QoS y su retención.
+
+    Al terminar borra todo lo retenido, para que la prueba siguiente empiece con el broker vacío.
+    """
+    from mqtt_de_prueba import ClienteDePrueba, limpiar_retenidos
+
+    suscriptor = ClienteDePrueba(broker_mqtt, "homeassistant").conectar()
+    suscriptor.suscribir("accesia/#", "homeassistant/#")
+    yield suscriptor
+    suscriptor.cerrar()
+    limpiar_retenidos(broker_mqtt)
+
+
+@pytest.fixture
+def conectar_mqtt(app: FastAPI, broker_mqtt, conexion: Connection, candado_de_la_base: threading.Lock, escucha):
+    """Conecta el cliente MQTT del servidor al broker de prueba, como al arrancar, y lo deja en la app.
+
+    Es una función para que la prueba prepare antes lo que el servidor debe encontrar al conectarse. Usa la
+    conexión de la prueba, por turnos con las peticiones, y espera a que termine lo que hace al conectarse.
+    """
+    from accesia.mqtt import ClienteMqtt, Publicacion
+    from mqtt_de_prueba import ESPERA_S, url_del_servidor
+
+    creados = []
+
+    @contextmanager
+    def conexion_de_la_prueba() -> Iterator[Connection]:
+        # Con tiempo límite: si una petición la tiene tomada (por ejemplo, porque el servidor publica dentro de la
+        # petición y no después de confirmar), la prueba falla en vez de quedarse esperando para siempre.
+        if not candado_de_la_base.acquire(timeout=ESPERA_S):
+            raise RuntimeError("La conexión de la prueba siguió ocupada: el servidor la pidió durante una petición.")
+        try:
+            with conexion.begin_nested():
+                yield conexion
+        finally:
+            candado_de_la_base.release()
+
+    def conectar(client_id: str = "servidor", antes: Callable[[ClienteMqtt], object] | None = None):
+        cliente = ClienteMqtt(url_del_servidor(broker_mqtt), conexiones=conexion_de_la_prueba, client_id=client_id)
+        creados.append(cliente)
+        app.state.mqtt = cliente
+        if antes is not None:
+            antes(cliente)  # lo que la prueba hace antes de que el cliente se conecte
+        cliente.iniciar()
+        assert cliente.esperar_listo(ESPERA_S), "El cliente MQTT del servidor no terminó de conectarse."
+        # Una marca por la misma conexión: cuando llega, ya llegó todo lo que publicó al conectarse.
+        marca = uuid.uuid4().hex
+        assert cliente.publicar(Publicacion("accesia/prueba/marca", marca, 1, False))
+        escucha.esperar("accesia/prueba/marca", lambda mensaje: mensaje.carga == marca)
+        return cliente
+
+    yield conectar
+    for cliente in creados:
+        cliente.detener()
+
+
+@pytest.fixture
+def mqtt_servidor(conectar_mqtt):
+    """El cliente MQTT del servidor ya conectado al broker de prueba."""
+    return conectar_mqtt()
 
 
 # --- Agente (B3 del Día 3) ---

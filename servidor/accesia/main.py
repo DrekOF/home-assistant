@@ -1,12 +1,13 @@
 """
 Nombre: main.py
-Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador y carga los modelos de cara.
+Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
 from accesia import __version__
+from accesia.alertas import ControlDeAlertas
 from accesia.api import (
     accesos,
     asistencia,
@@ -33,6 +35,7 @@ from accesia.api import (
 from accesia.config import configuracion
 from accesia.db import transaccion
 from accesia.errores import registrar_manejadores
+from accesia.mqtt import ClienteMqtt, resumen_periodico
 from accesia.registro import configurar_registro
 from accesia.rostros import ControlDeRitmo
 from accesia.sesion import crear_primer_administrador
@@ -60,7 +63,16 @@ async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
     await run_in_threadpool(preparar_arranque)
     # YuNet y SFace se cargan una sola vez. Sin los modelos, el servidor no arranca.
     app.state.vision = await run_in_threadpool(cargar_vision)
-    yield
+    # MQTT: si el broker no responde, el servidor arranca igual y paho reintenta solo (mqtt.md, B2 del Día 3).
+    cliente = ClienteMqtt(configuracion().mqtt_url)
+    app.state.mqtt = cliente
+    cliente.iniciar()
+    periodico = asyncio.create_task(resumen_periodico(cliente))
+    try:
+        yield
+    finally:
+        periodico.cancel()
+        await run_in_threadpool(cliente.detener)
 
 
 def crear_app() -> FastAPI:
@@ -75,8 +87,11 @@ def crear_app() -> FastAPI:
         lifespan=ciclo_de_vida,
     )
     registrar_manejadores(app)
-    # El 429 vive en memoria: el servidor corre con un solo proceso (arquitectura.md).
+    # El 429, la última alerta de R6 y la conexión MQTT viven en memoria: el servidor corre con un solo proceso
+    # (arquitectura.md). Hasta que arranca, el cliente MQTT no tiene URL y no publica nada.
     app.state.ritmo = ControlDeRitmo()
+    app.state.alertas = ControlDeAlertas()
+    app.state.mqtt = ClienteMqtt(None)
     for rutas in (
         salud,
         sesion,

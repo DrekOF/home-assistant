@@ -4,7 +4,7 @@ Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Infraestructura · frentes B y C
@@ -44,7 +44,8 @@ Cada día:
 | Ver el registro del servidor MCP (dice qué encabezados `Host` acepta) | `docker compose -f infra/compose.yaml logs -f mcp` |
 | Crear los datos de la evaluación del agente y revisar las preguntas 1 a 9 | `docker compose -f infra/compose.yaml exec servidor accesia semilla agente` |
 | Borrar solo los datos de esa semilla | `docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borrar` |
-| Mirar el tráfico de MQTT | `docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P "<MQTT_SERVIDOR_CLAVE>" -t "accesia/#" -v` |
+| Mirar el tráfico de MQTT (eventos, alertas, resumen y disponibilidad) | `docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P "<MQTT_SERVIDOR_CLAVE>" -t "accesia/#" -v` |
+| Mirar el descubrimiento de Home Assistant (los config retenidos) | `docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P "<MQTT_SERVIDOR_CLAVE>" -t "homeassistant/#" -v` |
 | Bajar todo y conservar los datos | `docker compose -f infra/compose.yaml down` |
 | Bajar todo y borrar los datos (fin del semestre) | `docker compose -f infra/compose.yaml down -v` |
 
@@ -52,7 +53,7 @@ Al arrancar, el servidor crea el administrador de `ADMIN_CORREO` con `ADMIN_CLAV
 
 La primera construcción de la imagen descarga de GitHub los modelos de cara (YuNet y SFace, unos 39 MB) y comprueba su SHA-256: hace falta internet. Después quedan en la caché de capas de Docker y no se vuelven a bajar mientras `servidor/accesia/modelos.py` no cambie. El servidor los carga al arrancar y lo dice en su registro (`Modelos de cara cargados`).
 
-Hasta el Día 3, `/api/v1/salud` responde `"estado": "degradado"` y `"mqtt": "sin_conexion"`: el servidor todavía no se conecta a MQTT.
+Desde B2 del Día 3, el servidor se conecta a MQTT al arrancar, sin esperar al broker: `/api/v1/salud` responde `"mqtt": "ok"` y `"estado": "ok"` con la base y el broker bien, y `"mqtt": "sin_conexion"` y `"estado": "degradado"` mientras no está conectado. En `docker compose -f infra/compose.yaml logs servidor` se ve `MQTT: conectado a mosquitto:1883 como servidor.` Qué publica y cuándo está en `servidor/README.md` (MQTT).
 
 ## Servidor MCP del agente
 

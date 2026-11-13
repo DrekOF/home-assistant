@@ -1,10 +1,10 @@
 """
 Nombre: rostros.py
-Descripción: Recortes que envía la cámara (enviarRostro, api-dispositivo.md): token, tipo, tamaño, ritmo (429) e imagen, en ese orden; y el modo de la cámara: inscribir si tiene una inscripción activa (R7 y R9), reconocer si no (R1 a R5).
+Descripción: Recortes que envía la cámara (enviarRostro, api-dispositivo.md): token, tipo, tamaño, ritmo (429) e imagen, en ese orden; el modo de la cámara: inscribir si tiene una inscripción activa (R7 y R9), reconocer si no (R1 a R6); y lo que el recorte publica en MQTT después de confirmar.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import hashlib
@@ -21,10 +21,12 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import Connection, text
 
+from accesia.alertas import ControlDeAlertas
 from accesia.asistencia import Llegada
 from accesia.errores import CodigoError, ErrorAccesIA, respuesta_error
 from accesia.esquemas import RespuestaRostro
 from accesia.inscripciones import activa_de, procesar_muestra, vencer_inscripciones
+from accesia.mqtt import Pendiente, mensaje_evento
 from accesia.reconocimiento import reconocer
 from accesia.seguridad import hash_de_token
 from accesia.vision import Vision, decodificar_jpeg
@@ -140,11 +142,15 @@ def procesar(
     momento: datetime,
     inicio: float,
     firmware: str | None = None,
-) -> RespuestaRostro | JSONResponse:
-    """Decodifica el recorte, decide el modo y aplica las reglas. La imagen solo vive en memoria (RF-04 · C4)."""
+    alertas: ControlDeAlertas | None = None,
+) -> tuple[RespuestaRostro | JSONResponse, Pendiente | None]:
+    """Decodifica el recorte, decide el modo y aplica las reglas. La imagen solo vive en memoria (RF-04 · C4).
+
+    Devuelve la respuesta y lo que el recorte publica en MQTT, que la ruta publica después de confirmar.
+    """
     imagen = decodificar_jpeg(datos)
     if imagen is None:
-        return rechazo(camara, 422, "imagen_invalida", "El cuerpo no es un JPEG que se pueda leer.")
+        return rechazo(camara, 422, "imagen_invalida", "El cuerpo no es un JPEG que se pueda leer."), None
     caras = vision.detectar(imagen)
 
     def huella_de(cara):
@@ -158,8 +164,32 @@ def procesar(
         respuesta, calidad, llegada = reconocer(conexion, camara.codigo, caras, huella_de, momento)
     else:
         respuesta, calidad = procesar_muestra(conexion, inscripcion, camara.tipo, caras, huella_de, momento)
+    pendiente = _pendiente(conexion, camara.codigo, respuesta, llegada, momento, alertas)
     _registrar(camara.codigo, respuesta, calidad, llegada, (time.perf_counter() - inicio) * 1000, firmware)
-    return respuesta
+    return respuesta, pendiente
+
+
+def _pendiente(
+    conexion: Connection,
+    codigo: str,
+    respuesta: RespuestaRostro,
+    llegada: Llegada | None,
+    momento: datetime,
+    alertas: ControlDeAlertas | None,
+) -> Pendiente | None:
+    """Lo que publica el recorte (mqtt.md y R4): cada evento guardado, con el resumen, y la repetición de un permitido
+    para que la puerta se abra otra vez. Nada de los descartados, de las muestras ni de la repetición de un denegado.
+    Un desconocido guardado revisa R6 aquí, en la misma transacción."""
+    if respuesta.resultado not in ("permitido", "denegado", "desconocido"):
+        return None
+    if respuesta.repetido:
+        if respuesta.resultado != "permitido":
+            return None
+        return Pendiente(codigo, evento=mensaje_evento(codigo, respuesta, None))
+    alerta = None
+    if respuesta.resultado == "desconocido" and alertas is not None:
+        alerta = alertas.revisar(conexion, codigo, momento)
+    return Pendiente(codigo, evento=mensaje_evento(codigo, respuesta, llegada), alerta=alerta, resumen=True)
 
 
 def _registrar(

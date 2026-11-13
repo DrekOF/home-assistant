@@ -1,10 +1,10 @@
 """
 Nombre: esquemas.py
-Descripción: Esquemas de la API de AccesIA con pydantic, iguales a los de specs/contratos/openapi.yaml 1.3 (sesión, personas, consentimiento, horarios, cámaras, inscripciones, la respuesta a la cámara, huellas, accesos, asistencia y configuración).
+Descripción: Esquemas de la API de AccesIA con pydantic, iguales a los de specs/contratos/openapi.yaml 1.4 (sesión, personas, consentimiento, horarios, cámaras con su estado de MQTT, inscripciones, la respuesta a la cámara, huellas, accesos, asistencia y configuración).
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 from datetime import date, datetime
@@ -19,10 +19,12 @@ from pydantic import (
     EmailStr,
     Field,
     PlainSerializer,
+    SerializerFunctionWrapHandler,
     StringConstraints,
     TypeAdapter,
     ValidationError,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -274,7 +276,11 @@ class RespuestaRostro(BaseModel):
 
 
 class EstadoCamara(BaseModel):
-    """Último estado que publicó la cámara por MQTT; llega el Día 3."""
+    """Último estado que publicó la cámara por MQTT (mqtt.md, EstadoCamara; openapi.yaml 1.4).
+
+    Cada cámara manda solo sus campos: el simulador, por ejemplo, no manda perfil ni rssi. La API devuelve solo los
+    que llegaron, porque el contrato no admite null en ellos.
+    """
 
     perfil: str | None = None
     firmware: str | None = None
@@ -282,7 +288,13 @@ class EstadoCamara(BaseModel):
     rssi: int | None = None
     psram_kb: int | None = None
     libre_kb: int | None = None
+    sensor: Literal["dht22", "dht11"] | None = None
+    antena: Literal["interna", "externa"] | None = None
     segundos_encendida: int | None = None
+
+    @model_serializer(mode="wrap")
+    def solo_lo_que_mando(self, siguiente: SerializerFunctionWrapHandler) -> dict:
+        return {campo: valor for campo, valor in siguiente(self).items() if valor is not None}
 
 
 class Dispositivo(BaseModel):

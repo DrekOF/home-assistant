@@ -1,10 +1,10 @@
 """
 Nombre: comandos.py
-Descripción: Comando accesia del servidor: crear-camara registra una cámara y muestra su token una sola vez, sin pasar por la web (RF-10 · C5); descargar-modelos baja YuNet y SFace y comprueba su SHA-256; mcp arranca el servidor MCP del agente y semilla agente crea los datos de su evaluación.
+Descripción: Comando accesia del servidor: crear-camara registra una cámara, publica su descubrimiento en MQTT y muestra su token una sola vez, sin pasar por la web (RF-10 · C5, RF-07 · C1); descargar-modelos baja YuNet y SFace y comprueba su SHA-256; mcp arranca el servidor MCP del agente y semilla agente crea los datos de su evaluación.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 import argparse
@@ -15,9 +15,11 @@ from pathlib import Path
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from accesia import camaras, db, modelos, semilla
+from accesia import __version__, camaras, db, descubrimiento, modelos, semilla
+from accesia.config import configuracion
 from accesia.errores import ErrorAccesIA
 from accesia.esquemas import DispositivoNuevo
+from accesia.mqtt import Publicacion, json_de, publicar_una_vez
 
 TIPOS = ("tinyml", "respaldo", "simulador")
 
@@ -97,9 +99,30 @@ def crear_camara(argumentos: argparse.Namespace) -> int:
         print(error.detalle, file=sys.stderr)
         return 1
     print(f"Cámara «{camara.codigo}» creada: {camara.nombre}, tipo {camara.tipo}.")
+    _avisar_a_home_assistant(camara.codigo, camara.nombre)
     print("Este es su token. Se muestra solo esta vez: cópialo ahora (la base guarda solo su hash).")
     print(camara.token)
     return 0
+
+
+def _avisar_a_home_assistant(codigo: str, nombre: str) -> None:
+    """RF-07 · C1: publica el descubrimiento de la cámara nueva. El comando corre en otro proceso que el servidor, así
+    que lo publica él mismo, con una conexión corta. Sin MQTT_URL no hace nada."""
+    url = configuracion().mqtt_url
+    if not url:
+        return
+    publicaciones = [
+        Publicacion(tema, json_de(datos), 1, True)
+        for tema, datos in descubrimiento.configs_de_camara(codigo, nombre, __version__)
+    ]
+    if publicar_una_vez(url, publicaciones):
+        print("Su descubrimiento quedó publicado en MQTT para Home Assistant.")
+    else:
+        print(
+            "No se pudo publicar su descubrimiento en MQTT: el servidor lo publica al reconectarse al broker "
+            "o cuando Home Assistant vuelva a estar en línea.",
+            file=sys.stderr,
+        )
 
 
 def descargar_modelos(argumentos: argparse.Namespace) -> int:

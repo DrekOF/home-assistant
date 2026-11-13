@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.16
+Versión: 1.17
 -->
 
 # Bitácora
@@ -22,6 +22,92 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 3 · Tarea B2 · El servidor en MQTT
+
+- Quién: el frente B.
+- Qué:
+  - **Conexión.** El servidor se conecta a MQTT con `paho-mqtt` 2.2, que pasa a sus dependencias.
+    - Usa el client id `servidor`. Su último deseo es `offline`, y al conectarse publica `online`.
+    - Arranca sin esperar al broker, y paho reconecta solo.
+    - La salud dice `mqtt: ok` o `sin_conexion`.
+  - **Qué publica.** Solo con conexión:
+    - El Evento de cada acceso guardado, con la llegada que creó (B1). También la repetición de un `permitido`, con `repetido: true`, y nunca la de un `denegado`.
+    - La Alerta de R6. La hora de la última alerta vive en memoria.
+    - El Resumen al conectarse, después de cada evento guardado y de cada llegada manual, y cada 5 minutos.
+    - El descubrimiento de las seis entidades de cada cámara y las cuatro del servidor, con el `model` «XIAO ESP32-C6». Sale al conectarse, cuando Home Assistant vuelve a estar en línea y al crear o editar una cámara, también con `crear-camara`.
+  - **Después de confirmar.** El Evento, la Alerta y el Resumen de un recorte salen en una tarea de fondo, después de confirmar su transacción.
+  - **Limpieza del descubrimiento.** Al conectarse borra los config que publicó para cámaras que ya no existen, sin tocar los de la placa.
+  - **Las cámaras.** `en_linea` y `estado` salen de lo que publican en MQTT, junto con el contacto por HTTP de los últimos 2 minutos (RF-10 · C3).
+  - **Acuerdo del hito.** En el 00 del Día 3 queda el ajuste del equipo: durante un hito sí se fusiona, pero no se hace `git pull` ni se reconstruye el Compose en la carpeta principal hasta que termine.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-mqtt`, rama `b/mqtt`, desde `main` con B1). No tocó el Compose: las pruebas levantan su propio Mosquitto, con la configuración y la ACL del repositorio.
+  - **`main` con B3.** Antes del PR se trajo `main` con el PR #16 (B3). Chocaron diez archivos, y se conservaron los dos lados:
+    - `pyproject.toml` lleva `mcp` y `paho-mqtt`, y `uv lock` se volvió a correr;
+    - `comandos.py` lleva `crear-camara` con su descubrimiento, y también `mcp` y `semilla agente`;
+    - `conftest.py` lleva las fixtures de MQTT y las del agente;
+    - los README, los registros de contratos y decisiones, `arquitectura.md` y esta bitácora llevan lo de las dos tareas.
+  - **Plan.** Propuso el plan con nueve decisiones y dos cambios de contrato, y el equipo lo aprobó tal como estaba.
+  - **Lo que se comprobó antes.** Se comprobó en el código de paho-mqtt 2.2 que un mensaje QoS 1 publicado sin conexión queda en cola y sale al reconectar. Por eso el servidor descarta lo que no puede publicar en el momento: así un `permitido` viejo no abre la puerta tarde.
+  - **Pruebas primero.** Fallaron porque `accesia.mqtt` no existía.
+  - **Una falla de la prueba, no del servidor.** El resumen de la conexión llegaba después de que la prueba limpiara lo recibido. Ahora la fixture espera una marca que el servidor publica por la misma conexión.
+  - **Estabilidad.** Como dependen de tiempos de red, las pruebas de MQTT se corrieron tres veces seguidas, sin fallas.
+  - **Código roto a propósito.** Se rompió 15 veces, y cada vez falló la prueba que correspondía:
+    - publicar dentro de la ruta, antes de confirmar;
+    - publicar sin conexión;
+    - publicar la repetición de un denegado;
+    - en R6: el borde incluido, sin una sola alerta por ventana o sin contar el desconocido de este recorte;
+    - en la limpieza: tocar los config de la placa o no mirar si la cámara existe;
+    - `identifiers` con guion bajo;
+    - ignorar el `online` de Home Assistant;
+    - `en_linea` sin el contacto por HTTP;
+    - aceptar un EstadoCamara con `null`;
+    - la última llegada por orden de registro;
+    - los desconocidos de hoy desde la medianoche UTC;
+    - sin último deseo.
+  - **Dos roturas que al principio no fallaban:**
+    - «Contar también los desconocidos anteriores a la última alerta» no cambiaba nada: si ya pasó una ventana desde esa alerta, todo lo que cae en la ventana es posterior a ella. Se quitó esa parte del código, que sobraba, y se cambió por otra rotura.
+    - «La limpieza no mira si la cámara existe» mostró un hueco en la prueba, que no plantaba un config viejo de una cámara que sí existe. Ahora lo planta y comprueba que queda el config fresco.
+  - **Un caso que colgó la prueba.** Al publicar dentro de la ruta, la primera corrida se colgó en vez de fallar. La petición tenía tomada la conexión de la prueba y el resumen la esperaba. Ahora el cliente MQTT de las pruebas la espera con tiempo límite y falla con un mensaje claro. En el servidor real no hay ese candado.
+  - **Pruebas sumadas al planear esas roturas.** Que un evento cuya transacción no se confirma no se publica, y que R6 da una sola alerta por ventana.
+  - **Prueba del arranque.** También se sumó una prueba del arranque real de la app: el ciclo de vida de `main.py` se conecta a MQTT y, al apagarse, deja `offline`.
+- Decisiones donde el contrato no decía nada:
+  - **Client id y conexión:**
+    - `servidor`, un código reservado;
+    - publicar solo con conexión y después de confirmar, en una tarea de fondo.
+  - **`model`:** «XIAO ESP32-C6» también en las cámaras de tipo `simulador`. En la demo, `entrada` es `simulador` porque envía los recortes, pero su dispositivo en Home Assistant es la placa.
+  - **Identificadores:** `device.identifiers` y el nodo del tema con el código tal cual, y `unique_id` con guion bajo, como la placa.
+  - **`sw_version`:** la versión del servidor.
+  - **Disponibilidad:** los sensores del resumen dependen de la del servidor.
+  - **Cámaras:** `en_linea` es `online` en MQTT o un contacto en los últimos 2 minutos. `estado` es el último válido; un `null` no cumple.
+  - **Resumen:** `ultima_llegada` es la de hora más reciente, o `null` sin llegadas.
+  - **`crear-camara`:** publica su propio descubrimiento con una conexión corta y client id vacío.
+- Pruebas:
+  - **Servidor:**
+    - `uv run pytest`: 427 en verde y 2 saltadas (las de caras reales); antes eran 377, así que B2 suma 50. Con `main` y B3, 522 en verde.
+    - Ruff (`F`, `E9` y `B`), sin observaciones.
+  - **Marcas nuevas:**
+    - `contrato MQTT`: `disponible`, `evento`, `repetido`, `alerta`, `resumen`, `descubrimiento` y `limpieza del descubrimiento`;
+    - la parte de MQTT de `R4 · dentro` y `R4 · denegado repetido`;
+    - los siete casos de R6 y `R6 · una alerta por ventana`;
+    - `RF-07 · C1` y `RF-10 · C3`;
+    - el Evento sin persona de un desconocido en `RNF-01 · C3`;
+    - el broker en `contrato API · salud`.
+  - **ACL:** `contrato MQTT · acl` sigue con 8 en verde, ahora con el broker del ayudante de pruebas.
+  - **Web:** con los tipos de `openapi.yaml` 1.4, `npm run build` pasa y Vitest da 103 en verde. `openapi.yaml` 1.4 pasa `openapi-spec-validator`.
+- Cambios de contrato o de specs:
+  - **Contratos:** `openapi.yaml` 1.4 (`EstadoCamara` suma `sensor` y `antena`) y `mqtt.md` 1.3 (la limpieza del descubrimiento). Los dos solo agregan.
+  - **Registro:** `contratos/README.md` 1.6 y `decisiones.md` 1.10.
+  - **Specs:** `arquitectura.md` 1.7 (el evento se publica después de confirmar y solo con conexión).
+  - **El 00 del Día 3:** pasa a 1.1.
+  - **Documentación:** `servidor/README.md` 1.5 e `infra/README.md` 1.5.
+  - **Web:** `web/src/api/esquema.d.ts` regenerado.
+- Pendiente:
+  - **Prueba de punta a punta:** con el Compose de la carpeta principal y Home Assistant OS (C2), cuando termine el Hito 1 y se reconstruya. El tiempo de la puerta (RNF-03 · C2) se mide con la placa en el Hito 2.
+  - **Caso raro:** si la conexión se corta justo después de publicar y antes de que el broker confirme, paho reenvía ese mensaje al reconectar.
+  - **Choques posibles:**
+    - B3 comparte `pyproject.toml` y `uv.lock`: quien fusione segundo trae `main` y vuelve a correr `uv lock`.
+    - C1 puede chocar en `esquema.d.ts`: quien fusione segundo lo vuelve a generar con `npm run tipos`.
 
 ## 2026-11-12 · Día 3 · Tarea B3 · Servidor MCP y semilla del agente
 

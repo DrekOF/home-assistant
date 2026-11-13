@@ -4,7 +4,7 @@ Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Infraestructura · frentes B y C
@@ -39,6 +39,7 @@ Cada día:
 | Construir y levantar todo | `docker compose -f infra/compose.yaml up -d --build` |
 | Ver si están sanos | `docker compose -f infra/compose.yaml ps` |
 | Probar el servidor | `curl.exe http://localhost:8000/api/v1/salud` |
+| Abrir la web de administración, que sirve el servidor (no necesita Node) | `start http://localhost:8000` |
 | Registrar una cámara y ver su token una sola vez | `docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador` |
 | Ver los registros del servidor (una línea INFO por recorte, sin imágenes) | `docker compose -f infra/compose.yaml logs -f servidor` |
 | Ver el registro del servidor MCP (dice qué encabezados `Host` acepta) | `docker compose -f infra/compose.yaml logs -f mcp` |

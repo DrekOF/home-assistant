@@ -1,10 +1,10 @@
 <!--
 Nombre: README.md
-Descripción: Web de administración de AccesIA (frente C): comandos, simulacro, pruebas (con el simulacro y contra el servidor real) y estructura.
+Descripción: Web de administración de AccesIA (frente C): comandos, la web en el Compose, simulacro, pruebas (con el simulacro y contra el servidor real) y estructura.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Web de administración · frente C
@@ -35,6 +35,8 @@ npx playwright install chromium         # descarga el navegador de Playwright (u
 npm run e2e                             # pruebas de punta a punta con el simulacro; deja capturas en web/capturas/
 npm run e2e:servidor                    # Personas y consentimiento contra el servidor real (con Compose arriba)
 ```
+
+Con Docker Compose arriba no hace falta Node: la imagen del servidor compila la web sin el simulacro y el servidor la sirve en `http://localhost:8000`, con `/api` en el mismo puerto (D-04). Recargar cualquier ruta de la web funciona. `npm run dev` y `npm run dev:simulacro` siguen siendo para trabajar en las pantallas. Más detalle en `servidor/README.md` (La web).
 
 `npm run e2e` levanta su propia web con el simulacro en el puerto 5174, así que no choca con una que ya esté abierta. Las capturas (1280×720 y 1440×900) quedan en `web/capturas/`, que Git ignora. El informe de Playwright queda en `web/playwright-report/`.
 
@@ -67,7 +69,7 @@ Con `npm run dev:simulacro` (que activa `VITE_SIMULACRO=1` desde `.env.simulacro
 - Revocar el consentimiento cancela la inscripción activa de la persona (RF-02 · C5).
 - El token de una cámara sale solo en la respuesta que lo crea; el simulacro no lo guarda.
 - Las rutas que todavía no tienen pantalla responden 404 con el esquema `Error`.
-- Sin `VITE_SIMULACRO=1`, el código y los datos del simulacro no entran al paquete de producción.
+- Sin `VITE_SIMULACRO=1`, el código y los datos del simulacro no entran al paquete de producción. La imagen del servidor compila con `VITE_SIMULACRO=0`, borra `mockServiceWorker.js` de `dist/` y no se construye si algo del simulacro quedó en el paquete.
 
 ## Tipos de la API
 

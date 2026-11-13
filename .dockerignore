@@ -1,9 +1,9 @@
 # Nombre: .dockerignore
 # Descripción: Lo que no entra al contexto de las imágenes de AccesIA, que se construyen desde la raíz del repositorio.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-11
+# Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 
 # Git, editores y Claude Code
 .git
@@ -23,6 +23,14 @@ infra/mosquitto/claves/
 **/__pycache__
 **/.pytest_cache
 **/.ruff_cache
+
+# La web: lo compilado y lo de Playwright se rehacen o no hacen falta; un .env local de Vite no entra a la imagen
+web/dist/
+web/capturas/
+web/playwright-report/
+web/test-results/
+web/.env.local
+web/.env.*.local
 
 # Firmware compilado
 firmware/build-*/

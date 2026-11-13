@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.17
+Versión: 1.18
 -->
 
 # Bitácora
@@ -22,6 +22,72 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 4 · Tarea B1 · La web servida por el servidor
+
+- Quién: el frente B.
+- Qué:
+  - **La web en la imagen.** `servidor/Dockerfile` suma la etapa `web`:
+    - Node 24 (`node:24.22.3-slim`), `npm ci` con caché y `npm run build`;
+    - corre una sola vez, en la plataforma que construye, como la de los modelos;
+    - la imagen final lleva `dist` en `/app/web/dist`.
+  - **Sin simulacro.**
+    - La web se compila con `VITE_SIMULACRO=0`, que gana a cualquier `.env` de Vite.
+    - Se borra `mockServiceWorker.js`, que `public/` copia siempre (pendiente desde la C del Día 1).
+    - Si algo del simulacro queda en `dist`, la construcción falla.
+    - `.dockerignore` deja fuera `web/dist`, las capturas, los informes de Playwright y los `.env` locales de Vite.
+  - **El servidor la sirve** (`accesia/web.py`). Con el Compose arriba, `http://localhost:8000` abre la web, sin Node.
+    - Es un middleware: primero responde la API, y solo un `GET` o un `HEAD` fuera de `/api` que termina en 404 se cambia por la web.
+    - Sale el archivo de `dist` o, si no existe, `index.html`, porque la web usa rutas del navegador.
+    - `/api` responde igual que antes, con sus 404 y sus 405.
+  - **Caché.** Larga e inmutable para `assets/`, que lleva hash; `no-cache` para `index.html` y lo demás. Todo lleva `nosniff`.
+  - **Sin web compilada** (en el PC o en las pruebas), el servidor arranca igual, lo dice en el registro y sirve solo la API.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-web`, rama `b/web-en-el-servidor`, desde `main` con B2 del Día 3). No tocó el Compose de la carpeta principal: la imagen se probó con otro nombre y en el puerto 18000.
+  - **Plan.** Claude Code propuso el plan y el equipo lo aprobó tal como estaba.
+    - El equipo va a llevar todo a la Pi con complementos de Home Assistant OS (D-22, todavía sin PR).
+    - Esa decisión no usa Ingress, así que la web va en la raíz, en el puerto 8000 de la Pi. Las rutas absolutas de la web (`/assets/…` y `/api/…`) sirven igual.
+  - **Por qué un middleware.** Una ruta comodín `/{ruta:path}` respondería antes que las rutas que se agregan después de crear la app y cambiaría el 404 y el 405 de la API. El middleware deja `/api` exactamente como dice `openapi.yaml`.
+  - **Docker Desktop estaba cerrado.**
+    - La primera corrida de la suite dio 498 errores porque testcontainers no encontraba Docker.
+    - Claude Code abrió Docker Desktop. El Compose de la carpeta principal volvió solo, como estaba (`restart: unless-stopped`), sin `git pull` ni reconstruir.
+  - **Pruebas primero.** Fallaron porque `crear_app` todavía no aceptaba la carpeta de la web.
+  - **Código roto a propósito.** Nueve veces, y cada vez falló la prueba que correspondía:
+    - la web antes que la API;
+    - sin la exclusión de `/api`;
+    - sin revisar que el archivo esté dentro de `dist`;
+    - la web en cualquier estado y no solo en el 404;
+    - `index.html` en lugar de un archivo que falta en `assets/`;
+    - sin `HEAD`;
+    - caché larga para todo;
+    - sin `nosniff`;
+    - el tipo de `mimetypes` para todo.
+  - **La guarda del simulacro, comprobada.** Una compilación con `--mode simulacro` deja un `navegador-*.js` de 415 kB que nombra `mockServiceWorker`. La de producción no lo nombra en ningún archivo.
+  - **La imagen, probada aparte:**
+    - con `docker buildx build --platform linux/amd64,linux/arm64`, en 42 s con la caché; la etapa `web` corrió una sola vez, en `linux/amd64`;
+    - sola, sin base, en el puerto 18000: salud `degradado`, rutas del navegador con `index.html`, JS y fuentes con su tipo y caché larga, y `dist` sin rastro del simulacro;
+    - con una base desechable en una red propia: corrieron las migraciones, se creó el primer administrador y, en el navegador, cargó el inicio de sesión. Al entrar, la web llevó a Personas, y Nueva cámara, Asistencia y Horarios cargaron pidiendo su ruta directamente, como al recargar;
+    - después se borraron los contenedores, la red, las imágenes de prueba y las claves de prueba.
+- Decisiones donde la tarea o las specs no decían nada:
+  - **Node 24 y no 22.** La tarea decía Node 22. Se usó Node 24, el de `web.yml`, con la versión exacta.
+  - **Un archivo que falta en `assets/` da 404**, no `index.html`: así un JS viejo no recibe HTML.
+  - **La caché depende del archivo que sale**, no de la ruta pedida: `index.html` nunca se guarda un año.
+  - **El tipo de cada archivo de la web es fijo** (`.js`, `.css`, `.svg`, `.woff2` y otros). En Windows, `mimetypes` lee el registro y no conoce `.woff2`.
+  - **`/api` y lo que empieza por `/api/`** quedan fuera de la web; `/apiario`, por ejemplo, sería una ruta de la web.
+- Pruebas:
+  - `uv run pytest`: 553 bien y 2 saltadas (las de caras reales, sin fotos).
+    - Corrieron con `web/dist` compilada en el worktree, así que toda la API se probó con la web encendida.
+    - `D-04 · web servida`: 19 bien. `contrato API · error`: 16 bien.
+  - `docker compose -f infra/compose.yaml config`: en orden.
+  - Tamaño de la imagen amd64: antes 687,22 MiB y después 688,02 MiB (0,80 MiB más). En arm64: 163,84 MiB comprimida.
+- Cambios de contrato o de specs:
+  - Ninguno en los contratos: la web no es parte de `openapi.yaml`.
+  - `arquitectura.md` 1.9 quita el «más adelante» de la web compilada.
+  - `CLAUDE.md` 1.9 y `infra/README.md` 1.7 dicen cómo se abre la web.
+- Pendiente:
+  - Con B1 en `main`, hacer `git pull` y reconstruir el Compose de la carpeta principal, preguntando antes por el Hito 1, y avisar a C para el kit (C1).
+  - Las pantallas de C1 y C2 del Día 3 entran solas a la imagen cuando estén en `main`.
+  - En la Pi, el complemento del servidor debe publicar su puerto 8000, porque la web no va por Ingress.
 
 ## 2026-11-12 · Día 3 · Tarea B2 · El servidor en MQTT
 

@@ -3,11 +3,11 @@
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.3
+# Versión: 1.4
 openapi: 3.1.0
 info:
   title: API de AccesIA
-  version: 1.3.0
+  version: 1.4.0
   description: >-
     API del servidor de AccesIA. La web de administración usa la cookie de sesión y las cámaras
     usan su token. Fechas y horas en ISO 8601 con la zona de Colombia (-05:00). Todos los errores
@@ -969,7 +969,9 @@ components:
 
     EstadoCamara:
       type: object
-      description: Último estado que publicó la cámara por MQTT (specs/contratos/mqtt.md)
+      description: >-
+        Último estado que publicó la cámara por MQTT (specs/contratos/mqtt.md). Trae solo los campos que mandó la
+        cámara: el simulador no manda perfil, rssi, psram_kb ni libre_kb, y la XIAO ESP32-C6 no manda psram_kb.
       properties:
         perfil: { type: string }
         firmware: { type: string }
@@ -977,6 +979,8 @@ components:
         rssi: { type: integer }
         psram_kb: { type: integer }
         libre_kb: { type: integer }
+        sensor: { type: string, enum: [dht22, dht11], description: Sensor de ambiente de la placa (D-21) }
+        antena: { type: string, enum: [interna, externa], description: Antena de la XIAO ESP32-C6 (D-21) }
         segundos_encendida: { type: integer }
 
     Dispositivo:

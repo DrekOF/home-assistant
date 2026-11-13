@@ -4,10 +4,10 @@ Descripción: Contrato MQTT de AccesIA: temas, mensajes, descubrimiento de Home 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
-# Contrato MQTT · versión 1.2
+# Contrato MQTT · versión 1.3
 
 Lo cumplen el servidor (frente B), la placa y el simulador (frente A) y Home Assistant (frente C). En este contrato, «cámara» es el dispositivo de un punto de acceso, con su `{codigo}`: la placa (una XIAO ESP32-C6 en la demo, D-21) o el simulador.
 
@@ -72,6 +72,7 @@ La línea `deny` impide que un cliente con el usuario `camara` y el client id `s
 - Al recibir `ABRIR`, la cámara mantiene la puerta abierta los segundos configurados (3 por defecto), publica `abierta` y luego `cerrada`. `CERRAR` la cierra antes.
 - Cada 30 s la placa lee su sensor y publica `ambiente`. Si una lectura falla, no publica; a la tercera falla seguida publica `null` en los dos campos, y Home Assistant los muestra como desconocidos. Con la primera lectura buena vuelve a publicar los valores.
 - El servidor publica el descubrimiento al arrancar, cuando Home Assistant publica `online` en `homeassistant/status` y cuando se crea o cambia una cámara. La placa publica el de sus dos sensores de ambiente cada vez que se conecta al broker (ver «Entidades que publica la placa»).
+- Cada vez que se conecta al broker, el servidor borra con un mensaje vacío retenido los config que publicó (nodo `accesia_{codigo}`) para cámaras que ya no existen en la base, para que Home Assistant no muestre sus dispositivos. Nunca toca los de la placa (nodo `{codigo}`): esos se borran a mano, como se muestra en «Pruebas».
 - El servidor publica el resumen al arrancar, después de cada evento guardado, después de cada llegada registrada a mano (RF-06 · C5) y cada 5 minutos (así cambia de día a medianoche).
 
 ## Mensajes
@@ -211,7 +212,7 @@ La placa publica el descubrimiento de sus dos sensores de ambiente, para que se 
 - Temas: `homeassistant/sensor/{codigo}/temperatura/config` y `homeassistant/sensor/{codigo}/humedad/config`. El nodo es el código tal cual, y no `accesia_{codigo}` como en los temas del servidor, porque la ACL usa `%c` y Mosquitto exige que ocupe un nivel entero del tema.
 - `device` lleva solo `identifiers` (`accesia_{codigo}`). El nombre, el fabricante y el modelo del dispositivo los pone el servidor, y la placa no los pisa.
 - `unique_id` y `default_entity_id` llevan el código con los guiones pasados a guion bajo, como las demás entidades.
-- La placa publica los dos config, retenidos, cada vez que se conecta al broker. Antes de cambiar de código (comando `codigo`), borra los suyos con un mensaje vacío retenido, porque con el código nuevo la ACL ya no la deja. La API no borra cámaras: si una placa se retira, sus dos config se borran a mano, como se muestra en «Pruebas».
+- La placa publica los dos config, retenidos, cada vez que se conecta al broker. Antes de cambiar de código (comando `codigo`), borra los suyos con un mensaje vacío retenido, porque con el código nuevo la ACL ya no la deja. La API no borra cámaras: si una placa se retira, sus dos config se borran a mano, como se muestra en «Pruebas». Los config del servidor de una cámara que ya no está en la base los borra el servidor al conectarse.
 
 Ejemplo completo, «Temperatura» de la cámara `entrada`, en `homeassistant/sensor/entrada/temperatura/config`:
 
@@ -281,7 +282,7 @@ Home Assistant no deja editar desde la interfaz las automatizaciones de ese arch
 
 ## Pruebas
 
-- El servidor prueba que publica cada mensaje con su tema, QoS y retención (marca `contrato MQTT · <tema>`), y que un `permitido` repetido se publica con `repetido: true` y un `denegado` repetido no (`contrato MQTT · repetido`).
+- El servidor prueba que publica cada mensaje con su tema, QoS y retención (marca `contrato MQTT · <tema>`), que un `permitido` repetido se publica con `repetido: true` y un `denegado` repetido no (`contrato MQTT · repetido`), y que borra los config de cámaras que ya no existen sin tocar los de la placa (`contrato MQTT · limpieza del descubrimiento`).
 - El firmware prueba, sin placa, que arma el mensaje Ambiente y los dos config de su descubrimiento como en este contrato (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - La prueba `contrato MQTT · acl` del servidor comprueba que la placa puede publicar en sus tres temas nuevos y no en los de otro código.
 - Para mirar el tráfico:

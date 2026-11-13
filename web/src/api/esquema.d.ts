@@ -614,7 +614,7 @@ export interface components {
         };
         /** @enum {string} */
         TipoCamara: "tinyml" | "respaldo" | "simulador";
-        /** @description Último estado que publicó la cámara por MQTT (specs/contratos/mqtt.md) */
+        /** @description Último estado que publicó la cámara por MQTT (specs/contratos/mqtt.md). Trae solo los campos que mandó la cámara: el simulador no manda perfil, rssi, psram_kb ni libre_kb, y la XIAO ESP32-C6 no manda psram_kb. */
         EstadoCamara: {
             perfil?: string;
             firmware?: string;
@@ -622,6 +622,16 @@ export interface components {
             rssi?: number;
             psram_kb?: number;
             libre_kb?: number;
+            /**
+             * @description Sensor de ambiente de la placa (D-21)
+             * @enum {string}
+             */
+            sensor?: "dht22" | "dht11";
+            /**
+             * @description Antena de la XIAO ESP32-C6 (D-21)
+             * @enum {string}
+             */
+            antena?: "interna" | "externa";
             segundos_encendida?: number;
         };
         Dispositivo: {

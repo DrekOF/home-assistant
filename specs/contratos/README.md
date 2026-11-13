@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Contratos
@@ -14,8 +14,8 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | Contrato | Archivo | Versión | Dueño | Lo usan |
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
-| API REST | [openapi.yaml](openapi.yaml) | 1.3 | B | C (web), A (simulador) |
-| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.2 | B | A (placa y simulador), C (Home Assistant) |
+| API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
+| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.3 | B | A (placa y simulador), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.2 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
@@ -36,6 +36,14 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## `openapi.yaml` 1.4 y `mqtt.md` 1.3 (2026-11-12)
+
+Dos agregados, propuestos en la tarea B2 del Día 3. Los demás contratos no cambian.
+
+- `openapi.yaml` 1.4: `EstadoCamara` suma `sensor` (`dht22` o `dht11`) y `antena` (`interna` o `externa`), opcionales, como ya decía `mqtt.md` 1.2. La API devuelve solo los campos que mandó la cámara. La web regenera sus tipos con `npm run tipos`.
+- `mqtt.md` 1.3: cada vez que se conecta al broker, el servidor borra los config que publicó para cámaras que ya no existen en la base. Los de la placa se siguen borrando a mano.
+- Los dos solo agregan, por eso son 1.4 y 1.3 y no 2.0. `openapi.yaml` 1.4 pasa `openapi-spec-validator` (OpenAPI 3.1).
 
 ## Cámara → servidor 1.2 (2026-11-12)
 

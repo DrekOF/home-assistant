@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Arquitectura
@@ -53,7 +53,7 @@ Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un c
 2. El servidor valida el token de la cámara, vuelve a detectar la cara con YuNet para alinearla y saca la huella con SFace: 128 números normalizados.
 3. Busca la muestra más parecida con pgvector y aplica las reglas R1 a R4. Si hay una inscripción activa en esa cámara, aplica R7 y R9 en su lugar.
 4. Guarda el evento y, si es la primera entrada permitida del día y la persona aún no tiene llegada, la asistencia (R5). Responde a la cámara.
-5. Publica el evento en MQTT. Home Assistant actualiza sus entidades y, si el acceso es permitido, su automatización publica `ABRIR`.
+5. Publica el evento en MQTT, después de confirmar la transacción y solo si está conectado al broker: sin conexión lo descarta, para que un `permitido` viejo no abra la puerta al reconectarse. Home Assistant actualiza sus entidades y, si el acceso es permitido, su automatización publica `ABRIR`.
 6. La cámara (o el simulador) abre la puerta 3 s con un LED o un relé y publica el estado de la puerta.
 
 Un desconocido no recibe ni publica a quién se parece. Las repeticiones de R4 no guardan evento: la de un `permitido` se publica con `repetido: true` para que la puerta se abra otra vez, y la de un `denegado` no publica nada.

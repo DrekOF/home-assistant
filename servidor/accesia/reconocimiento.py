@@ -1,10 +1,10 @@
 """
 Nombre: reconocimiento.py
-Descripción: Reconocer una cara (RF-04 · C2 y C3): la búsqueda central con pgvector y las reglas R1 a R4, más R7 al reconocer. Guarda el evento de acceso (RF-05 · C1 y C2).
+Descripción: Reconocer una cara (RF-04 · C2 y C3): la búsqueda central con pgvector y las reglas R1 a R4, más R7 al reconocer. Guarda el evento de acceso (RF-05 · C1 y C2) y, si es la primera entrada permitida del día, la llegada (R5, RF-06 · C1).
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 from collections.abc import Callable, Sequence
@@ -15,6 +15,7 @@ from uuid import UUID
 from sqlalchemy import Connection, text
 
 from accesia import mensajes
+from accesia.asistencia import Llegada, registrar_llegada
 from accesia.config import configuracion
 from accesia.esquemas import PersonaCorta, RespuestaRostro
 from accesia.vision import Cara, Huella, cara_mas_grande, caras_validas, es_pequena
@@ -135,14 +136,18 @@ def reconocer(
     caras: Sequence[Cara],
     huella_de: Callable[[Cara], Huella],
     momento: datetime,
-) -> tuple[RespuestaRostro, float | None]:
-    """Reconoce la cara más grande del recorte. Devuelve la respuesta y la nitidez de la cara (o None)."""
+) -> tuple[RespuestaRostro, float | None, Llegada | None]:
+    """Reconoce la cara más grande del recorte.
+
+    Devuelve la respuesta, la nitidez de la cara (o None) y la llegada si este evento la creó (o None), para que B2
+    la publique en el campo asistencia del Evento (mqtt.md).
+    """
     conf = configuracion()
     cara = cara_mas_grande(caras_validas(caras))
     if cara is None:
-        return _respuesta(momento, "descartado", "sin_cara"), None
+        return _respuesta(momento, "descartado", "sin_cara"), None, None
     if es_pequena(cara, conf.cara_min_px):
-        return _respuesta(momento, "descartado", "cara_pequena"), None
+        return _respuesta(momento, "descartado", "cara_pequena"), None, None
 
     huella = huella_de(cara)
     parecida = mas_parecida(conexion, huella.vector)
@@ -161,14 +166,21 @@ def reconocer(
     if persona is None:
         # R1: sin muestras o bajo el umbral. Ni la respuesta ni el evento dicen a quién se parece (RNF-01 · C3).
         evento_id = guardar_evento(conexion, momento, dispositivo, None, "desconocido", "bajo_umbral", similitud)
-        return _respuesta(momento, "desconocido", "bajo_umbral", similitud=similitud, evento_id=evento_id), huella.nitidez
+        respuesta = _respuesta(momento, "desconocido", "bajo_umbral", similitud=similitud, evento_id=evento_id)
+        return respuesta, huella.nitidez, None
 
     resultado, motivo = estado_de(persona.activa, persona.con_consentimiento)
     corta = PersonaCorta(id=persona.id, nombre=persona.nombre)
     desde = momento - timedelta(seconds=conf.ventana_repetido_s)
     anterior = evento_reciente(conexion, persona.id, dispositivo, resultado, desde)
     if anterior is not None:
-        # R4: no guarda nada y responde con el evento original; la similitud es la de este recorte.
-        return _respuesta(momento, resultado, anterior.motivo, corta, similitud, True, anterior.id), huella.nitidez
+        # R4: no guarda nada ni cambia la asistencia, y responde con el evento original; la similitud es la de este
+        # recorte.
+        repetida = _respuesta(momento, resultado, anterior.motivo, corta, similitud, True, anterior.id)
+        return repetida, huella.nitidez, None
     evento_id = guardar_evento(conexion, momento, dispositivo, persona.id, resultado, motivo, similitud)
-    return _respuesta(momento, resultado, motivo, corta, similitud, False, evento_id), huella.nitidez
+    llegada = None
+    if resultado == "permitido":
+        # R5: la primera entrada permitida del día es la llegada, en la misma transacción del evento.
+        llegada = registrar_llegada(conexion, persona.id, momento, "camara", evento_id=evento_id)
+    return _respuesta(momento, resultado, motivo, corta, similitud, False, evento_id), huella.nitidez, llegada

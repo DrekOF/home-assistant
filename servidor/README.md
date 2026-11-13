@@ -4,7 +4,7 @@ Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT y MCP (fren
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Servidor · frente B
@@ -12,7 +12,7 @@ Versión: 1.3
 Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las reglas, guarda en PostgreSQL con pgvector, publica en MQTT, sirve la web y, con otro comando, el servidor MCP del agente.
 
 - Specs: `specs/arquitectura.md`, `specs/reglas.md`, `specs/modelo-datos.md` y todos los contratos.
-- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción; MQTT, asistencia y MCP son del Día 3.
+- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta; MQTT y MCP son de B2 y B3.
 
 ## Qué hay
 
@@ -22,10 +22,11 @@ Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las r
 | `accesia/errores.py` y `esquemas.py` | El esquema `Error` y los esquemas de `openapi.yaml` 1.3 con pydantic |
 | `accesia/sesion.py` y `seguridad.py` | Cookie de sesión firmada, primer administrador, Argon2id para las claves y SHA-256 para los tokens |
 | `accesia/consentimiento.py` y `camaras.py` | Texto del consentimiento y la lógica de las cámaras que comparten la API y el comando |
-| `accesia/modelos.py` y `vision.py` | YuNet y SFace fijos con su SHA-256 y su descarga; la visión solo en memoria: decodificar, detectar, recortar con la fórmula del contrato, huella y nitidez |
-| `accesia/rostros.py`, `reconocimiento.py` e `inscripciones.py` | Lo que llega de la cámara (`enviarRostro`): comprobaciones en orden, 429 en memoria y el modo; R1 a R4 y R7 al reconocer; inscripciones (R9) y los seis pasos de R7 |
+| `accesia/modelos.py` y `vision.py` | YuNet y SFace fijos con su SHA-256, su nombre corto y su descarga; la visión solo en memoria: decodificar, detectar, recortar con la fórmula del contrato, huella y nitidez |
+| `accesia/rostros.py`, `reconocimiento.py` e `inscripciones.py` | Lo que llega de la cámara (`enviarRostro`): comprobaciones en orden, 429 en memoria y el modo; R1 a R5 y R7 al reconocer; inscripciones (R9) y los seis pasos de R7 |
+| `accesia/asistencia.py` | R5 y R8: califica una llegada con el bloque del día (función pura) y registra la primera del día. La usan la cámara, el registro manual y la semilla del agente |
 | `accesia/mensajes.py` y `registro.py` | Las frases del campo `mensaje`; los avisos INFO en el registro, con la hora de Colombia |
-| `accesia/api/` | Rutas: `salud`, `sesion`, `personas`, `consentimiento`, `horarios`, `camaras`, `rostros` e `inscripciones` |
+| `accesia/api/` | Rutas: `salud`, `sesion`, `personas`, `consentimiento`, `horarios`, `camaras`, `rostros`, `inscripciones`, `huellas`, `accesos`, `asistencia` y `configuracion` |
 | `accesia/comandos.py` | El comando `accesia`: `crear-camara` y `descargar-modelos` |
 | `accesia/main.py` | La aplicación: al arrancar exige `SESION_SECRETO`, crea el primer administrador y carga los modelos de cara |
 | `migraciones/` | Alembic. La migración `0001` ejecuta tal cual `specs/contratos/base-de-datos.sql` y crea el usuario `agente` |
@@ -81,6 +82,7 @@ YuNet (`face_detection_yunet_2023mar.onnx`) y SFace (`face_recognition_sface_202
 - `uv run accesia descargar-modelos` los baja y comprueba su tamaño y su SHA-256; lo que ya está y coincide no se vuelve a bajar. Las pruebas que usan los modelos reales lo hacen solas si faltan.
 - La imagen los baja al construir, en una etapa que se reutiliza mientras `accesia/modelos.py` no cambie. Si el tamaño o el hash no coinciden, la construcción falla.
 - Se cargan una vez, al arrancar. Sin ellos, el servidor no arranca y lo dice en el registro.
+- Sus nombres cortos, `yunet_2023mar` y `sface_2021dec`, son los que muestra `GET /api/v1/configuracion`. El de SFace es también el valor por defecto de `rostro.modelo` en el SQL del contrato, y una prueba lo comprueba.
 
 ## Reconocimiento e inscripción
 
@@ -119,17 +121,48 @@ Inscripciones (con sesión):
 - `requeridas` es `INSCRIPCION_MUESTRAS`, y `vence` es la hora de apertura más `INSCRIPCION_VENCE_S`.
 - `GET` y `DELETE /api/v1/inscripciones/{inscripcion_id}` primero la vencen si ya pasó su hora. Cancelar una que ya terminó responde 409 `inscripcion_terminada`.
 
+## Asistencia
+
+R5 vive en `accesia/asistencia.py`:
+
+- `calificar_llegada(llegada, bloque)` es una función pura. El bloque es el del horario de la persona para el día de la semana de la fecha local (1 = lunes … 7 = domingo); sin horario, o sin bloque ese día, la llegada es `sin_horario`. Es `a_tiempo` hasta el inicio del bloque más su tolerancia, con ese segundo incluido; después es `tarde`, con los minutos completos desde el inicio.
+- `registrar_llegada(…)` hace `INSERT … ON CONFLICT (persona_id, fecha) DO NOTHING` y devuelve la llegada creada, o nada si ya había una ese día: cuenta la primera, venga de la cámara o sea manual. Con dos registros a la vez, PostgreSQL hace esperar al segundo hasta que el primero termina, y el segundo no escribe; como no hay error, no hace falta un savepoint.
+- La fecha es la fecha local de Colombia (R8) y la llegada se guarda sin microsegundos.
+
+Desde la cámara:
+
+- La primera entrada permitida del día crea la llegada en la misma transacción del evento, con origen `camara` y su `evento_id`.
+- No la crean las repeticiones de R4 (tampoco una repetición pasada la medianoche), los denegados, los desconocidos ni las muestras de una inscripción.
+- `reconocer` devuelve además la llegada que creó, para que B2 la publique en el campo `asistencia` del Evento (`mqtt.md`). La respuesta a la cámara no cambia.
+
+Con sesión:
+
+- `POST /api/v1/asistencia` (`registrarAsistenciaManual`) aplica R5 a la hora dada, que puede venir en cualquier zona, y guarda al administrador de la sesión en `registrado_por`.
+  - Responde 404 si la persona no existe, 422 `validacion` si la hora es futura o no trae zona, y 409 `asistencia_duplicada` si ya tiene llegada ese día.
+  - También sirve para una persona inactiva: R5 no lo impide.
+- `GET /api/v1/asistencia` (`verAsistencia`) da el reporte de la fecha pedida, o de hoy en Colombia si no se pide.
+  - Las listas van por hora de llegada, y los ausentes por nombre, con la colación española.
+  - Los ausentes se calculan con el horario y el estado que la persona tiene hoy, porque la base no guarda su historia.
+- `GET /api/v1/personas/{persona_id}/asistencia` (`verAsistenciaPersona`) da las llegadas de la más reciente a la más antigua.
+  - Sin fechas, todas; con una sola, el rango queda abierto por el otro lado.
+  - Con `desde` posterior a `hasta`, 422.
+- `GET /api/v1/asistencia.csv` (`exportarAsistencia`, el extra RF-06 · C4) da las llegadas del rango por fecha y hora de llegada.
+  - Lleva las columnas del contrato, con coma y UTF-8, y el nombre `asistencia-<desde>-a-<hasta>.csv`.
+  - Un nombre o un documento que empieza con `=`, `+`, `-` o `@` sale con un `'` delante, para que Excel o LibreOffice no lo ejecuten como fórmula.
+
 ## Registro
 
 Los avisos INFO del paquete `accesia` salen por la salida de errores, y así se ven en `docker compose -f infra/compose.yaml logs servidor`. Antes, uvicorn solo configuraba sus propios registros, y los de `accesia` solo salían desde WARNING. Cada recorte deja una línea, sin imagen y sin decir a quién se parece un desconocido:
 
 ```text
-2026-11-12T16:43:06-05:00 INFO accesia.rostros: Cámara entrada · reconocer · permitido · similitud 0.712 · calidad 143.2 · persona 01a1… · firmware simulador-1.0.0 · 12 ms
+2026-11-12T16:43:06-05:00 INFO accesia.rostros: Cámara entrada · reconocer · permitido · similitud 0.712 · calidad 143.2 · persona 01a1… · llegada tarde 12 min · firmware simulador-1.0.0 · 12 ms
 2026-11-12T16:43:08-05:00 INFO accesia.rostros: Cámara entrada · inscribir · muestra_rechazada (borrosa) · calidad 41.7 · persona 01a1… · inscripción 01a1… 2/5 activa · 11 ms
 2026-11-12T16:43:09-05:00 INFO accesia.rostros: Cámara entrada: 429 demasiadas_peticiones.
 ```
 
-`calidad` es la nitidez de R7: sirve para recalibrar `NITIDEZ_MIN` en clase (D-14).
+- `calidad` es la nitidez de R7: sirve para recalibrar `NITIDEZ_MIN` en clase (D-14).
+- `llegada` solo aparece cuando ese evento creó la llegada del día: `a_tiempo`, `tarde` con sus minutos, o `sin_horario`.
+- Borrar huellas también deja una línea con cuántas y de qué persona (RF-12 · C1).
 
 ## Rutas
 
@@ -144,8 +177,23 @@ Todas piden sesión (401 `sin_sesion` sin ella), menos `GET /api/v1/salud`, `POS
 | `/api/v1/dispositivos`, `/api/v1/dispositivos/{codigo}` y `…/token` | `listarCamaras`, `crearCamara`, `verCamara`, `editarCamara`, `cambiarTokenCamara` |
 | `/api/v1/dispositivos/{codigo}/rostros` | `enviarRostro` (token de la cámara) |
 | `/api/v1/inscripciones` y `/api/v1/inscripciones/{inscripcion_id}` | `abrirInscripcion`, `verInscripcion`, `cancelarInscripcion` |
+| `/api/v1/personas/{persona_id}/rostros` y `/api/v1/rostros/{rostro_id}` | `listarRostros`, `borrarRostros`, `borrarRostro` |
+| `/api/v1/accesos` | `listarAccesos` |
+| `/api/v1/asistencia`, `/api/v1/asistencia.csv` y `/api/v1/personas/{persona_id}/asistencia` | `verAsistencia`, `registrarAsistenciaManual`, `exportarAsistencia`, `verAsistenciaPersona` |
+| `/api/v1/configuracion` | `verConfiguracion` |
 
 Donde el contrato no dice nada, la API responde como el simulacro de la web: personas ordenadas por nombre con la colación española, un horario que no existe es 422 `validacion`, un `PATCH` vacío también, y un id que no es un uuid es 404. Una ruta que existe, llamada con otro método, responde 405 `metodo_no_permitido` (contrato 1.3).
+
+Lo que decidió B1 del Día 3 donde el contrato no dice nada:
+
+- **Accesos.**
+  - Van del más reciente al más antiguo y, con la misma hora, el último guardado primero (los id son uuidv7).
+  - `desde` y `hasta` entran en el rango y llevan zona: una hora sin zona no es un `date-time` del contrato y da 422.
+  - Una persona o una cámara que no existe da una página vacía, no 404, y `total` cuenta con los mismos filtros.
+- **Huellas.**
+  - Las muestras se listan en el orden en que se guardaron, sin la huella.
+  - Borrar las de una persona que no tiene ninguna responde 204.
+- **Configuración.** Muestra los valores que el servidor leyó de `infra/.env` al arrancar (D-14).
 
 ## Pruebas
 
@@ -163,7 +211,7 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `RF-08 · C4` | El usuario `agente` lee sus tres vistas y no puede leer `persona`, `rostro` ni `horario_bloque`, ni insertar |
 | `contrato API · salud` | `GET /api/v1/salud` cumple el esquema `Salud` y da la hora con `-05:00` |
 | `contrato API · error` | Validación, ruta inexistente, método no permitido (405 con `Allow`) y error interno responden con el esquema `Error` |
-| `contrato API · <operationId>` | Cada operación de sesión, personas, consentimiento, horarios y cámaras responde con su esquema y con los códigos de error del contrato |
+| `contrato API · <operationId>` | Cada operación de sesión, personas, consentimiento, horarios, cámaras, huellas, accesos, asistencia y configuración responde con su esquema y con los códigos de error del contrato |
 | `contrato API · inscripcion_activa` | Una cámara muestra su inscripción activa y `modo: inscribir`; si ya pasó su hora, la vence y el campo queda en `null` (R9) |
 | `RNF-02 · C2` | Cookie `HttpOnly`, `SameSite=Strict`, `Path=/` y de 8 horas; primer administrador con Argon2id; sin `SESION_SECRETO` no arranca |
 | `RNF-02 · C5` | Cada ruta con sesión responde 401 `sin_sesion` sin cookie, con una firma falsa, con una cookie vencida o con el administrador desactivado |
@@ -183,6 +231,15 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `RF-02 · C4` | Sin consentimiento vigente no se abre una inscripción |
 | `RF-04 · C1`, `C2` y `C4` | SFace real da 128 números con norma 1; con fotos reales, cada una da una cara y se parece a otra de la misma persona; la imagen se lee en memoria |
 | `RF-05 · C1` y `C2` | Se guarda evento salvo en las repeticiones de R4, los descartados y la inscripción |
+| `R5 · <caso>` | Los 15 casos de la regla con el reloj de las pruebas: los de la cámara de punta a punta (los de «Clase IA», también con la función pura) y los manuales por la API |
+| `R8 · fecha local` | `2026-11-21T03:30:00Z` es una llegada del 20 |
+| `R4 · no cambia la asistencia` | Una repetición a las 00:00:20 no crea la llegada del día siguiente |
+| `RF-06 · C1` y `C2` | La llegada desde la cámara, con su evento, y la línea INFO que la dice; `reconocer` devuelve la llegada que creó (para B2) y nada en las entradas siguientes |
+| `RF-06 · C3` | El reporte separa a tiempo, tarde, sin horario y ausentes: sin inactivas ni personas sin bloque ese día, y con la colación española |
+| `RF-06 · C4` | El CSV de un rango, con las columnas del contrato y protegido contra fórmulas |
+| `RF-06 · C5` | Registro manual: 404, 422 por hora futura, también para una persona inactiva, y dos registros a la vez, con dos conexiones reales, dejan una sola llegada |
+| `RF-05 · C3` | Accesos: filtros por fechas (con sus bordes), resultado, persona y cámara; paginación; orden con empates |
+| `RF-12 · C1` y `C3` | Borrar todas las huellas de una persona o una sola; las llegadas de una persona por rango, de la más reciente a la más antigua |
 | `RNF-01 · C1` y `C3` | Procesar recortes no escribe archivos ni registra la imagen (falla si se llama a `cv2.imwrite`); un desconocido y un `parece_otra_persona` no nombran a nadie más |
 | `modelos · SHA-256` | Un modelo que no coincide con su tamaño o su SHA-256 no se acepta ni queda en la carpeta |
 | `registro · INFO` | Un aviso INFO de `accesia` sale en la salida de errores del proceso, con la hora de Colombia |

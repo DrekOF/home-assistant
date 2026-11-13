@@ -1,10 +1,10 @@
 """
 Nombre: rostros.py
-Descripción: Recortes que envía la cámara (enviarRostro, api-dispositivo.md): token, tipo, tamaño, ritmo (429) e imagen, en ese orden; y el modo de la cámara: inscribir si tiene una inscripción activa (R7 y R9), reconocer si no (R1 a R4).
+Descripción: Recortes que envía la cámara (enviarRostro, api-dispositivo.md): token, tipo, tamaño, ritmo (429) e imagen, en ese orden; y el modo de la cámara: inscribir si tiene una inscripción activa (R7 y R9), reconocer si no (R1 a R5).
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import hashlib
@@ -21,6 +21,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import Connection, text
 
+from accesia.asistencia import Llegada
 from accesia.errores import CodigoError, ErrorAccesIA, respuesta_error
 from accesia.esquemas import RespuestaRostro
 from accesia.inscripciones import activa_de, procesar_muestra, vencer_inscripciones
@@ -152,16 +153,22 @@ def procesar(
     # Antes de decidir el modo, vence la inscripción de la cámara si ya pasó su hora (R9).
     vencer_inscripciones(conexion, momento, camara.codigo)
     inscripcion = activa_de(conexion, camara.codigo)
+    llegada = None
     if inscripcion is None:
-        respuesta, calidad = reconocer(conexion, camara.codigo, caras, huella_de, momento)
+        respuesta, calidad, llegada = reconocer(conexion, camara.codigo, caras, huella_de, momento)
     else:
         respuesta, calidad = procesar_muestra(conexion, inscripcion, camara.tipo, caras, huella_de, momento)
-    _registrar(camara.codigo, respuesta, calidad, (time.perf_counter() - inicio) * 1000, firmware)
+    _registrar(camara.codigo, respuesta, calidad, llegada, (time.perf_counter() - inicio) * 1000, firmware)
     return respuesta
 
 
 def _registrar(
-    codigo: str, respuesta: RespuestaRostro, calidad: float | None, milisegundos: float, firmware: str | None
+    codigo: str,
+    respuesta: RespuestaRostro,
+    calidad: float | None,
+    llegada: Llegada | None,
+    milisegundos: float,
+    firmware: str | None,
 ) -> None:
     """Una línea INFO por recorte, para depurar y medir. Sin imagen y sin decir a quién se parece un desconocido."""
     partes = [f"Cámara {codigo}", respuesta.modo, respuesta.resultado + (f" ({respuesta.motivo})" if respuesta.motivo else "")]
@@ -173,6 +180,9 @@ def _registrar(
         partes.append(f"calidad {calidad:.1f}")
     if respuesta.persona is not None:
         partes.append(f"persona {respuesta.persona.id}")
+    if llegada is not None:
+        tarde = f" {llegada.minutos_tarde} min" if llegada.minutos_tarde is not None else ""
+        partes.append(f"llegada {llegada.estado}{tarde}")
     if respuesta.inscripcion is not None:
         avance = respuesta.inscripcion
         partes.append(f"inscripción {avance.id} {avance.muestras}/{avance.requeridas} {avance.estado}")

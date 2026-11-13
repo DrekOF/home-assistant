@@ -84,7 +84,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - **`crear-camara`:** publica su propio descubrimiento con una conexión corta y client id vacío.
 - Pruebas:
   - **Servidor:**
-    - `uv run pytest`: 427 en verde y 2 saltadas (las de caras reales). Antes eran 377.
+    - `uv run pytest`: 427 en verde y 2 saltadas (las de caras reales); antes eran 377, así que B2 suma 50. Con `main` y B3, 522 en verde.
     - Ruff (`F`, `E9` y `B`), sin observaciones.
   - **Marcas nuevas:**
     - `contrato MQTT`: `disponible`, `evento`, `repetido`, `alerta`, `resumen`, `descubrimiento` y `limpieza del descubrimiento`;

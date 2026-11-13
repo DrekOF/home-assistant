@@ -2,12 +2,12 @@
 Nombre: mcp-agente.md
 Descripción: Contrato del agente de AccesIA: servidor MCP, herramientas de solo lectura, instrucciones y evaluación.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
-# Contrato del agente · versión 1.2
+# Contrato del agente · versión 1.3
 
 Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (frente C).
 
@@ -15,11 +15,11 @@ Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (fre
 
 | Qué | Valor |
 | --- | --- |
-| SDK | `mcp`, el SDK oficial de Python (FastMCP) |
+| SDK | `mcp`, el SDK oficial de Python. En su versión 2.x, FastMCP se llama `MCPServer`: es la misma pieza del SDK |
 | Transporte | Streamable HTTP en `/mcp` (Home Assistant lo intenta primero; si falla, usa SSE) |
 | Servicio y puerto | `mcp`, puerto 8001, sin publicar fuera de la red de Docker (D-16) |
 | URL desde Home Assistant | `http://mcp:8001/mcp` |
-| Encabezado `Host` | El servidor acepta `mcp:8001` (y la dirección del portátil en el escenario 2). Las versiones recientes del SDK validan este encabezado: se revisa al montar el servicio el Día 3 |
+| Encabezado `Host` | El servidor acepta `mcp:8001` y la dirección del portátil en el escenario 2 (D-21), que se configura con `MCP_HOSTS_PERMITIDOS` (por defecto `192.168.137.1:8001`; `arquitectura.md`, Configuración). También acepta `localhost:8001` y `127.0.0.1:8001`, para el healthcheck. El SDK valida este encabezado: otro `Host` recibe 421, y un pedido con encabezado `Origin` (un navegador), 403 |
 | Nombre | `AccesIA` |
 | Base de datos | Usuario `agente` (rol `accesia_agente`): solo lee las vistas del agente |
 | Seguridad extra | Cada herramienta corre en una transacción `READ ONLY` con `statement_timeout` de 3 s |
@@ -47,7 +47,7 @@ Busca personas registradas por nombre o parte del nombre, sin importar tildes ni
 { "personas": [ { "nombre": "Elena Mora", "rol": "estudiante", "activa": false, "horario": "Clase IA" } ] }
 ```
 
-Máximo 10 personas. Sin resultados: `{"personas": []}`.
+Máximo 10 personas. Sin resultados: `{"personas": []}`. Una persona sin horario tiene `"horario": null`.
 
 ### `asistencia_del_dia`
 
@@ -108,6 +108,8 @@ Una sola coincidencia (máximo 50 accesos):
 }
 ```
 
+Con más de 50 accesos en el rango, van los 50 más recientes, en orden de hora, y `total` cuenta todos.
+
 Varias coincidencias: `{"coincidencias": ["Ana Gómez", "Ana Ruiz"], "mensaje": "Hay varias personas con ese nombre; pregunta cuál."}`. Ninguna: `{"coincidencias": [], "mensaje": "No hay nadie registrado con ese nombre."}`.
 
 ### `desconocidos_recientes`
@@ -122,7 +124,7 @@ Cuenta las caras desconocidas de las últimas horas, por cámara, con la hora de
 { "horas": 24, "total": 3, "por_camara": { "entrada": 3 }, "ultimos": [ "2026-11-20 08:15", "2026-11-20 08:15", "2026-11-20 08:15" ] }
 ```
 
-Máximo 10 horas en `ultimos`.
+Máximo 10 horas en `ultimos`: las 10 más recientes, de la más antigua a la más nueva.
 
 ## Instrucciones del agente
 

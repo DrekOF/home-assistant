@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.15
+Versión: 1.16
 -->
 
 # Bitácora
@@ -22,6 +22,81 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 3 · Tarea B3 · Servidor MCP y semilla del agente
+
+- Quién: el frente B. La corrió la sesión A, como prevé el 00 del Día 3.
+- Qué:
+  - **`accesia mcp`:** el servidor MCP «AccesIA» de `mcp-agente.md`.
+    - Streamable HTTP en `/mcp`, puerto 8001, sin autenticación (D-16).
+    - Sin sesiones y con respuestas JSON.
+    - Las cinco herramientas, en español y marcadas como de solo lectura.
+    - Solo arranca con el usuario `agente` de la base.
+  - **Solo lectura en tres capas (D-15):**
+    - el usuario `agente`, que solo lee las tres vistas;
+    - una transacción `READ ONLY` con `statement_timeout` de 3 s por cada herramienta;
+    - herramientas que solo consultan. Un error vuelve como `{"error": …}`, nunca como excepción.
+  - **Servicio `mcp` en `infra/compose.yaml`:**
+    - la misma imagen del servidor, con el comando `accesia mcp`;
+    - depende de `postgres` y no se publica (D-16);
+    - no recibe `infra/.env`: Compose le arma `DATABASE_URL` con el usuario `agente`, así que nunca tiene la clave del dueño de la base.
+  - **Variable nueva `MCP_HOSTS_PERMITIDOS`**, con `192.168.137.1:8001` por defecto, para el encabezado `Host` del escenario 2 (D-21).
+  - **`accesia semilla agente`:** la tabla de la evaluación con fechas relativas a hoy y las llegadas calificadas con `registrar_llegada` de la B1.
+    - `--con-datos-reales` y `--borrar`.
+    - Al terminar, revisa las preguntas 1 a 9 con las herramientas.
+  - Dependencia nueva: `mcp` 2.3.0, el SDK oficial, fijado en `uv.lock`.
+- Cómo:
+  - Claude Code leyó la tarea, el 00, el contrato y el código de la B1. Revisó el SDK `mcp` 2.3 en un entorno aparte antes de proponer el plan.
+  - Lo que encontró en el SDK:
+    - FastMCP se llama `MCPServer` desde la 2.x;
+    - acepta el protocolo desde la versión 2024-11-05, así que sirve con el cliente de Home Assistant;
+    - si no se configura, solo acepta el `Host` de `localhost`, y un pedido a `mcp:8001` recibiría 421.
+  - El equipo aprobó el plan con cuatro puntos:
+    - `mcp` 2.3 con `MCPServer`, aclarando la mención de FastMCP en el contrato;
+    - `MCP_HOSTS_PERMITIDOS` con `192.168.137.1:8001` por defecto;
+    - la semilla con `--con-datos-reales`, `--borrar` y la revisión;
+    - escribir en el contrato los tres casos que no definía.
+  - Decisiones de implementación:
+    - **Host.** El servidor acepta siempre `mcp:8001`, `localhost:8001` y `127.0.0.1:8001`, además de los de la variable. Un pedido con encabezado `Origin` se rechaza (403).
+    - **Semilla.** Reconoce lo suyo por identificadores fijos (uuid5 de un espacio propio): los documentos `SEMILLA-01` a `SEMILLA-06`, su horario y sus eventos.
+      - Si un horario o un documento suyo ya existe y no lo creó ella, se detiene sin tocarlo.
+      - No borra la cámara `entrada`. Si la tiene que crear, no muestra su token.
+    - **Errores de tipo.** Un tipo que no se puede convertir (por ejemplo, `horas = "mucho"`) lo rechaza el SDK antes de llegar a la herramienta. Los errores de regla salen como `{"error": …}` en español.
+    - **Registro.** El SDK configura el registro raíz con `basicConfig`. Por eso `accesia mcp` apaga la propagación del registro `accesia`, para que cada línea salga una sola vez.
+  - Las pruebas que necesitan al usuario `agente` usan una semilla guardada de verdad en la base de prueba, porque `agente` no ve lo que otra conexión no confirmó. Se borra al terminar cada módulo.
+  - **Compose.** `docker compose -f infra/compose.yaml config` lo revisó con una copia de `.env.example` sin claves, que se borró después.
+    - La imagen no se construyó en el portátil, para no cargarlo mientras corría el Hito 1.
+    - La CI revisa el lock en Linux. El arranque real de `mcp` se comprueba al reconstruir el Compose de la carpeta principal.
+- Pruebas:
+  - `uv run pytest` en `servidor/`: 472 en verde y 2 saltadas (las de caras reales, sin `datos/prueba`). Son 95 pruebas nuevas, por marca:
+    - `contrato agente · buscar_persona`: 13;
+    - `contrato agente · asistencia_del_dia`: 14;
+    - `contrato agente · llegadas_tarde`: 7;
+    - `contrato agente · accesos_de_persona`: 9;
+    - `contrato agente · desconocidos_recientes`: 6;
+    - `contrato agente · preguntas`: 10;
+    - `contrato agente · evaluación`: 12;
+    - `contrato agente · host`: 11;
+    - `RF-08 · C1`: 3, con un cliente MCP real por Streamable HTTP;
+    - `RF-08 · C4`: 9 nuevas (16 en total);
+    - `RNF-01 · C4`: 1.
+- Cambios de contrato o de specs:
+  - `mcp-agente.md` 1.3, que solo aclara. Lo dice `contratos/README.md` 1.6, con su registro en `decisiones.md` 1.10. Aclara:
+    - que FastMCP se llama `MCPServer` en `mcp` 2.x;
+    - qué encabezados `Host` acepta el servidor;
+    - los tres casos que el contrato no definía: más de 50 accesos, el orden de `ultimos` y `"horario": null`.
+  - `arquitectura.md` 1.7: el servicio `mcp`, su `DATABASE_URL` con el usuario `agente` y `MCP_HOSTS_PERMITIDOS`.
+  - También: `infra/.env.example` 1.1, `infra/compose.yaml` 1.1, `servidor/README.md` 1.5, `infra/README.md` 1.5 y `CLAUDE.md` 1.8.
+- Pendiente:
+  - Cuando el equipo lo diga:
+    - `git pull` y reconstruir el Compose en la carpeta principal, que es donde se comprueba el arranque real de `mcp` (C4);
+    - después, avisar a C para la C2.
+  - **C2.** `compose.escenario2.yaml` tiene que publicar el 8001 de `mcp` para la Pi, y el firewall tiene que dejarlo entrar solo desde `192.168.137.0/24`. Está anotado en `infra/README.md`.
+  - **C2.** La primera medición de las 10 preguntas:
+    - `semilla agente --con-datos-reales` justo antes;
+    - comparar cada respuesta con la revisión;
+    - `--borrar` después.
+  - **B2.** Comparte `pyproject.toml` y `uv.lock`: quien fusione segundo trae `main` y vuelve a correr `uv lock`.
 
 ## 2026-11-12 · Día 3 · Tarea B1 · Asistencia y API de consulta
 

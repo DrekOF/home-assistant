@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.13
 -->
 
 # Bitácora
@@ -22,6 +22,80 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-12 · Día 3 · Tarea B1 · Asistencia y API de consulta
+
+- Quién: el frente B.
+- Qué:
+  - R5 en `servidor/accesia/asistencia.py`:
+    - `calificar_llegada(llegada, bloque)`, una función pura;
+    - `registrar_llegada(…)`, que guarda la primera llegada del día con `INSERT … ON CONFLICT (persona_id, fecha) DO NOTHING`.
+    - Las usan la cámara, el registro manual y, después, la semilla de B3.
+  - La primera entrada permitida del día crea la llegada en la misma transacción del evento, con su `evento_id` (RF-06 · C1). No la cambian las entradas siguientes, las repeticiones de R4 ni los denegados (RF-06 · C2).
+  - `reconocer` devuelve además la llegada que creó, para que B2 la publique en el campo `asistencia` del Evento. La línea INFO de cada recorte dice `llegada a_tiempo`, `llegada tarde 25 min` o `llegada sin_horario`.
+  - Las ocho operaciones de `openapi.yaml` 1.3 que faltaban, y el extra `exportarAsistencia` (CSV, RF-06 · C4):
+    - `registrarAsistenciaManual`, `verAsistencia` y `verAsistenciaPersona`;
+    - `listarAccesos`;
+    - `listarRostros`, `borrarRostros` y `borrarRostro`;
+    - `verConfiguracion`.
+  - `modelos.py` suma los nombres cortos `yunet_2023mar` y `sface_2021dec`.
+- Cómo:
+  - Claude Code trabajó en un worktree aparte (`AccesIA-b-asistencia`, rama `b/asistencia`, desde `main` con el PR #12). No tocó el Compose, que sigue corriendo desde `AccesIA-b2` para el e2e de C: las pruebas levantan sus propios contenedores.
+  - Propuso el plan y el equipo lo aprobó tal como estaba.
+  - Pruebas primero:
+    - se escribieron antes del código;
+    - las de la API fallaron porque las rutas no existían (39 en rojo);
+    - las de asistencia no cargaban porque faltaba `accesia.asistencia`.
+  - Se rompió el código a propósito 15 veces, y cada vez falló la prueba que correspondía:
+    - el límite de R5 con `<`;
+    - los minutos redondeados hacia arriba;
+    - sin `ON CONFLICT`;
+    - el día de la semana de 0 a 6;
+    - la fecha sin pasar a Colombia;
+    - la llegada creada en una repetición de R4 o en un denegado;
+    - ausentes con personas inactivas;
+    - «hoy» en UTC;
+    - una hora futura aceptada;
+    - las llegadas de una persona en el orden al revés;
+    - el CSV sin proteger las fórmulas;
+    - `hasta` excluido en los accesos;
+    - los accesos empatados sin el id descendente;
+    - borrar las huellas de todos.
+  - La prueba de dos registros a la vez usa dos conexiones reales y un hilo: la segunda espera a que la primera confirme y no escribe nada.
+- Decisiones donde el contrato no decía nada:
+  - La llegada se guarda sin microsegundos. Una repetición de R4 pasada la medianoche no crea la llegada del día siguiente, porque R4 dice que una repetición no cambia la asistencia.
+  - El registro manual:
+    - vale también para una persona inactiva, porque R5 no lo impide;
+    - responde 404, luego 422 si la hora es futura, y luego 409;
+    - acepta la hora en cualquier zona, pero no sin zona.
+  - El reporte:
+    - es de hoy en Colombia si no se da la fecha;
+    - ordena las listas por hora de llegada y los ausentes por nombre, con la colación española;
+    - calcula los ausentes con el horario y el estado que la persona tiene hoy, porque la base no guarda su historia.
+  - `verAsistenciaPersona`: sin fechas, todas las llegadas; con una sola fecha, el rango queda abierto por el otro lado. Si `desde` es posterior a `hasta`, 422.
+  - Accesos:
+    - del más reciente al más antiguo y, si empatan, el último guardado primero;
+    - `desde` y `hasta` entran en el rango y llevan zona;
+    - una persona o una cámara que no existe da una página vacía.
+  - Huellas: se listan en el orden en que se guardaron. Borrar las de quien no tiene responde 204, y borrar huellas deja una línea INFO con cuántas y de quién.
+  - CSV:
+    - va por fecha y hora de llegada;
+    - el archivo se llama `asistencia-<desde>-a-<hasta>.csv`;
+    - un nombre o documento que empieza con `=`, `+`, `-` o `@` lleva un `'` delante, para que la hoja de cálculo no lo ejecute como fórmula.
+- Pruebas:
+  - `uv run pytest`: 377 en verde y 2 saltadas (las de caras reales), con su resumen por marca. Antes eran 280.
+  - Ruff (`F`, `E9` y `B`) sin observaciones.
+  - Marcas nuevas:
+    - los 15 casos de R5;
+    - `R8 · fecha local` y `R4 · no cambia la asistencia`;
+    - RF-06 · C1 a C5, RF-05 · C3, RF-12 · C1 y C3;
+    - `contrato API` de las nueve operaciones;
+    - las rutas nuevas en RNF-02 · C5.
+- Cambios de contrato o de specs: ninguno. `servidor/README.md` 1.4 cuenta la asistencia, las rutas, las decisiones y las marcas.
+- Pendiente:
+  - B2: publicar la llegada en el Evento y el resumen después de cada llegada manual. B3: la semilla del agente con `calificar_llegada`.
+  - C1 programa Accesos y Asistencia contra el servidor real cuando esto esté en `main`.
+  - Al reconstruir el Compose, la imagen vuelve a bajar los modelos una vez, porque `modelos.py` cambió. La caché de `servidor.yml` también se renueva una vez.
 
 ## 2026-11-12 · Día 2 · Tareas del Día 3
 

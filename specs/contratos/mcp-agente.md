@@ -4,10 +4,10 @@ Descripción: Contrato del agente de AccesIA: servidor MCP, herramientas de solo
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
-# Contrato del agente · versión 1.3
+# Contrato del agente · versión 1.4
 
 Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (frente C).
 
@@ -17,9 +17,9 @@ Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (fre
 | --- | --- |
 | SDK | `mcp`, el SDK oficial de Python. En su versión 2.x, FastMCP se llama `MCPServer`: es la misma pieza del SDK |
 | Transporte | Streamable HTTP en `/mcp` (Home Assistant lo intenta primero; si falla, usa SSE) |
-| Servicio y puerto | `mcp`, puerto 8001, sin publicar fuera de la red de Docker (D-16) |
-| URL desde Home Assistant | `http://mcp:8001/mcp` |
-| Encabezado `Host` | El servidor acepta `mcp:8001` y la dirección del portátil en el escenario 2 (D-21), que se configura con `MCP_HOSTS_PERMITIDOS` (por defecto `192.168.137.1:8001`; `arquitectura.md`, Configuración). También acepta `localhost:8001` y `127.0.0.1:8001`, para el healthcheck. El SDK valida este encabezado: otro `Host` recibe 421, y un pedido con encabezado `Origin` (un navegador), 403 |
+| Servicio y puerto | En la Pi (D-22), el complemento `accesia_servidor`, puerto 8001, sin publicar fuera de la red interna de los complementos. En el portátil, el servicio `mcp` de Compose, puerto 8001, sin publicar fuera de la red de Docker (D-16) |
+| URL desde Home Assistant | En la Pi: `http://local-accesia-servidor:8001/mcp`. Con Compose: `http://mcp:8001/mcp` dentro de la red de Docker, y `http://<IP del portátil>:8001/mcp` en el escenario 2 (plan B) |
+| Encabezado `Host` | El servidor acepta siempre `mcp:8001`, y también `localhost:8001` y `127.0.0.1:8001`, para el healthcheck. Además acepta los de `MCP_HOSTS_PERMITIDOS`: en la Pi, el complemento la pone en `local-accesia-servidor:8001`; en Compose, por defecto es `192.168.137.1:8001`, la IP del portátil en el escenario 2 (`arquitectura.md`, Configuración). El SDK valida este encabezado: otro `Host` recibe 421, y un pedido con encabezado `Origin` (un navegador), 403 |
 | Nombre | `AccesIA` |
 | Base de datos | Usuario `agente` (rol `accesia_agente`): solo lee las vistas del agente |
 | Seguridad extra | Cada herramienta corre en una transacción `READ ONLY` con `statement_timeout` de 3 s |
@@ -142,8 +142,8 @@ No reveles documentos de identidad ni datos de contacto.
 ## Configuración en Home Assistant
 
 1. La zona horaria de Home Assistant es `America/Bogota`.
-2. Integración Ollama con la URL `http://ollama:11434` y el modelo ya descargado (`qwen2.5:3b` o `qwen2.5:1.5b`, D-06). Si Ollama va en el portátil (RNF-03 · C3), la URL es la del portátil en la red propia, con `infra/compose.ollama-portatil.yaml`. Conviene dejar el modelo cargado en memoria para evitar la espera del primer mensaje.
-3. Integración Model Context Protocol con la URL `http://mcp:8001/mcp`.
+2. Integración Ollama con la URL del complemento de Ollama en la Pi, `http://<hash>-ollama:11434` (el nombre exacto sale en la página del complemento), y el modelo ya descargado según la RAM de la Pi (D-06 y D-22). Con Compose, la URL es `http://ollama:11434`. Si Ollama pasa al portátil, solo con el visto bueno del profesor (RNF-03 · C3), la URL es la del portátil en la red propia, con `infra/compose.ollama-portatil.yaml`. El modelo se deja cargado en memoria para evitar la espera del primer mensaje; el complemento ya trae `OLLAMA_KEEP_ALIVE=-1`.
+3. Integración Model Context Protocol con la URL del servidor MCP de la tabla de arriba: en la Pi, `http://local-accesia-servidor:8001/mcp`.
 4. En las opciones del agente de Ollama: las instrucciones de arriba; en «Herramientas de IA» (AI tools) se marca solo AccesIA; «Control de dispositivos» (Device control) queda apagado (D-15).
 5. Un asistente de voz «Portería» en español que usa ese agente.
 6. En «Exponer» (Expose) de los asistentes de voz, el botón «Abrir puerta» no se expone.
@@ -183,6 +183,6 @@ Datos de prueba: los crea el comando de semilla del servidor (`semilla agente`),
 
 Criterio (RF-08 · C3): al menos 9 de 10 bien, y la 9 y la 10 son obligatorias. Se anota en la bitácora el modelo, el equipo y el tiempo de cada respuesta (RNF-03 · C3).
 
-La primera medición se hace el Día 3 en el portátil. Si el modelo no llega a 9 de 10, se prueba un modelo más reciente de tamaño parecido y se actualiza D-06. La evaluación final es la del Día 4 (`plan.md`).
+La primera medición es la de la C2 del Día 3: en la Pi o, sin ella, en el devcontainer de Home Assistant en el portátil, con el mismo modelo. En el portátil cuenta si responde bien; el tiempo que vale es el de la Pi (RNF-03 · C3). Si el modelo no llega a 9 de 10, se prueba un modelo más reciente de tamaño parecido y se actualiza D-06. La evaluación final es la del Día 4 (`plan.md`).
 
 Las herramientas también se prueban solas con pytest contra estos mismos datos, sin modelo (marca `contrato agente · <herramienta>`).

@@ -2,9 +2,9 @@
 Nombre: bitacora.md
 Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el método con IA) y qué quedó pendiente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.18
+Versión: 1.20
 -->
 
 # Bitácora
@@ -23,44 +23,190 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pendiente:
 ```
 
-## 2026-11-12 · Día 3 · Tareas del Día 4
+## 2026-11-13 · Día 4 · Tareas del Día 4, con D-22
 
 - Quién: el frente B, para todo el equipo.
-- Qué: las tareas del Día 4 en `tareas/dia-4/`, con la plantilla de `tareas/README.md`. Cada tarea dice de qué depende.
+- Qué: las tareas del Día 4 en `tareas/dia-4/`, con la plantilla de `tareas/README.md` y ajustadas a D-22. Cada tarea dice de qué depende.
   - `00-todos-orden-y-listo-para-el-ensayo.md`:
-    - lo que sigue del Día 3: el Hito 1, que empezó; C1 y C2; A2, si llega el módulo, y el Hito 2;
-    - el reparto entre tres sesiones y los acuerdos, con el del hito ya ajustado;
-    - la lista de lo que debe quedar listo para el ensayo del Día 5 (L1 a L7).
-  - `A1-julian-calibracion-del-umbral.md`: `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` con los tres integrantes y un dataset público de impostores (RNF-07), sin crear llegadas ni alertas en la base compartida.
-  - `A2-julian-placa-con-home-assistant.md`: RF-14 · C2 a C6 con Home Assistant OS, la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
-  - `B1-cristhian-web-en-el-servidor.md`: la web compilada dentro de la imagen y servida por el servidor (D-04).
+    - con qué se trabaja con D-22 y qué necesita la placa o la Pi: si el hardware solo está en clase, esos turnos se mueven al día de clase y lo demás sigue sin esperar;
+    - lo que sigue del Día 3: el Hito 1 primero, C1 y C2, y A2 si llega el módulo;
+    - el Hito 2, en clase con D-22, cuando estén la B4 y la C2 del Día 3. Si no alcanzan, MQTT y Home Assistant se prueban con el escenario 2, y el agente queda para cuando la B4 esté lista;
+    - el reparto entre tres sesiones, los acuerdos y la lista de lo que debe quedar listo para el ensayo del Día 5 (L1 a L9).
+  - `A1-julian-calibracion-del-umbral.md`: `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` (RNF-07), sin crear llegadas ni alertas en la base compartida.
+    - Participan los tres integrantes y quien más quiera, cada uno con su consentimiento (Ley 1581).
+    - El dataset de impostores tiene una licencia que permite este uso, queda fuera de Git y se borra al terminar.
+  - `A2-julian-placa-con-home-assistant.md`: RF-14 · C2 a C6 con Home Assistant OS y el broker de la Pi, o el del escenario 2; la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
+  - `A3-julian-ip-de-la-pi.md`, nueva: los valores de fábrica del firmware y los ejemplos del simulador pasan a la IP de la Pi (D-22).
+  - `B1-cristhian-web-en-el-servidor.md`: la web dentro de la imagen y servida por el servidor (D-04). Ya está en `main` (PR #19).
   - `B2-cristhian-modo-extraer.md`: las cámaras de respaldo (RF-10 · C4).
-  - `B3-cristhian-evaluacion-del-agente-y-cobertura.md`: la evaluación final de las 10 preguntas (RF-08 · C3) y una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1).
-  - `C1-jhon-kit-del-dia-de-clase.md`: el kit en el portátil (RF-11), con versiones fijas, `instalar` y `verificar`, y la guía al día.
-  - `C2-jhon-playwright-y-arm64.md`: Playwright sobre toda la web en la CI (RF-09 · C3) y las imágenes arm64 con emulación (RNF-04 · C1).
+  - `B3-cristhian-evaluacion-del-agente-y-cobertura.md`:
+    - la evaluación final de las 10 preguntas en la Pi, con el modelo fijado según su RAM (RF-08 · C3);
+    - una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1).
+  - `B4-cristhian-complementos-de-la-base-y-del-servidor.md`, nueva: los complementos de Home Assistant OS de la base y del servidor, su empaquetado, `complementos.yml` para arm64 y amd64, y la ACL de `mqtt.md` 1.4 con su prueba.
+  - `C1-jhon-kit-del-dia-de-clase.md`: el kit con D-22 (RF-11):
+    - las carpetas de los complementos, el modelo de Ollama, la copia cifrada de Home Assistant OS y el binario del C6;
+    - las imágenes de los planes B y C;
+    - `instalar` y `verificar`, en PowerShell y en `.sh`.
+  - `C2-jhon-playwright-y-arm64.md`: Playwright sobre toda la web en la CI (RF-09 · C3) y las imágenes arm64 del plan C con emulación (RNF-04 · C1).
 - Cómo:
-  - **Dónde.** Se le pidió a Claude Code escribir las tareas sin escribir código, después de fusionar B2 del Día 3. Trabajó en un worktree aparte (`AccesIA-tareas-dia-4`, desde `main` con B2), sin tocar la carpeta principal, porque el Hito 1 está en curso.
+  - **Dónde.** Se le pidió a Claude Code escribir las tareas sin escribir código, después de fusionar B2 del Día 3. Trabajó en un worktree aparte (`AccesIA-tareas-dia-4`), sin tocar la carpeta principal.
   - **Qué leyó:**
     - el plan, D-21 y su tabla de cambios;
     - los requisitos, la evaluación de `mcp-agente.md`, el modo extraer de `api-dispositivo.md` y la guía del día de clase;
     - los pendientes de cada entrada de esta bitácora.
   - **Lo que encontró al comparar el plan con el estado real:**
     - **Las reglas ya están cubiertas.** Los 64 casos de `reglas.md` ya tienen una prueba con su marca. Por eso «pruebas de las reglas completas» pasa a ser una prueba de cobertura que falle si aparece un caso o un criterio sin prueba.
-    - **La web.** El servidor todavía no sirve la web, aunque D-04 y `arquitectura.md` lo dicen. Sin eso, la demo necesitaría Node: va en B1.
+    - **La web.** El servidor todavía no servía la web, aunque D-04 y `arquitectura.md` lo decían: quedó en B1, que ya está en `main`.
     - **El binario del C6.** `firmware.yml` compila el binario pero no lo guarda como artefacto. A2 propone de dónde sale el binario del kit.
-    - **Ollama y el kit.** Con D-21, Ollama ya corre en el portátil, así que `compose.ollama-portatil.yaml` solo serviría en el escenario 1. Además, el portátil es Windows, así que el kit necesita sus scripts también en PowerShell.
+    - **El kit en Windows.** El portátil es Windows, así que el kit necesita sus scripts también en PowerShell.
+  - **D-22 cambió el plan.** Con la primera versión ya en el PR, el profesor pidió que Ollama corriera dentro de la Raspberry, y el equipo decidió llevar todo a la Pi (D-22, PR #20).
+    - Este PR esperó a que D-22 estuviera en `main`.
+    - Mientras tanto, Claude Code dejó los ajustes en un commit local, revisados contra una copia con las specs de D-22.
+    - Con D-22 en `main`, trajo `main` y resolvió los choques de esta bitácora y de `decisiones.md`.
+  - **Lo que pidió el equipo para el ajuste:**
+    - el hardware: lo que necesita la placa o la Pi se mueve al día de clase si solo están allá, y lo demás sigue;
+    - A1: el consentimiento de quienes participen, que no tienen que ser solo los tres integrantes, y un dataset de impostores con licencia para este uso, fuera de Git y borrado al terminar, anotado en la bitácora;
+    - RF-11 · C1 nombra también los scripts de PowerShell;
+    - B3: el modelo final se fija midiendo en la Pi, según su RAM;
+    - el Hito 2, como quedó en el 00;
+    - la B4, con lo que D-22 dejó para ella, y su propia tarea para los valores de fábrica (A3).
 - Decisiones al escribir, para revisarlas en el PR:
   - **Calibración sin ensuciar la base.** A1 calibra sin pasar por la base compartida, porque cada `permitido` crea una llegada y tres desconocidos crean una alerta en Home Assistant.
-  - **B1 primero.** B1 va antes que B2 y B3, porque el kit arma la imagen del servidor con ella.
-  - **Scripts del kit en dos lenguajes.** `instalar` y `verificar` van en PowerShell para el portátil y en `.sh` para el escenario 1, como `generar-env`. RF-11 · C1 nombra solo los `.sh`.
-  - **`compose.ollama-portatil.yaml`.** No se decide aquí: C1 lo propone en su PR, porque cambia RNF-03 · C3, D-19 y la guía.
-  - **Lista para el Día 5.** La lista L1 a L7 dice qué debe quedar listo para el ensayo. Lo que falte pasa al Día 5, o al corte mínimo si la clase llega antes (P-01).
-- Pruebas: no hay código. Un script revisó las referencias de las tareas: archivos, criterios RF y RNF, decisiones, reglas, secciones citadas y enlaces. Solo señaló `infra/.env`, que Git ignora y que la tarea dice que se genera en el portátil.
-- Cambios de contrato o de specs: ninguno en los contratos. `specs/plan.md` 1.7 tiene una fila por tarea del Día 4, `specs/decisiones.md` 1.12 lo anota en su registro, y `tareas/README.md` 1.3 suma el Día 4.
+  - **B4 primero en B.** Es el camino crítico: el Hito 2, la evaluación de B3, C2 del Día 3 y el kit la necesitan.
+  - **A3 antes del binario del kit.** A2 compila el binario del kit con los valores de fábrica de A3.
+  - **arm64.** B4 prueba los complementos en arm64, en `complementos.yml` y con emulación en el portátil. C2 se queda con las imágenes del plan C.
+  - **`compose.ollama-portatil.yaml`.** Con D-22, Ollama pasa al portátil solo con el visto bueno del profesor. C1 propone si el archivo se hace ahora o solo si él lo aprueba.
+  - **`verificar` contra la Pi.** El 8001 y el 11434 no se publican en la Pi (D-16), así que C1 propone cómo revisa el MCP y Ollama sin publicarlos.
+  - **Lista para el Día 5.** La lista L1 a L9 dice qué debe quedar listo para el ensayo. Lo que falte pasa al Día 5, o al corte mínimo si la clase llega antes (P-01).
+- Pruebas: no hay código. Un script revisó las referencias de las tareas: archivos, criterios RF y RNF, decisiones, reglas, pendientes, secciones citadas (también las de D-22) y enlaces. Solo señaló `infra/.env`, que Git ignora y que se genera en el portátil.
+- Cambios de contrato o de specs:
+  - Ninguno en los contratos.
+  - `specs/plan.md` 1.8: una fila por tarea del Día 4, con A3 y B4.
+  - `specs/requisitos.md` 1.6: RF-11 · C1 nombra los scripts en PowerShell y en `.sh`.
+  - `specs/decisiones.md` 1.13 lo anota en su registro.
+  - `tareas/README.md` 1.4 suma el Día 4.
 - Pendiente:
-  - el Hito 1, que está en curso; C1 y C2 del Día 3, y después el Hito 2;
-  - P-03, el módulo de cámara;
+  - el Hito 1, primero; C1 y C2 del Día 3, y el Hito 2 en clase;
+  - P-03, el módulo de cámara, y P-04, la RAM y la IP de la Pi;
   - las tareas del Día 5 (ensayo general e Hito 3), al cerrar el Día 4.
+
+## 2026-11-12 · Día 3 · D-22 · Todo en la Raspberry Pi
+
+- Quién: el frente B, porque cambia contratos. La corrió la sesión A.
+- Qué:
+  - **D-22** en `decisiones.md`: todo corre en la Raspberry Pi 5, como complementos de Home Assistant OS:
+    - `accesia_base` (PostgreSQL 18 con pgvector) y `accesia_servidor` (la API, la web, MQTT y el MCP), nuestros y locales;
+    - el Mosquitto oficial, con nuestros usuarios y nuestra ACL;
+    - Ollama, con el complemento de SirUli, y el modelo según la RAM de la Pi.
+  - «Cómo se aplica D-22»: la IP fija de la Pi, la web en la raíz del 8000 sin Ingress, el acceso total de `homeassistant` y su motivo, qué se prueba en la Pi antes de pasar Ollama al portátil, la hora en el prompt, la instalación con el internet del celular, las huellas en las copias y el plan B. Y la tabla de lo que cambia en D-04, D-05, D-06, D-09, D-11, D-14, D-16, D-19 y D-21.
+  - **Contratos:** `mqtt.md` 1.4 y `mcp-agente.md` 1.4, con su sección en `contratos/README.md` 1.8.
+  - **Specs:**
+    - `arquitectura.md` 1.10, con la sección nueva «Complementos de Home Assistant OS»: piezas, nombres internos, instalación, presupuesto de RAM, velocidad del agente y cómo se prueba sin la Pi;
+    - `requisitos.md` 1.5, `modelo-datos.md` 1.3, `plan.md` 1.7, `enunciado.md` 1.3 y `specs/README.md` 1.3, con P-04.
+  - **La C2 del Día 3**, ajustada a D-22 (versión 1.1).
+  - `CLAUDE.md` 1.10 y `docs/guia-dia-de-clase.md` 1.3.
+- Cómo:
+  - El profesor pidió Ollama dentro de la Raspberry. El equipo le pidió a Claude Code una decisión nueva y un plan, sin código, y dejó en pausa el plan de la C2.
+  - Antes de proponer, Claude Code revisó:
+    - la documentación de los complementos de Home Assistant: configuración, comunicación entre complementos, pruebas y el cambio del builder de 2026, que dejó de pasar `BUILD_FROM`;
+    - el complemento oficial de Mosquitto: `logins`, usuarios reservados y ACL;
+    - el complemento de Ollama de SirUli;
+    - cifras publicadas de modelos en una Pi 5: RAM y tokens por segundo;
+    - la RAM del servidor (121 MB) y del MCP (92 MB), medida en el portátil con los procesos de Python, porque Docker Desktop no respondía.
+  - El equipo aprobó la D-22 con los seis puntos de la propuesta y seis ajustes:
+    - Ollama pasa al portátil solo con el visto bueno del profesor; antes se prueba en la Pi;
+    - revisar en el código de Home Assistant si pone la hora al comienzo del prompt;
+    - `mqtt.md` como 1.4, con `homeassistant` con acceso total y una sola ACL;
+    - si la Pi solo está en clase, se instala allá con el internet del celular, con los modelos en el kit;
+    - la web en la raíz del 8000, sin Ingress;
+    - la B4 la agrega la sesión 3 a las tareas del Día 4.
+  - **La hora en el prompt.** Claude Code leyó el código de Home Assistant: `helpers/llm.py`, `conversation/chat_log.py` y la integración `ollama`. Encontró que:
+    - Home Assistant no pone la hora al comienzo: pone primero nuestras instrucciones, después el texto de la API de las herramientas y al final su línea con la fecha y la hora, con segundos;
+    - las herramientas van después de esa línea, así que entre preguntas Ollama solo puede reutilizar nuestras instrucciones, y solo si no llevan la hora;
+    - Home Assistant omite su línea si hay una herramienta cuyo nombre termina en `GetDateTime`.
+
+    Se comprueba con `prompt_eval_count` en la C2. Las instrucciones del contrato no cambian hasta medir.
+  - El motivo del acceso total de `homeassistant` sale de la documentación del complemento oficial: Home Assistant espera que `homeassistant` y `addons` lean y escriban sin restricciones en todos los temas.
+  - Decisiones al escribir, para revisarlas en el PR:
+    - el plan B tiene dos partes: la base y el servidor van al portátil (escenario 2) si la Pi no alcanza, y Ollama solo con el visto bueno del profesor. Por eso `compose.escenario2.yaml` publica solo `mcp`;
+    - `infra/mosquitto/acl` y su prueba se ponen al día en la B4, porque la prueba es del servidor;
+    - P-04 nuevo: la RAM y la IP fija de la Pi, que se ven en la próxima clase;
+    - `CLAUDE.md` y la guía del día de clase también cambian, porque decían que la demo era el escenario 2.
+- Pruebas: no hay código que probar. Se revisó que cada archivo cambiado subiera su versión y su fecha, y que en las specs ya no quedara la demo en el escenario 2, salvo en lo que es historia (la tabla de D-21 y el registro). La CI del PR corre los cuatro workflows.
+- Cambios de contrato o de specs: `mqtt.md` 1.4 y `mcp-agente.md` 1.4, que solo cambian dónde está cada pieza, y las specs de arriba, con su registro en `decisiones.md` 1.12.
+- Pendiente:
+  - **B4**, que la sesión 3 agrega a las tareas del Día 4 (PR #18): los dos complementos, `scripts/empaquetar-complementos.ps1`, `complementos.yml`, y `infra/mosquitto/acl` con su prueba según `mqtt.md` 1.4.
+  - **La C2 ajustada:** empieza por lo que no espera a nadie; el MCP y la medición van con la B4 en `main`.
+  - Los valores de fábrica del firmware y los ejemplos del simulador pasan a la IP de la Pi, en su propia tarea. Hasta entonces, `infra/README.md`, `firmware/README.md` y `simulador/README.md` siguen con el escenario 2.
+  - P-04, en la próxima clase.
+  - El Hito 2 ahora espera a la B4 y a la C2.
+  - El PR #18 también toca `plan.md`, `decisiones.md` y la bitácora: quien fusione segundo trae `main` y resuelve.
+
+## 2026-11-12 · Día 4 · Tarea B1 · La web servida por el servidor
+
+- Quién: el frente B.
+- Qué:
+  - **La web en la imagen.** `servidor/Dockerfile` suma la etapa `web`:
+    - Node 24 (`node:24.22.3-slim`), `npm ci` con caché y `npm run build`;
+    - corre una sola vez, en la plataforma que construye, como la de los modelos;
+    - la imagen final lleva `dist` en `/app/web/dist`.
+  - **Sin simulacro.**
+    - La web se compila con `VITE_SIMULACRO=0`, que gana a cualquier `.env` de Vite.
+    - Se borra `mockServiceWorker.js`, que `public/` copia siempre (pendiente desde la C del Día 1).
+    - Si algo del simulacro queda en `dist`, la construcción falla.
+    - `.dockerignore` deja fuera `web/dist`, las capturas, los informes de Playwright y los `.env` locales de Vite.
+  - **El servidor la sirve** (`accesia/web.py`). Con el Compose arriba, `http://localhost:8000` abre la web, sin Node.
+    - Es un middleware: primero responde la API, y solo un `GET` o un `HEAD` fuera de `/api` que termina en 404 se cambia por la web.
+    - Sale el archivo de `dist` o, si no existe, `index.html`, porque la web usa rutas del navegador.
+    - `/api` responde igual que antes, con sus 404 y sus 405.
+  - **Caché.** Larga e inmutable para `assets/`, que lleva hash; `no-cache` para `index.html` y lo demás. Todo lleva `nosniff`.
+  - **Sin web compilada** (en el PC o en las pruebas), el servidor arranca igual, lo dice en el registro y sirve solo la API.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-web`, rama `b/web-en-el-servidor`, desde `main` con B2 del Día 3). No tocó el Compose de la carpeta principal: la imagen se probó con otro nombre y en el puerto 18000.
+  - **Plan.** Claude Code propuso el plan y el equipo lo aprobó tal como estaba.
+    - El equipo va a llevar todo a la Pi con complementos de Home Assistant OS (D-22, todavía sin PR).
+    - Esa decisión no usa Ingress, así que la web va en la raíz, en el puerto 8000 de la Pi. Las rutas absolutas de la web (`/assets/…` y `/api/…`) sirven igual.
+  - **Por qué un middleware.** Una ruta comodín `/{ruta:path}` respondería antes que las rutas que se agregan después de crear la app y cambiaría el 404 y el 405 de la API. El middleware deja `/api` exactamente como dice `openapi.yaml`.
+  - **Docker Desktop estaba cerrado.**
+    - La primera corrida de la suite dio 498 errores porque testcontainers no encontraba Docker.
+    - Claude Code abrió Docker Desktop. El Compose de la carpeta principal volvió solo, como estaba (`restart: unless-stopped`), sin `git pull` ni reconstruir.
+  - **Pruebas primero.** Fallaron porque `crear_app` todavía no aceptaba la carpeta de la web.
+  - **Código roto a propósito.** Nueve veces, y cada vez falló la prueba que correspondía:
+    - la web antes que la API;
+    - sin la exclusión de `/api`;
+    - sin revisar que el archivo esté dentro de `dist`;
+    - la web en cualquier estado y no solo en el 404;
+    - `index.html` en lugar de un archivo que falta en `assets/`;
+    - sin `HEAD`;
+    - caché larga para todo;
+    - sin `nosniff`;
+    - el tipo de `mimetypes` para todo.
+  - **La guarda del simulacro, comprobada.** Una compilación con `--mode simulacro` deja un `navegador-*.js` de 415 kB que nombra `mockServiceWorker`. La de producción no lo nombra en ningún archivo.
+  - **La imagen, probada aparte:**
+    - con `docker buildx build --platform linux/amd64,linux/arm64`, en 42 s con la caché; la etapa `web` corrió una sola vez, en `linux/amd64`;
+    - sola, sin base, en el puerto 18000: salud `degradado`, rutas del navegador con `index.html`, JS y fuentes con su tipo y caché larga, y `dist` sin rastro del simulacro;
+    - con una base desechable en una red propia: corrieron las migraciones, se creó el primer administrador y, en el navegador, cargó el inicio de sesión. Al entrar, la web llevó a Personas, y Nueva cámara, Asistencia y Horarios cargaron pidiendo su ruta directamente, como al recargar;
+    - después se borraron los contenedores, la red, las imágenes de prueba y las claves de prueba.
+- Decisiones donde la tarea o las specs no decían nada:
+  - **Node 24 y no 22.** La tarea decía Node 22. Se usó Node 24, el de `web.yml`, con la versión exacta.
+  - **Un archivo que falta en `assets/` da 404**, no `index.html`: así un JS viejo no recibe HTML.
+  - **La caché depende del archivo que sale**, no de la ruta pedida: `index.html` nunca se guarda un año.
+  - **El tipo de cada archivo de la web es fijo** (`.js`, `.css`, `.svg`, `.woff2` y otros). En Windows, `mimetypes` lee el registro y no conoce `.woff2`.
+  - **`/api` y lo que empieza por `/api/`** quedan fuera de la web; `/apiario`, por ejemplo, sería una ruta de la web.
+- Pruebas:
+  - `uv run pytest`: 553 bien y 2 saltadas (las de caras reales, sin fotos).
+    - Corrieron con `web/dist` compilada en el worktree, así que toda la API se probó con la web encendida.
+    - `D-04 · web servida`: 19 bien. `contrato API · error`: 16 bien.
+  - `docker compose -f infra/compose.yaml config`: en orden.
+  - Tamaño de la imagen amd64: antes 687,22 MiB y después 688,02 MiB (0,80 MiB más). En arm64: 163,84 MiB comprimida.
+- Cambios de contrato o de specs:
+  - Ninguno en los contratos: la web no es parte de `openapi.yaml`.
+  - `arquitectura.md` 1.9 quita el «más adelante» de la web compilada.
+  - `CLAUDE.md` 1.9 y `infra/README.md` 1.7 dicen cómo se abre la web.
+- Pendiente:
+  - Con B1 en `main`, hacer `git pull` y reconstruir el Compose de la carpeta principal, preguntando antes por el Hito 1, y avisar a C para el kit (C1).
+  - Las pantallas de C1 y C2 del Día 3 entran solas a la imagen cuando estén en `main`.
+  - En la Pi, el complemento del servidor debe publicar su puerto 8000, porque la web no va por Ingress.
 
 ## 2026-11-12 · Día 3 · Tarea B2 · El servidor en MQTT
 

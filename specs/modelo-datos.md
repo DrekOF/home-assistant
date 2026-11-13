@@ -2,9 +2,9 @@
 Nombre: modelo-datos.md
 Descripción: Tablas, relaciones, vistas del agente y usuarios de la base de datos de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Modelo de datos
@@ -69,4 +69,9 @@ El rol `accesia_agente` lo crea el esquema. El usuario `agente`, con su clave de
 
 ## Retención
 
-Al terminar el semestre se borra la base completa (el volumen `datos-postgres`), como dice el texto del consentimiento.
+Al terminar el semestre se borra la base completa, como dice el texto del consentimiento:
+
+- en la Pi (D-22), se desinstala el complemento `accesia_base` con sus datos y se borran las copias de seguridad de Home Assistant que la incluyan;
+- en el portátil, se borra el volumen `datos-postgres`.
+
+Las copias de seguridad de Home Assistant incluyen la base, es decir, las huellas: van siempre cifradas y nunca al repositorio, y la del kit se toma sin inscripciones.

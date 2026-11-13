@@ -2,14 +2,14 @@
 Nombre: arquitectura.md
 Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, firmware y despliegue.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.10
 -->
 
 # Arquitectura
 
-**La cámara ve, el servidor reconoce, Home Assistant actúa y el agente responde.** Todo, menos la cámara, corre con Docker Compose en la Raspberry Pi (o en un portátil, según el escenario). En la demo (D-21), Docker Compose corre en un portátil y la Raspberry Pi 5 trae Home Assistant OS (escenario 2).
+**La cámara ve, el servidor reconoce, Home Assistant actúa y el agente responde.** En la demo (D-22), todo, menos la cámara y la placa, corre en la Raspberry Pi 5 como complementos de Home Assistant OS. En el portátil, Docker Compose levanta las mismas piezas para desarrollar y como plan B.
 
 Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién hace qué) y `paso-a-paso.html` (el recorrido).
 
@@ -23,10 +23,11 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Servidor | Huella, reglas, inscripción, asistencia, eventos MQTT, API y web | Python 3.13, FastAPI, OpenCV (YuNet + SFace), SQLAlchemy 2, psycopg 3, pgvector, Alembic, paho-mqtt | B | `servidor/` |
 | Servidor MCP | Herramientas de solo lectura del agente | SDK oficial `mcp` 2.x de Python (`MCPServer`, que en la 1.x se llamaba FastMCP), mismo paquete del servidor | B | `servidor/` |
 | Base de datos | Personas, huellas, eventos y asistencia | PostgreSQL 18 + pgvector | B | `specs/contratos/base-de-datos.sql` |
-| Broker MQTT | Mensajes entre servidor, cámara, placa y Home Assistant | Mosquitto 2, en el portátil en la demo (D-21) | B | `infra/mosquitto/` |
+| Broker MQTT | Mensajes entre servidor, cámara, placa y Home Assistant | Mosquitto 2: en la demo, el complemento oficial de Home Assistant OS en la Pi (D-22); en el portátil, el de Compose | B | `infra/mosquitto/` |
 | Home Assistant | Panel, automatizaciones (puerta y avisos) y Assist | Home Assistant OS en la Raspberry Pi 5 (D-21); Home Assistant Container en el escenario 1 | C | `homeassistant/` |
-| Ollama | Modelo del agente | Ollama con qwen2.5:3b o qwen2.5:1.5b | C | `infra/` |
+| Ollama | Modelo del agente | Ollama con `qwen2.5`, del tamaño que permita la RAM (D-06); en la demo, el complemento de SirUli en la Pi (D-22) | C | `infra/` |
 | Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
+| Complementos | Empaquetan la base y el servidor para Home Assistant OS (D-22) | `config.yaml` y `Dockerfile` de cada uno, que Supervisor construye en la Pi | B | `complementos/` (B4 del Día 4) |
 
 Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un commit fijo de `opencv/opencv_zoo` y se comprueban con su SHA-256; en el PC quedan en `datos/modelos/`, que Git y Docker ignoran:
 
@@ -83,9 +84,91 @@ Si la persona no dio consentimiento, o si la cámara falla, un administrador reg
 2. Home Assistant las muestra en el dispositivo de la cámara. El descubrimiento de esos dos sensores lo publica la placa al conectarse, así que no depende del servidor.
 3. Si la placa se apaga, su último deseo deja las dos entidades no disponibles.
 
+## Complementos de Home Assistant OS (D-22)
+
+En la demo, todo menos la cámara y la placa corre en la Raspberry Pi 5 como complementos (apps) de Home Assistant OS. Supervisor los arranca, los reinicia si fallan y los incluye en las copias de seguridad.
+
+| Complemento | De quién | Nombre en la red interna | Publicado en la red del hotspot | Datos |
+| --- | --- | --- | --- | --- |
+| `accesia_base` | Nuestro, local | `local-accesia-base:5432` | Nada | `/data/postgres` |
+| `accesia_servidor` | Nuestro, local | `local-accesia-servidor`: 8000 (API y web) y 8001 (MCP) | El 8000, para la placa, el simulador y el navegador | Nada propio; sus opciones quedan en `/data/options.json` |
+| Mosquitto (`core_mosquitto`) | Oficial | `core-mosquitto:1883` | El 1883, para la placa y el simulador | La ACL, en `/share/mosquitto/` |
+| Ollama | Comunidad (SirUli) | `<hash>-ollama:11434` | Nada | Los modelos, en `/share/ollama` |
+
+- **Nombres.** Supervisor registra cada complemento en su DNS interno: los locales como `local-<slug>`, con `-` en lugar de `_`; el Mosquitto oficial como `core-mosquitto`; y los de un repositorio de la comunidad con el prefijo de ese repositorio, como `<hash>-ollama`. El nombre exacto sale en la página de cada complemento.
+- **Quién llama a quién:**
+  - el servidor usa `local-accesia-base:5432` y `core-mosquitto:1883`, con el usuario MQTT `servidor`;
+  - Home Assistant se conecta solo a MQTT, con su usuario reservado `homeassistant`. Llega al MCP en `http://local-accesia-servidor:8001/mcp` y a Ollama en `http://<hash>-ollama:11434`;
+  - la placa y el simulador usan la IP fija de la Pi en el hotspot: `http://<IP de la Pi>:8000` y `mqtt://<IP de la Pi>:1883`.
+- **Lo que no se publica.** El MCP y Ollama solo están en la red interna, así que D-16 se cumple sin excepción. El `config.yaml` de `accesia_servidor` publica solo el 8000. Si el complemento de Ollama publica el 11434, se le quita en su configuración de red.
+- **La web** va en la raíz del puerto 8000 (`http://<IP de la Pi>:8000/`), sin Ingress, igual que en el portátil.
+- **`accesia_base`.** Su `Dockerfile` parte de `pgvector/pgvector:pg18` y suma `jq`. Un `run.sh` lee las claves de `/data/options.json` y arranca PostgreSQL con `PGDATA=/data/postgres`.
+- **`accesia_servidor`.** Es la imagen del servidor, adaptada. Su `run.sh`:
+  - lee las opciones;
+  - corre la migración;
+  - arranca Uvicorn en el 8000 y `accesia mcp` en el 8001, con `MCP_HOSTS_PERMITIDOS=local-accesia-servidor:8001`;
+  - termina si uno de los dos falla, para que Supervisor lo reinicie.
+- **Mosquitto.** `servidor` y `camara` van en sus `logins`. Con `customize` activo y la carpeta `mosquitto`, lee `/share/mosquitto/acl.conf`, que tiene una sola línea: `acl_file /share/mosquitto/accesscontrollist`. Ese archivo es la ACL de `contratos/mqtt.md`, la misma de `infra/mosquitto/acl`.
+- **Ollama.** El complemento de SirUli usa la imagen oficial `ollama/ollama`, para aarch64 y amd64, y trae `OLLAMA_KEEP_ALIVE=-1`: el modelo queda cargado en memoria.
+- **Construcción.** Sin `image` en su `config.yaml`, la Pi construye cada complemento local desde su `Dockerfile`. Desde Supervisor 2026.04 ya no llega `BUILD_FROM`, así que cada `Dockerfile` lleva su `FROM` explícito; `build.yaml` está obsoleto.
+- **Empaquetado.** Supervisor solo ve la carpeta del complemento. Por eso `scripts/empaquetar-complementos.ps1` arma `kit/complementos/`, que Git ignora, con:
+  - el código del servidor;
+  - el SQL del contrato y `consentimiento.md`;
+  - la web compilada;
+  - los modelos de cara, para no bajarlos en la Pi.
+- **Instalación:**
+  1. Con el complemento Samba share, copiar las dos carpetas a `\\<IP de la Pi>\addons\`.
+  2. En la tienda de complementos: ⋮ → «Buscar actualizaciones» → «Complementos locales» → Instalar. La Pi construye la imagen.
+  3. Poner las claves y las reglas en las opciones de cada complemento.
+  4. Arrancar primero la base y después el servidor.
+
+  Construir necesita internet una vez: las imágenes base y los paquetes de Python. Si la Pi solo está disponible en clase, se instala allá con el internet del celular. Los archivos del modelo de Ollama van en el kit y se copian por Samba a `/share/ollama`, sin internet.
+- **Configuración.** En la Pi, las variables de `infra/.env` pasan a las opciones de los complementos (D-14): se cambian en la interfaz de Home Assistant y se reinicia el complemento. `infra/.env` sigue para el portátil.
+- **Copias de seguridad.** Incluyen `/data` de `accesia_base`, es decir, las huellas: van siempre cifradas y nunca al repositorio, y la del kit se toma sin inscripciones (`modelo-datos.md`, Retención).
+
+### Presupuesto de RAM
+
+Son estimaciones. Las del servidor y el MCP se midieron en el portátil, con los procesos de Python; las de los modelos son de una Pi 5 con Ollama.
+
+| Pieza | RAM estimada |
+| --- | --- |
+| Home Assistant OS (sistema y Supervisor) | 0,3 a 0,4 GB |
+| Home Assistant Core con MQTT, Ollama, MCP y Assist | 0,5 a 0,9 GB (hay reportes de que crece) |
+| PostgreSQL 18 + pgvector, con una base pequeña | 0,1 a 0,2 GB |
+| Servidor: API, visión y MQTT | 0,15 a 0,25 GB (121 MB al arrancar, con YuNet y SFace) |
+| MCP | Unos 0,1 GB (92 MB) |
+| Mosquitto, y Samba mientras se copian archivos | Menos de 0,1 GB |
+| **Todo, sin Ollama** | **1,2 a 1,9 GB** |
+| `qwen2.5:0.5b` | Unos 0,7 GB |
+| `qwen2.5:1.5b` (Q4_K_M) | Unos 1,85 GB |
+| `qwen2.5:3b` (Q4_K_M) | Unos 3,0 GB |
+
+- Con 4 GB cabe `qwen2.5:1.5b`, justo; el 3b no cabe sin usar swap. Con 8 GB cabe `qwen2.5:3b` con margen.
+- La RAM real de cada complemento se mira en la Pi, en la página del complemento.
+
+### Velocidad del agente en la Pi
+
+- Cifras publicadas de llama.cpp en una Pi 5, en Q4_K_M: `qwen2.5:1.5b` procesa el prompt a unos 22 tokens/s y genera unos 9,6; `qwen2.5:3b`, unos 10,6 y 4,8. La variante Q4_0, reacomodada para ARM, procesó el prompt unas tres veces más rápido. Con Ollama hay que medirlo.
+- Las instrucciones y las cinco herramientas suman unos 1 000 a 1 300 tokens. Con esas cifras, procesarlas sin caché tardaría unos 50 s con 1.5b en Q4_K_M, y unos 18 s en Q4_0: más que los 15 s de RNF-03 · C3.
+- **La caché del prompt.** Ollama reutiliza el comienzo del prompt que no cambió desde la llamada anterior. Home Assistant arma el prompt de sistema así: nuestras instrucciones, el texto que agrega la API de las herramientas y una línea propia con la fecha y la hora, con segundos (`Current time is …`). Las herramientas van después: en la plantilla de Qwen2.5 quedan detrás de ese texto. Por eso:
+  - entre una pregunta y otra, Ollama solo puede reutilizar nuestras instrucciones, y solo si no llevan la hora. Las herramientas se procesan de nuevo cada vez;
+  - dentro de una misma pregunta, la segunda llamada al modelo, la que lleva la respuesta de la herramienta, reutiliza todo;
+  - la línea «Hoy es…» de nuestras instrucciones (`mcp-agente.md`) repite lo que ya da Home Assistant;
+  - Home Assistant omite su línea si alguna herramienta tiene un nombre que termina en `GetDateTime`. Una herramienta así en el MCP dejaría estable todo el comienzo del prompt, con las herramientas incluidas, pero agrega una herramienta al contrato, con un nombre en inglés.
+
+  Se comprueba con `prompt_eval_count` en dos preguntas seguidas, en el ensayo con el devcontainer (C2 del Día 3). Lo que haya que cambiar en `mcp-agente.md` se propone después, en su propio PR.
+- Si una respuesta pasa de 15 s, se sigue RNF-03 · C3.
+
+### Cómo se prueban sin la Pi
+
+1. **CI**, con un workflow nuevo `complementos.yml` (B4 del Día 4): construye los dos complementos para arm64, con QEMU, y para amd64; en amd64 los arranca con un `options.json` de prueba y revisa `/api/v1/salud` y un `initialize` del MCP.
+2. **Portátil:** `docker buildx build --platform linux/arm64` y `docker run --platform linux/arm64`, con `/data` montada. Es emulado y lento, pero comprueba que arranca.
+3. **Ensayo completo:** el devcontainer oficial de Home Assistant, que corre Supervisor y Home Assistant en Docker en el portátil (`http://localhost:7123`). Ahí se instalan nuestros complementos locales, Mosquitto y Ollama, y se prueban los archivos de Home Assistant de la C2.
+4. **En la Pi:** la RAM de cada complemento, las 10 preguntas con sus tiempos y que la puerta abra en menos de 2 s.
+
 ## Servicios de Docker Compose
 
-Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, no en modo host (D-19).
+Desde D-22, Compose es para desarrollar en el portátil y para el plan B; en la demo, las mismas piezas son los complementos de arriba. Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, no en modo host (D-19).
 
 | Servicio | Imagen | Puerto interno | Publicado en el equipo | Quién lo usa |
 | --- | --- | --- | --- | --- |
@@ -97,18 +180,18 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 | `ollama` | `ollama/ollama` | 11434 | no se publica | Home Assistant |
 
 - Volúmenes: `datos-postgres`, `datos-ollama` y `datos-mosquitto`. `datos-postgres` se monta en `/var/lib/postgresql`: PostgreSQL 18 guarda los datos en `/var/lib/postgresql/18/docker`, no en `/var/lib/postgresql/data`. La configuración de Home Assistant se monta desde `homeassistant/config`.
-- La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql`, el texto de `specs/consentimiento.md` y, más adelante, la web compilada. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/` y `node_modules/`.
+- La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql` y el texto de `specs/consentimiento.md`, y para compilar la web (`web/`) sin el simulacro. El servidor sirve la web en la raíz del mismo puerto 8000 (D-04), y `/api` no cambia. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/`, `node_modules/` y lo que la web compila o genera en el PC, como `web/dist/`.
 - El servidor corre con un solo proceso de Uvicorn: la hora de la última alerta de R6, el control del 429 y la conexión MQTT viven en memoria, y con varios procesos cada uno contaría por su lado.
 - Las versiones exactas de las imágenes se fijan el Día 4, antes de armar el kit.
-- Escenario 2 (Home Assistant OS en la Raspberry), el de la demo (D-21): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en el hotspot del portátil o en otra red propia. Era la excepción a D-16 y D-19; con D-21 es el caso normal.
-- Ollama en el portátil (RNF-03 · C3): `infra/compose.ollama-portatil.yaml` levanta solo `ollama` en el portátil y publica el 11434 en la red propia; Home Assistant sigue en la Raspberry. Lo crea la tarea C del Día 4. Es otra excepción a D-19.
+- Escenario 2 (Home Assistant OS en la Raspberry y el resto en el portátil), plan B desde D-22: `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) en la red del portátil, para que la Raspberry lo alcance. Ollama sigue en la Pi, salvo el caso de abajo. Solo se usa en el hotspot del portátil o en otra red propia, y es una excepción a D-16 y D-19. Lo crea la C2 del Día 3.
+- Ollama en el portátil (RNF-03 · C3), solo con el visto bueno del profesor (D-22): `infra/compose.ollama-portatil.yaml` levanta solo `ollama` en el portátil y publica el 11434 en la red propia; Home Assistant sigue en la Raspberry. Lo crea la tarea del kit del Día 4. Es otra excepción a D-19.
 - El servicio `mcp` no recibe `infra/.env`: Compose le arma `DATABASE_URL` con el usuario `agente` y `AGENTE_DB_PASSWORD`, y le pasa `ZONA_HORARIA` y `MCP_HOSTS_PERMITIDOS`. Así nunca tiene la clave del dueño de la base (D-15).
 
 Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001/mcp`, `http://ollama:11434`, `mqtt://mosquitto:1883`.
 
 ## Configuración (`infra/.env`)
 
-`infra/.env` no se sube a Git. `infra/.env.example` lleva los mismos nombres sin claves. Compose arma con estas variables `DATABASE_URL` y `MQTT_URL` para el servidor, y la `DATABASE_URL` del usuario `agente` para `mcp`.
+`infra/.env` no se sube a Git. `infra/.env.example` lleva los mismos nombres sin claves. Compose arma con estas variables `DATABASE_URL` y `MQTT_URL` para el servidor, y la `DATABASE_URL` del usuario `agente` para `mcp`. En la Pi (D-22), estos valores van en las opciones de los complementos.
 
 | Variable | Ejemplo | Para qué |
 | --- | --- | --- |
@@ -121,7 +204,7 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `ADMIN_CORREO` | `admin@example.com` | Primer administrador, creado al arrancar si no existe, con el nombre «Administrador». Con dominio no reservado: la validación de correos rechaza `.local`, `.test` o `.localhost` |
 | `ADMIN_CLAVE_INICIAL` | (clave) | Clave inicial de ese administrador, de al menos 8 caracteres. Si el administrador ya existe, no se toca su clave |
 | `MQTT_SERVIDOR_CLAVE` | (clave) | Usuario MQTT `servidor` |
-| `MQTT_HA_CLAVE` | (clave) | Usuario MQTT `homeassistant` |
+| `MQTT_HA_CLAVE` | (clave) | Usuario MQTT `homeassistant` en el broker del portátil. En la Pi, ese usuario lo maneja Home Assistant OS |
 | `MQTT_CAMARA_CLAVE` | (clave) | Usuario MQTT `camara` (cámara y simulador) |
 | `UMBRAL_SIMILITUD` | `0.363` | R1 |
 | `VENTANA_REPETIDO_S` | `60` | R4 |
@@ -132,8 +215,8 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `CARA_MIN_PX` | `80` | Envío de la cámara; el servidor descarta por debajo de 0,8 × este valor (R7) |
 | `NITIDEZ_MIN` | `60` | R7 |
 | `ZONA_HORARIA` | `America/Bogota` | R8 |
-| `OLLAMA_MODELO` | `qwen2.5:3b` | Modelo que se descarga para el agente (D-06) |
-| `MCP_HOSTS_PERMITIDOS` | `192.168.137.1:8001` | Encabezados `Host` que acepta el servidor MCP además de `mcp:8001`, separados por comas. En el escenario 2 (D-21), la IP del portátil en el hotspot. Si falta, Compose usa `192.168.137.1:8001` |
+| `OLLAMA_MODELO` | `qwen2.5:3b` | Modelo que se descarga para el agente en Compose (D-06). En la Pi, el modelo depende de su RAM (D-22) |
+| `MCP_HOSTS_PERMITIDOS` | `192.168.137.1:8001` | Encabezados `Host` que acepta el servidor MCP además de `mcp:8001`, separados por comas. En el escenario 2 (plan B de D-22), la IP del portátil en el hotspot. Si falta, Compose usa `192.168.137.1:8001`. En la Pi, el complemento la pone en `local-accesia-servidor:8001` |
 
 ## Firmware
 
@@ -169,17 +252,17 @@ Se guarda en NVS y no requiere recompilar. Los comandos entran por UART0 y por e
 | --- | --- |
 | `estado` | Muestra la placa, el Wi-Fi, la IP, el servidor, MQTT, el sensor con su última lectura y la antena |
 | `wifi <ssid> <clave>` | `wifi AccesIA clave123` (el hotspot del portátil) |
-| `servidor <url>` | `servidor http://192.168.137.1:8000` |
+| `servidor <url>` | `servidor http://192.168.137.250:8000` |
 | `codigo <codigo>` | `codigo entrada` |
 | `token <token>` | El token que da la web al crear la cámara |
-| `mqtt <url> <usuario> <clave>` | `mqtt mqtt://192.168.137.1:1883 camara clave123` |
+| `mqtt <url> <usuario> <clave>` | `mqtt mqtt://192.168.137.250:1883 camara clave123` |
 | `puerta <pin> <segundos> [bajo\|alto]` | `puerta 15 3 bajo`, lo de fábrica en el C6. El nivel es el que enciende; `-1` si no hay LED ni relé |
 | `sensor <dht22\|dht11>` | `sensor dht11` |
 | `antena <interna\|externa>` | `antena externa` |
 | `reiniciar` | Reinicia la placa |
 | `ayuda` | Lista los comandos |
 
-Los valores de fábrica apuntan al portátil en el hotspot: servidor `http://192.168.137.1:8000` y MQTT `mqtt://192.168.137.1:1883` con el usuario `camara`. Los comandos `perfil`, `pin` y `cara_min` son del firmware del ESP32-S3 y vuelven con él.
+Los valores de fábrica apuntan al portátil en el hotspot: servidor `http://192.168.137.1:8000` y MQTT `mqtt://192.168.137.1:1883` con el usuario `camara`. Con D-22 pasan a la IP fija de la Pi (por ejemplo, `http://192.168.137.250:8000` y `mqtt://192.168.137.250:1883`); mientras el firmware no cambie, se ajustan con los comandos `servidor` y `mqtt`. Los comandos `perfil`, `pin` y `cara_min` son del firmware del ESP32-S3 y vuelven con él.
 
 ### Cámara
 
@@ -230,14 +313,17 @@ Sus binarios auxiliares, `diagnostico` (chip, flash, PSRAM y sensor de cualquier
 
 ## Red y despliegue
 
-- Red de la demo (D-21): el hotspot de Windows del portátil, en 2,4 GHz, porque el C6 no usa 5 GHz. El portátil queda en una IP que no cambia, que suele ser `192.168.137.1`: la placa apunta a `http://192.168.137.1:8000` y a `mqtt://192.168.137.1:1883`, y Home Assistant OS se conecta al broker en esa dirección. El firewall de Windows tiene que dejar entrar, en esa red, el 1883 (MQTT) y los puertos que usa la Pi: el 8001 (`mcp`) y el 11434 (`ollama`).
-- Escenario 1: la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg` en NetworkManager) y queda en `10.42.0.1`.
+- Red de la demo: el hotspot de Windows del portátil, en 2,4 GHz, porque el C6 no usa 5 GHz (D-21). El portátil queda en una IP que no cambia, que suele ser `192.168.137.1`.
+- La Pi tiene una IP fija en esa red, que se le pone en la configuración de red de Home Assistant OS: por ejemplo `192.168.137.250`, a confirmar en clase (D-22). La placa y el simulador apuntan a `http://<IP de la Pi>:8000` y a `mqtt://<IP de la Pi>:1883`.
+- En la demo, los puertos que se usan son los de la Pi: el 8000 (API y web) y el 1883 (MQTT). El firewall del portátil solo cuenta en el plan B (escenario 2): ahí deja entrar desde `192.168.137.0/24` el 1883 y el 8001 (`mcp`), el 8000 cuando la placa envíe recortes, y el 11434 solo si Ollama va al portátil.
+- Escenario 1 (plan C): la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg` en NetworkManager) y queda en `10.42.0.1`.
 - Plan B de red: la red del salón o el hotspot de un celular; la placa se reconfigura por consola serial.
 
-| Escenario | Qué trae la Raspberry | Dónde corre cada cosa |
-| --- | --- | --- |
-| 1 | Raspberry Pi OS | Todo en la Raspberry con `infra/compose.yaml` |
-| 2 | Home Assistant OS | Home Assistant en la Raspberry (se restaura nuestra copia de seguridad); el resto en un portátil con `compose.escenario2.yaml`. Es el de la demo (D-21) |
-| 3 | Nada | Raspberry Pi OS en una memoria USB y se sigue como en el escenario 1. Pi 5: arranca desde USB sin configurar nada; Pi 4: solo si su bootloader ya lo permite |
+| Escenario | Qué trae la Raspberry | Dónde corre cada cosa | Papel |
+| --- | --- | --- | --- |
+| Demo (D-22) | Home Assistant OS | Todo en la Raspberry, como complementos de Home Assistant OS | La demo |
+| 2 | Home Assistant OS | Home Assistant y Ollama en la Raspberry; la base, el servidor y Mosquitto en un portátil con `compose.escenario2.yaml` (D-21) | Plan B |
+| 1 | Raspberry Pi OS | Todo en la Raspberry con `infra/compose.yaml` | Plan C |
+| 3 | Nada | Raspberry Pi OS en una memoria USB y se sigue como en el escenario 1. Pi 5: arranca desde USB sin configurar nada; Pi 4: solo si su bootloader ya lo permite | Plan C |
 
-Si la Raspberry tiene 2 GB o menos, Home Assistant queda en la Raspberry y el resto en un portátil. Los pasos completos están en `docs/guia-dia-de-clase.md`.
+Si la Raspberry tiene 2 GB o menos, no alcanza para todo: se usa el escenario 2, y Ollama solo va al portátil con el visto bueno del profesor. Los pasos completos están en `docs/guia-dia-de-clase.md`.

@@ -1,9 +1,9 @@
 # Nombre: Dockerfile
-# Descripción: Imagen del servidor de AccesIA (multietapa con uv, usuario sin privilegios, amd64 y arm64), con los modelos de cara descargados y comprobados al construir.
+# Descripción: Imagen del servidor de AccesIA (multietapa con uv, usuario sin privilegios, amd64 y arm64), con los modelos de cara descargados y comprobados al construir y la web de administración compilada, sin el simulacro (D-04).
 # Fecha de creación: 2026-11-11
 # Actualización: 2026-11-12
 # Autor: Equipo AccesIA
-# Versión: 1.2
+# Versión: 1.3
 #
 # Se construye con la raíz del repositorio como contexto: docker build -f servidor/Dockerfile .
 # Las versiones exactas de las imágenes base se fijan el Día 4 (specs/arquitectura.md).
@@ -14,6 +14,27 @@
 FROM --platform=$BUILDPLATFORM python:3.13-slim AS modelos
 COPY servidor/accesia/modelos.py /tmp/modelos.py
 RUN python /tmp/modelos.py --carpeta /app/datos/modelos
+
+
+# La web de administración (React + Vite) también se compila una sola vez, en la plataforma que construye: el HTML,
+# el JS y el CSS no dependen de la arquitectura. Node 24, como web.yml.
+FROM --platform=$BUILDPLATFORM node:24.22.3-slim AS web
+
+WORKDIR /app/web
+
+# Primero las dependencias, para aprovechar la caché de capas.
+COPY web/package.json web/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+COPY web/ ./
+# El simulacro lee el texto del consentimiento de specs/ y Vite resuelve esa importación aunque no la use.
+COPY specs/consentimiento.md /app/specs/consentimiento.md
+# Sin simulacro: VITE_SIMULACRO=0 gana a cualquier .env y Vite quita MSW del paquete. public/ copia siempre
+# mockServiceWorker.js, así que se borra; si algo del simulacro quedara en dist, la construcción falla.
+RUN VITE_SIMULACRO=0 npm run build \
+    && rm -f dist/mockServiceWorker.js \
+    && if grep -rq mockServiceWorker dist; then echo "La web compilada trae el simulacro (MSW)." >&2; exit 1; fi
 
 
 FROM python:3.13-slim AS construccion
@@ -47,6 +68,8 @@ COPY specs/contratos/base-de-datos.sql /app/specs/contratos/base-de-datos.sql
 COPY specs/consentimiento.md /app/specs/consentimiento.md
 # Los modelos van en datos/modelos/ desde la raíz, como en el PC (accesia/modelos.py), y quedan de solo lectura.
 COPY --from=modelos /app/datos/modelos /app/datos/modelos
+# La web compilada va en web/dist desde la raíz, como en el PC (accesia/web.py), y también queda de solo lectura.
+COPY --from=web /app/web/dist /app/web/dist
 
 ENV PATH="/app/servidor/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1

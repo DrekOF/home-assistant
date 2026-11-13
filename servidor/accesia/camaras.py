@@ -1,13 +1,14 @@
 """
 Nombre: camaras.py
-Descripción: Cámaras de AccesIA (RF-10 · C1 a C3 y C5): crear con su token, ver con su estado e inscripción activa, editar y cambiar el token. Las usan la API y el comando crear-camara.
+Descripción: Cámaras de AccesIA (RF-10 · C1 a C3 y C5): crear con su token, ver con su estado de MQTT e inscripción activa, editar y cambiar el token. Las usan la API y el comando crear-camara.
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 from datetime import datetime, timedelta
+from typing import Protocol
 
 from sqlalchemy import Connection, Row, text
 from sqlalchemy.exc import IntegrityError
@@ -19,13 +20,14 @@ from accesia.esquemas import (
     DispositivoCambios,
     DispositivoConToken,
     DispositivoNuevo,
+    EstadoCamara,
     InscripcionCorta,
 )
 from accesia.inscripciones import vencer_inscripciones
 from accesia.seguridad import hash_de_token, token_nuevo
 from accesia.tiempo import ahora
 
-# Hasta que llegue MQTT (Día 3), una cámara está en línea si hizo contacto en los últimos 2 minutos.
+# openapi.yaml: en línea según su disponibilidad en MQTT o un contacto en los últimos 2 minutos.
 EN_LINEA = timedelta(minutes=2)
 
 CONSULTA = """
@@ -39,7 +41,28 @@ LEFT JOIN inscripcion i ON i.dispositivo_codigo = d.codigo AND i.estado = 'activ
 CAMPOS_EDITABLES = ("nombre", "tipo", "url_captura", "activo")
 
 
-def _a_dispositivo(fila: Row, momento: datetime) -> Dispositivo:
+class EstadoMqtt(Protocol):
+    """Lo que el servidor sabe de cada cámara por MQTT (accesia.mqtt.ClienteMqtt)."""
+
+    def en_linea(self, codigo: str) -> bool: ...
+
+    def estado(self, codigo: str) -> EstadoCamara | None: ...
+
+
+class _SinMqtt:
+    """Sin cliente MQTT (por ejemplo, el comando crear-camara): solo cuenta el contacto por HTTP."""
+
+    def en_linea(self, codigo: str) -> bool:
+        return False
+
+    def estado(self, codigo: str) -> EstadoCamara | None:
+        return None
+
+
+SIN_MQTT = _SinMqtt()
+
+
+def _a_dispositivo(fila: Row, momento: datetime, mqtt: EstadoMqtt) -> Dispositivo:
     activa = None
     if fila.inscripcion_id is not None:
         activa = InscripcionCorta(
@@ -55,36 +78,37 @@ def _a_dispositivo(fila: Row, momento: datetime) -> Dispositivo:
         tipo=fila.tipo,
         url_captura=fila.url_captura,
         activo=fila.activo,
-        en_linea=fila.ultimo_contacto is not None and momento - fila.ultimo_contacto <= EN_LINEA,
+        en_linea=mqtt.en_linea(fila.codigo)
+        or (fila.ultimo_contacto is not None and momento - fila.ultimo_contacto <= EN_LINEA),
         modo="inscribir" if activa else "reconocer",
         inscripcion_activa=activa,
         ultimo_contacto=fila.ultimo_contacto,
-        estado=None,  # el estado que publica la cámara por MQTT llega el Día 3
+        estado=mqtt.estado(fila.codigo),
         creado=fila.creado,
     )
 
 
-def listar(conexion: Connection) -> list[Dispositivo]:
+def listar(conexion: Connection, mqtt: EstadoMqtt = SIN_MQTT) -> list[Dispositivo]:
     """Todas las cámaras, después de vencer las inscripciones que ya pasaron su hora (R9)."""
     momento = ahora()
     vencer_inscripciones(conexion, momento)
     filas = conexion.execute(text(CONSULTA + " ORDER BY d.codigo")).all()
-    return [_a_dispositivo(fila, momento) for fila in filas]
+    return [_a_dispositivo(fila, momento, mqtt) for fila in filas]
 
 
-def ver(conexion: Connection, codigo: str) -> Dispositivo | None:
+def ver(conexion: Connection, codigo: str, mqtt: EstadoMqtt = SIN_MQTT) -> Dispositivo | None:
     """Una cámara, después de vencer su inscripción si ya pasó su hora (R9); None si no existe."""
     momento = ahora()
     vencer_inscripciones(conexion, momento, codigo)
     fila = conexion.execute(text(CONSULTA + " WHERE d.codigo = :codigo"), {"codigo": codigo}).one_or_none()
-    return None if fila is None else _a_dispositivo(fila, momento)
+    return None if fila is None else _a_dispositivo(fila, momento, mqtt)
 
 
 def _con_token(dispositivo: Dispositivo, token: str) -> DispositivoConToken:
     return DispositivoConToken.model_validate({**dict(dispositivo), "token": token})
 
 
-def crear(conexion: Connection, datos: DispositivoNuevo) -> DispositivoConToken:
+def crear(conexion: Connection, datos: DispositivoNuevo, mqtt: EstadoMqtt = SIN_MQTT) -> DispositivoConToken:
     """Registra la cámara y devuelve su token, que no se vuelve a mostrar: la base guarda solo su SHA-256."""
     token = token_nuevo()
     try:
@@ -100,12 +124,12 @@ def crear(conexion: Connection, datos: DispositivoNuevo) -> DispositivoConToken:
         if violacion(error) == VIOLACION_UNICA:
             raise ErrorAccesIA(409, "codigo_duplicado", f"Ya hay una cámara con el código {datos.codigo}.") from None
         raise
-    dispositivo = ver(conexion, datos.codigo)
+    dispositivo = ver(conexion, datos.codigo, mqtt)
     assert dispositivo is not None
     return _con_token(dispositivo, token)
 
 
-def cambiar_token(conexion: Connection, codigo: str) -> DispositivoConToken | None:
+def cambiar_token(conexion: Connection, codigo: str, mqtt: EstadoMqtt = SIN_MQTT) -> DispositivoConToken | None:
     """Genera un token nuevo; el anterior deja de servir porque su hash ya no está (RF-10 · C2)."""
     token = token_nuevo()
     cambiada = conexion.execute(
@@ -114,12 +138,14 @@ def cambiar_token(conexion: Connection, codigo: str) -> DispositivoConToken | No
     ).one_or_none()
     if cambiada is None:
         return None
-    dispositivo = ver(conexion, codigo)
+    dispositivo = ver(conexion, codigo, mqtt)
     assert dispositivo is not None
     return _con_token(dispositivo, token)
 
 
-def editar(conexion: Connection, codigo: str, cambios: DispositivoCambios) -> Dispositivo | None:
+def editar(
+    conexion: Connection, codigo: str, cambios: DispositivoCambios, mqtt: EstadoMqtt = SIN_MQTT
+) -> Dispositivo | None:
     """Cambia nombre, tipo, URL de captura o si está activa; None si la cámara no existe."""
     actual = conexion.execute(
         text("SELECT tipo, url_captura FROM dispositivo WHERE codigo = :codigo"), {"codigo": codigo}
@@ -133,4 +159,4 @@ def editar(conexion: Connection, codigo: str, cambios: DispositivoCambios) -> Di
         raise ErrorAccesIA(422, "validacion", "Una cámara de respaldo necesita su URL de captura.")
     asignaciones = ", ".join(f"{campo} = :{campo}" for campo in valores)
     conexion.execute(text(f"UPDATE dispositivo SET {asignaciones} WHERE codigo = :codigo"), {**valores, "codigo": codigo})
-    return ver(conexion, codigo)
+    return ver(conexion, codigo, mqtt)

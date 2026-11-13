@@ -1,17 +1,17 @@
 """
 Nombre: asistencia.py
-Descripción: Rutas de asistencia (R5): el reporte de un día, el registro manual de una llegada, las llegadas de una persona y la exportación a CSV (RF-06 · C3, C4 y C5; RF-12 · C3).
+Descripción: Rutas de asistencia (R5): el reporte de un día, el registro manual de una llegada (que publica el resumen en MQTT), las llegadas de una persona y la exportación a CSV (RF-06 · C3, C4 y C5; RF-12 · C3).
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import csv
 import io
 from datetime import date
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Response
 from sqlalchemy import Row, text
 
 from accesia.api.personas import buscar_persona, exigir_persona, no_existe
@@ -19,6 +19,7 @@ from accesia.asistencia import fecha_local, registrar_llegada
 from accesia.db import Conexion
 from accesia.errores import ErrorAccesIA
 from accesia.esquemas import Asistencia, AsistenciaManualNueva, FilaAsistencia, PersonaCorta, ReporteAsistencia
+from accesia.mqtt import ClienteMqttDeLaApp
 from accesia.sesion import AdministradorDeLaSesion, administrador_actual
 from accesia.tiempo import a_colombia, ahora
 
@@ -101,7 +102,11 @@ def ver_asistencia(conexion: Conexion, fecha: date | None = None) -> ReporteAsis
 
 @router.post("/asistencia", status_code=201, response_model=Asistencia, operation_id="registrarAsistenciaManual")
 def registrar_asistencia_manual(
-    datos: AsistenciaManualNueva, administrador: AdministradorDeLaSesion, conexion: Conexion
+    datos: AsistenciaManualNueva,
+    administrador: AdministradorDeLaSesion,
+    conexion: Conexion,
+    mqtt: ClienteMqttDeLaApp,
+    tareas: BackgroundTasks,
 ) -> Asistencia:
     """RF-06 · C5: R5 a la hora dada, en su fecha local. También para una persona inactiva: R5 no lo impide."""
     persona = buscar_persona(conexion, datos.persona_id)
@@ -117,6 +122,7 @@ def registrar_asistencia_manual(
             f"{persona.nombre} ya tiene llegada el {fecha_local(datos.llegada):%d/%m/%Y}: cuenta la primera del día.",
         )
     fila = conexion.execute(text(CONSULTA + " WHERE a.id = :id"), {"id": llegada.id}).one()
+    tareas.add_task(mqtt.publicar_resumen)  # después de confirmar (mqtt.md, Temas)
     return Asistencia(**_fila(fila), fecha=fila.fecha)
 
 

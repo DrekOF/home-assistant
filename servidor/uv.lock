@@ -14,6 +14,7 @@ dependencies = [
     { name = "itsdangerous" },
     { name = "numpy" },
     { name = "opencv-python-headless" },
+    { name = "paho-mqtt" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic-settings" },
@@ -26,7 +27,6 @@ dependencies = [
 dev = [
     { name = "httpx" },
     { name = "jsonschema" },
-    { name = "paho-mqtt" },
     { name = "pytest" },
     { name = "pyyaml" },
     { name = "testcontainers" },
@@ -41,6 +41,7 @@ requires-dist = [
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "numpy", specifier = ">=2.2" },
     { name = "opencv-python-headless", specifier = "==4.14.0.94" },
+    { name = "paho-mqtt", specifier = ">=2.2" },
     { name = "pgvector", specifier = ">=0.3" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic-settings", specifier = ">=2.6" },
@@ -53,7 +54,6 @@ requires-dist = [
 dev = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "jsonschema", specifier = ">=4.23" },
-    { name = "paho-mqtt", specifier = ">=2.1" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "testcontainers", specifier = ">=4.8" },

@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -114,6 +114,7 @@ docker compose -f infra/compose.yaml exec servidor accesia semilla agente [--con
 docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borrar
                                                       borra solo los datos de la semilla
 curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
+start http://localhost:8000                           abre la web de administración, que sirve el servidor (sin Node)
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
 ```
 

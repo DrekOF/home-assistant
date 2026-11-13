@@ -1,16 +1,17 @@
 """
 Nombre: main.py
-Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker.
+Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker. También sirve la web compilada (web/dist) si está (D-04).
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 """
 
 import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy.exc import SQLAlchemyError
@@ -40,6 +41,7 @@ from accesia.registro import configurar_registro
 from accesia.rostros import ControlDeRitmo
 from accesia.sesion import crear_primer_administrador
 from accesia.vision import cargar_vision
+from accesia.web import WebCompilada, carpeta_de_la_web
 
 registro = logging.getLogger(__name__)
 
@@ -60,6 +62,10 @@ def preparar_arranque() -> None:
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
+    if app.state.web is None:
+        registro.warning("No está la web compilada (web/dist/index.html): el servidor sirve solo la API.")
+    else:
+        registro.info("La web se sirve desde %s.", app.state.web)
     await run_in_threadpool(preparar_arranque)
     # YuNet y SFace se cargan una sola vez. Sin los modelos, el servidor no arranca.
     app.state.vision = await run_in_threadpool(cargar_vision)
@@ -75,8 +81,12 @@ async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
         await run_in_threadpool(cliente.detener)
 
 
-def crear_app() -> FastAPI:
-    """Crea la aplicación. El contrato de la API es specs/contratos/openapi.yaml, así que no se publica otro."""
+def crear_app(carpeta_web: Path | None = None) -> FastAPI:
+    """Crea la aplicación. El contrato de la API es specs/contratos/openapi.yaml, así que no se publica otro.
+
+    carpeta_web es la web compilada; por defecto, web/dist del repositorio (en la imagen, /app/web/dist). Las pruebas
+    pasan otra. Sin su index.html, el servidor sirve solo la API (en el PC, la web se abre con npm run dev).
+    """
     configurar_registro()
     app = FastAPI(
         title="API de AccesIA",
@@ -107,6 +117,11 @@ def crear_app() -> FastAPI:
         rutas_configuracion,
     ):
         app.include_router(rutas.router)
+    # La web, al final: un middleware que solo cambia por la web los 404 de GET y HEAD fuera de /api (accesia/web.py).
+    carpeta = carpeta_web if carpeta_web is not None else carpeta_de_la_web()
+    app.state.web = carpeta if (carpeta / "index.html").is_file() else None
+    if app.state.web is not None:
+        app.add_middleware(WebCompilada, carpeta=app.state.web)
     return app
 
 

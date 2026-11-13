@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # Arquitectura
@@ -97,7 +97,7 @@ Archivo principal: `infra/compose.yaml`. Home Assistant va en la red de Docker, 
 | `ollama` | `ollama/ollama` | 11434 | no se publica | Home Assistant |
 
 - Volúmenes: `datos-postgres`, `datos-ollama` y `datos-mosquitto`. `datos-postgres` se monta en `/var/lib/postgresql`: PostgreSQL 18 guarda los datos en `/var/lib/postgresql/18/docker`, no en `/var/lib/postgresql/data`. La configuración de Home Assistant se monta desde `homeassistant/config`.
-- La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql`, el texto de `specs/consentimiento.md` y, más adelante, la web compilada. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/` y `node_modules/`.
+- La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql` y el texto de `specs/consentimiento.md`, y para compilar la web (`web/`) sin el simulacro. El servidor sirve la web en la raíz del mismo puerto 8000 (D-04), y `/api` no cambia. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/`, `node_modules/` y lo que la web compila o genera en el PC, como `web/dist/`.
 - El servidor corre con un solo proceso de Uvicorn: la hora de la última alerta de R6, el control del 429 y la conexión MQTT viven en memoria, y con varios procesos cada uno contaría por su lado.
 - Las versiones exactas de las imágenes se fijan el Día 4, antes de armar el kit.
 - Escenario 2 (Home Assistant OS en la Raspberry), el de la demo (D-21): `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) y `ollama` (11434) en la red del portátil, para que la Raspberry los alcance. Solo se usa en el hotspot del portátil o en otra red propia. Era la excepción a D-16 y D-19; con D-21 es el caso normal.

@@ -1,10 +1,10 @@
 <!--
 Nombre: README.md
-Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT y MCP (frente B).
+Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT, MCP y la web compilada (frente B).
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-12
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Servidor · frente B
@@ -12,7 +12,7 @@ Versión: 1.6
 Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las reglas, guarda en PostgreSQL con pgvector, publica en MQTT, sirve la web y, con otro comando, el servidor MCP del agente.
 
 - Specs: `specs/arquitectura.md`, `specs/reglas.md`, `specs/modelo-datos.md` y todos los contratos.
-- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta, B2 el servidor en MQTT, y B3 el servidor MCP del agente y su semilla.
+- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta, B2 el servidor en MQTT, y B3 el servidor MCP del agente y su semilla. Del Día 4, B1 sirve la web compilada.
 
 ## Qué hay
 
@@ -32,10 +32,11 @@ Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las r
 | `accesia/servidor_mcp.py` | El servidor MCP «AccesIA» con el SDK `mcp` 2.x (`MCPServer`): Streamable HTTP en `/mcp`, puerto 8001, sin sesiones y con el encabezado `Host` validado |
 | `accesia/semilla.py` | `semilla agente`: los datos de la evaluación del agente, la revisión de las preguntas 1 a 9 y cómo convive con datos reales |
 | `accesia/comandos.py` | El comando `accesia`: `crear-camara`, que también publica el descubrimiento de la cámara, `descargar-modelos`, `mcp` y `semilla agente` |
-| `accesia/main.py` | La aplicación: al arrancar exige `SESION_SECRETO`, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker; cada 5 minutos publica el resumen |
+| `accesia/main.py` | La aplicación: al arrancar exige `SESION_SECRETO`, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker; cada 5 minutos publica el resumen. Si está compilada, sirve la web |
+| `accesia/web.py` | La web compilada (`web/dist`) en la raíz (D-04): un middleware que deja responder primero a la API y solo cambia por la web los 404 de `GET` y `HEAD` fuera de `/api` |
 | `migraciones/` | Alembic. La migración `0001` ejecuta tal cual `specs/contratos/base-de-datos.sql` y crea el usuario `agente` |
 | `pruebas/` | pytest con PostgreSQL 18 + pgvector y Mosquitto en contenedores (testcontainers); `armar.py` arma datos en la base, `vision_falsa.py` arma caras y huellas sin fotos, `mqtt_de_prueba.py` levanta Mosquitto y escucha como Home Assistant, y `hora_fija.py` fija la hora de las pruebas del agente |
-| `Dockerfile` | Imagen multietapa con uv; se construye desde la raíz del repositorio, copia el SQL del contrato y `specs/consentimiento.md`, y descarga los modelos de cara comprobando su SHA-256 |
+| `Dockerfile` | Imagen multietapa con uv; se construye desde la raíz del repositorio, copia el SQL del contrato y `specs/consentimiento.md`, descarga los modelos de cara comprobando su SHA-256 y compila la web sin el simulacro |
 | `pyproject.toml` y `uv.lock` | Dependencias, fijadas por uv |
 
 ## Requisitos
@@ -92,6 +93,30 @@ YuNet (`face_detection_yunet_2023mar.onnx`) y SFace (`face_recognition_sface_202
 - La imagen los baja al construir, en una etapa que se reutiliza mientras `accesia/modelos.py` no cambie. Si el tamaño o el hash no coinciden, la construcción falla.
 - Se cargan una vez, al arrancar. Sin ellos, el servidor no arranca y lo dice en el registro.
 - Sus nombres cortos, `yunet_2023mar` y `sface_2021dec`, son los que muestra `GET /api/v1/configuracion`. El de SFace es también el valor por defecto de `rostro.modelo` en el SQL del contrato, y una prueba lo comprueba.
+
+## La web
+
+El servidor sirve la web de administración compilada en la raíz, en el mismo puerto 8000 (D-04). Con el Compose arriba, `http://localhost:8000` abre la web, sin Node.
+
+- **En la imagen.**
+  - La etapa `web` del `Dockerfile` compila la web con Node 24, como `web.yml`.
+  - Corre una sola vez, en la plataforma que construye, porque el HTML, el JS y el CSS no dependen de la arquitectura.
+  - Compila con `VITE_SIMULACRO=0`, borra `mockServiceWorker.js` y falla si algo del simulacro quedó en el paquete.
+  - `dist` queda en `/app/web/dist`, de solo lectura.
+- **En el PC.** El servidor busca `web/dist` desde la raíz del repositorio, como los modelos.
+  - Si corriste `npm run build` en `web/`, `uv run uvicorn accesia.main:app` también la sirve.
+  - Si no, arranca igual, lo dice en el registro y sirve solo la API.
+  - Para trabajar en las pantallas sigue `npm run dev`.
+- **Cómo responde** (`accesia/web.py`):
+  - Primero responde la API. Solo un `GET` o un `HEAD` fuera de `/api` que termina en 404 se cambia por la web.
+  - Si es un archivo de `dist`, sale ese archivo; si no, `index.html`, porque la web usa rutas del navegador. Así, recargar `/personas` funciona.
+  - Un archivo que falta en `assets/` da 404, y una ruta con `..` nunca sale de `dist`.
+  - `/api` responde igual que sin la web: una ruta que no existe es 404 `no_encontrado` y un método que no acepta es 405 con `Allow`. Un `POST` a una ruta de la web también es 404.
+  - Es un middleware y no una ruta comodín para que las rutas de la API, también las que se agreguen después, respondan primero.
+- **Caché.**
+  - Los archivos de `assets/` llevan hash y salen con `Cache-Control: public, max-age=31536000, immutable`.
+  - `index.html` y lo demás salen con `no-cache`, para que una web nueva se vea al recargar.
+  - Todos llevan `X-Content-Type-Options: nosniff`.
 
 ## Reconocimiento e inscripción
 
@@ -339,7 +364,8 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `RF-08 · C1` | Un cliente MCP real, por Streamable HTTP contra el servidor en uvicorn, lista las cinco herramientas (en español y de solo lectura) y las llama |
 | `RNF-01 · C4` | Ninguna respuesta de las herramientas trae documentos, huellas ni similitudes |
 | `contrato API · salud` | `GET /api/v1/salud` cumple el esquema `Salud`, da la hora con `-05:00` y dice `mqtt: ok` solo con el broker conectado |
-| `contrato API · error` | Validación, ruta inexistente, método no permitido (405 con `Allow`) y error interno responden con el esquema `Error` |
+| `contrato API · error` | Validación, ruta inexistente, método no permitido (405 con `Allow`) y error interno responden con el esquema `Error`, también con la web encendida, y un `POST` a una ruta de la web es 404 |
+| `D-04 · web servida` | La raíz y las rutas del navegador devuelven `index.html` con `no-cache`; `assets/` sale con su tipo y caché larga; un archivo que falta en `assets/` da 404; `HEAD` responde; ninguna ruta sale de `dist`; sin `dist`, la raíz da 404 y la API responde |
 | `contrato API · <operationId>` | Cada operación de sesión, personas, consentimiento, horarios, cámaras, huellas, accesos, asistencia y configuración responde con su esquema y con los códigos de error del contrato |
 | `contrato API · inscripcion_activa` | Una cámara muestra su inscripción activa y `modo: inscribir`; si ya pasó su hora, la vence y el campo queda en `null` (R9) |
 | `RNF-02 · C2` | Cookie `HttpOnly`, `SameSite=Strict`, `Path=/` y de 8 horas; primer administrador con Argon2id; sin `SESION_SECRETO` no arranca |

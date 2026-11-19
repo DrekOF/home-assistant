@@ -2,9 +2,9 @@
 Nombre: bitacora.md
 Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el método con IA) y qué quedó pendiente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.25
+Versión: 1.26
 -->
 
 # Bitácora
@@ -22,6 +22,51 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-19 · D-23 · El plan B con el broker de la Pi
+
+- Quién: el frente B, dueño de los contratos, a pedido del equipo, que aceptó el cambio la noche antes de la clase. La corrió la sesión de la C2 del Día 3.
+- Qué:
+  - **D-23** en `specs/decisiones.md`, con lo que cambia en D-21, D-22 y D-16 · D-19:
+    - en el escenario 2, Home Assistant OS, el Mosquitto oficial y Ollama siguen en la Pi, y la base, el servidor y el MCP corren en el portátil;
+    - el servidor del portátil se conecta al Mosquitto de la Pi con su usuario `servidor`, y Home Assistant y la placa no se tocan;
+    - si la Pi no tiene Mosquitto, el broker vuelve al portátil.
+  - **`contratos/mqtt.md` 1.5:** cambia solo dónde está el broker en el plan B. Los temas, los mensajes, los usuarios y la ACL no cambian.
+  - **`infra/compose.broker-pi.yaml`:**
+    - le cambia al servidor el `MQTT_URL` por `mqtt://servidor:…@${IP_DE_LA_PI}:1883`, por defecto `192.168.137.250`;
+    - lo deja esperando solo a la base;
+    - no arranca el Mosquitto del Compose, que queda en el perfil `broker-portatil`.
+
+    Se usa con `compose.yaml` y con `compose.escenario2.yaml`, de la C2.
+  - **Lo demás:**
+    - `arquitectura.md` 1.14 (Compose, `IP_DE_LA_PI`, firewall y escenarios);
+    - `contratos/README.md` 1.10;
+    - `infra/.env.example` 1.2;
+    - la A2 del Día 4 1.2.
+- Cómo:
+  - **De dónde sale:** al escribir la guía de la clase, la C2 encontró que lo pedido, el Compose del portátil conectado al broker de la Pi, no estaba en las specs: `mqtt.md` 1.4 ponía el broker del plan B en el portátil. Se detuvo y lo propuso. El equipo lo aceptó el 2026-11-19, y pidió anotarlo en `decisiones.md` y `mqtt.md` y sumar su archivo de Compose.
+  - **La rama:** va en `b/plan-b-broker-pi`, porque `contratos/README.md` pide el prefijo `b/` para los cambios de contrato. La C2 (PR #23) la trae para su guía.
+  - **Lo que se decidió:**
+    - el caso sin Mosquitto en la Pi sigue como antes, con el broker del portátil, porque sin internet tampoco se puede instalar el complemento oficial;
+    - `IP_DE_LA_PI` sigue el patrón de `MCP_HOSTS_PERMITIDOS`: un valor por defecto en Compose y su línea en `.env.example`;
+    - el servidor espera solo a la base (`depends_on: !override`), y el Mosquitto del Compose no arranca porque queda en un perfil.
+  - **El método con IA:** Claude Code escribió la decisión, el contrato y el archivo de Compose, y los probó en el portátil. El equipo revisa el PR.
+- Pruebas, en el portátil y sin la Pi:
+  - **`config`:** `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml config`:
+    - los servicios son `postgres`, `servidor` y `mcp`;
+    - el `MQTT_URL` apunta a `192.168.137.250:1883`;
+    - el servidor espera solo a `postgres`;
+    - `mcp` publica el 8001.
+  - **Con todo arriba:** los tres archivos, en un proyecto de prueba con su propia base, y un Mosquitto aparte con la ACL y las claves del repositorio, que hacía de broker de la Pi (`IP_DE_LA_PI=host.docker.internal`):
+    - los tres servicios quedaron sanos, y el Mosquitto del Compose no se creó;
+    - la salud respondió `"mqtt":"ok"`, y el registro dijo `MQTT: conectado a host.docker.internal:1883 como servidor.`;
+    - en ese broker quedaron retenidos `accesia/servidor/disponible` (`online`) y el resumen;
+    - el `initialize` del MCP en el 8001 respondió 200 con el `Host` `192.168.137.1:8001`, y 421 con otro.
+  - **Al terminar:** se borraron el proyecto de prueba, su volumen y el broker. El Compose de la carpeta principal volvió a quedar sano, con sus datos.
+- Cambios de contrato o de specs: D-23, `mqtt.md` 1.5, `contratos/README.md` 1.10, `arquitectura.md` 1.14 y la A2 del Día 4 1.2.
+- Pendiente:
+  - probarlo una vez con la Pi en clase (C2, paso 5);
+  - si la Pi queda en otra IP, anotarla en `arquitectura.md` (P-04) y ponerla en `IP_DE_LA_PI`.
 
 ## 2026-11-18 · Día 4 · Tarea B2 · El modo extraer y el ruido de salud-broker
 

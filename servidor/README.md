@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT, MCP y la web compilada (frente B).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-13
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # Servidor · frente B
@@ -12,7 +12,7 @@ Versión: 1.8
 Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las reglas, guarda en PostgreSQL con pgvector, publica en MQTT, sirve la web y, con otro comando, el servidor MCP del agente.
 
 - Specs: `specs/arquitectura.md`, `specs/reglas.md`, `specs/modelo-datos.md` y todos los contratos.
-- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta, B2 el servidor en MQTT, y B3 el servidor MCP del agente y su semilla. Del Día 4, B1 sirve la web compilada.
+- Lo crea la tarea `tareas/dia-1/B-cristhian-compose-y-base.md`. La tarea B1 del Día 2 suma la sesión y la API de administración; B2, el reconocimiento y la inscripción. Del Día 3, B1 suma la asistencia (R5) y la API de consulta, B2 el servidor en MQTT, y B3 el servidor MCP del agente y su semilla. Del Día 4, B1 sirve la web compilada y B2 suma el modo extraer de las cámaras de respaldo.
 
 ## Qué hay
 
@@ -32,7 +32,8 @@ Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las r
 | `accesia/servidor_mcp.py` | El servidor MCP «AccesIA» con el SDK `mcp` 2.x (`MCPServer`): Streamable HTTP en `/mcp`, puerto 8001, sin sesiones y con el encabezado `Host` validado |
 | `accesia/semilla.py` | `semilla agente`: los datos de la evaluación del agente, la revisión de las preguntas 1 a 9 y cómo convive con datos reales |
 | `accesia/comandos.py` | El comando `accesia`: `crear-camara`, que también publica el descubrimiento de la cámara, `descargar-modelos`, `mcp` y `semilla agente` |
-| `accesia/main.py` | La aplicación: al arrancar exige `SESION_SECRETO`, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker; cada 5 minutos publica el resumen. Si está compilada, sirve la web |
+| `accesia/main.py` | La aplicación: al arrancar exige `SESION_SECRETO`, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker; cada 5 minutos publica el resumen. Si está compilada, sirve la web, y deja corriendo el modo extraer |
+| `accesia/extraer.py` | El modo extraer de las cámaras de respaldo (RF-10 · C4): una tarea por cámara que pide su foto cada segundo, recorta la cara como la cámara y la procesa como `enviarRostro` |
 | `accesia/web.py` | La web compilada (`web/dist`) en la raíz (D-04): un middleware que deja responder primero a la API y solo cambia por la web los 404 de `GET` y `HEAD` fuera de `/api` |
 | `migraciones/` | Alembic. La migración `0001` ejecuta tal cual `specs/contratos/base-de-datos.sql` y crea el usuario `agente` |
 | `pruebas/` | pytest con PostgreSQL 18 + pgvector y Mosquitto en contenedores (testcontainers); `armar.py` arma datos en la base, `vision_falsa.py` arma caras y huellas sin fotos, `mqtt_de_prueba.py` levanta Mosquitto y escucha como Home Assistant, y `hora_fija.py` fija la hora de las pruebas del agente |
@@ -54,6 +55,7 @@ Desde la carpeta `servidor/`:
 | Descargar YuNet y SFace a `datos/modelos/` y comprobar su SHA-256 (una vez; las pruebas también lo hacen si faltan) | `uv run accesia descargar-modelos` |
 | Correr todas las pruebas | `uv run pytest` |
 | Correr solo las de la ACL de MQTT | `uv run pytest -k acl` |
+| Correr solo las del modo extraer | `uv run pytest pruebas/test_extraer.py` |
 | Correr solo las del servidor en MQTT | `uv run pytest pruebas/test_mqtt.py pruebas/test_alertas.py pruebas/test_descubrimiento.py` |
 | Correr solo las del agente: herramientas, semilla y servidor MCP | `uv run pytest -k "agente or semilla or mcp or lectura"` |
 | Correr la API en el PC, contra la base de Compose | `$env:DATABASE_URL = "postgresql+psycopg://accesia:<clave>@127.0.0.1:5434/accesia"` y `$env:SESION_SECRETO = "<de infra/.env>"`, y luego `uv run uvicorn accesia.main:app --reload` |
@@ -136,7 +138,7 @@ El servidor sirve la web de administración compilada en la raíz, en el mismo p
 - Antes de decidir el modo, la inscripción de la cámara vence si ya pasó su hora (R9). Con una inscripción activa, la cámara inscribe (los seis pasos de R7); si no, reconoce (R1 a R4).
 - R1 compara con el umbral con una tolerancia de 1e-6, porque pgvector calcula en float32 (`specs/reglas.md`).
 - Una repetición de R4 devuelve el resultado, el motivo, la persona y el `evento_id` del evento original, con la similitud del recorte nuevo, y no guarda nada.
-- `accesia/vision.py` deja lista `recortar_cara_mas_grande`: detecta con YuNet en un cuadro completo, elige la cara de mayor área y recorta con la fórmula del contrato. La usarán una cámara que envíe cuadros completos y el modo extraer (RF-10 · C4).
+- `accesia/vision.py` tiene `recortar_cara_mas_grande`: detecta con YuNet en un cuadro completo, elige la cara de mayor área y recorta con la fórmula del contrato, y con `CARA_MIN_PX` descarta las caras más pequeñas, como la cámara. La usa el modo extraer (RF-10 · C4) y la usaría una cámara que envíe cuadros completos.
 
 Mensajes (`mensaje`): no dependen del género y nunca nombran a quien se parece una cara (RNF-01 · C3).
 
@@ -154,6 +156,57 @@ Inscripciones (con sesión):
 - `POST /api/v1/inscripciones` responde 404 si la persona o la cámara no existen, y 422 `validacion` si la cámara está desactivada (R9 pide una cámara activa y el contrato no tiene otro código). Sin consentimiento vigente responde 422 `sin_consentimiento`. Después vence la activa de esa cámara si ya pasó su hora, y si sigue habiendo una, 409 `inscripcion_activa`.
 - `requeridas` es `INSCRIPCION_MUESTRAS`, y `vence` es la hora de apertura más `INSCRIPCION_VENCE_S`.
 - `GET` y `DELETE /api/v1/inscripciones/{inscripcion_id}` primero la vencen si ya pasó su hora. Cancelar una que ya terminó responde 409 `inscripcion_terminada`.
+
+## Modo extraer (cámaras de respaldo)
+
+Una cámara de tipo `respaldo` no necesita firmware de AccesIA: basta con que entregue una foto JPEG por HTTP. El servidor le pide un cuadro cada segundo, recorta la cara más grande como lo haría la cámara y la procesa por el mismo camino de `enviarRostro` (RF-10 · C4; `api-dispositivo.md`, «Modo extraer»). Sirve para un ESP32-CAM sin tocar su firmware y para un celular con una aplicación de cámara IP.
+
+### Registrar una cámara de respaldo, paso a paso
+
+1. **Conecta la cámara al hotspot** (`AccesIA`, 2,4 GHz) y anota su IP.
+   - ESP32-CAM con el ejemplo `CameraWebServer` de Arduino: la IP sale en su monitor serial al arrancar.
+   - Celular: la IP la muestra la aplicación de cámara IP.
+2. **Busca la URL que entrega una sola foto JPEG** y ábrela en el navegador del portátil. Debe mostrar una foto, no una página ni un video.
+   - ESP32-CAM con `CameraWebServer`: `http://<IP>/capture`. La de `:81/stream` es un video y no sirve.
+   - Celular: la URL de «foto» o «snapshot» de la aplicación; por ejemplo, en IP Webcam (Android), `http://<IP>:8080/shot.jpg`.
+   - Mejor una resolución baja: VGA (640 × 480) o SVGA (800 × 600) alcanza para una cara a 1 o 2 m, y el servidor la procesa más rápido.
+3. **Registra la cámara con esa URL.** En la web: Cámaras → Nueva cámara, con el tipo «Respaldo» y la URL de captura. O con el comando, desde la raíz del repositorio y con el Compose arriba:
+
+   ```powershell
+   docker compose -f infra/compose.yaml exec servidor accesia crear-camara patio --nombre Patio --tipo respaldo --url-captura http://192.168.137.60/capture
+   ```
+
+   El comando muestra un token; esta cámara no lo necesita.
+4. **Comprueba que el servidor la está pidiendo.** Empieza en menos de 5 s, sin reiniciar:
+   - el registro del servidor (`docker compose -f infra/compose.yaml logs -f servidor`) dice `Cámara patio: modo extraer, pide http://192.168.137.60/capture cada segundo.`;
+   - en la web, la cámara aparece en línea.
+   - Si la URL falla, el registro lo dice una vez, con el motivo (por ejemplo, `la URL de captura no respondió en 3 s`), y otra vez cuando vuelve a capturar.
+5. **Inscribe a alguien** con esa cámara, desde la pantalla Inscripción, como con cualquier otra: la cámara de respaldo también inscribe (R7 y R9).
+6. **Prueba el reconocimiento** frente a la cámara. El registro muestra una línea por recorte, con `firmware modo-extraer`, y Home Assistant recibe el evento.
+7. **Para dejar de usarla, desactívala en la web:** el servidor deja de pedirle fotos antes de la captura siguiente. Si le cambias la URL, usa la nueva sin reiniciar.
+
+- El servidor tiene que alcanzar la cámara. Con D-22, el servidor corre en la Pi, así que la cámara va en el hotspot. En el portátil (plan B), el contenedor del servidor también alcanza las IP del hotspot.
+- Para probar sin cámara, con el Compose del portátil: una foto en una carpeta de `datos/` (Git la ignora, y la foto va con el permiso de quien aparece), servida con `python -m http.server 8099` desde esa carpeta, y la URL `http://host.docker.internal:8099/foto.jpg`.
+
+### Qué decidió B2 del Día 4
+
+El contrato no cambia: todo cabe en «Modo extraer» de `api-dispositivo.md` y en las esperas que el contrato fija para la cámara.
+
+- **El ritmo**, como la cámara del contrato: 1 s desde que termina un cuadro, y 3 s después de `permitido`, `denegado` o `desconocido`.
+- **La captura:**
+  - `GET` con 3 s de espera para todo el pedido;
+  - solo `http` y `https`, y sin seguir redirecciones (una 3xx pide poner la URL final);
+  - tope de 2 MB por cuadro. Los 100 KB del contrato son para recortes: un cuadro de un ESP32-CAM pesa de 10 a 250 KB y una foto 1080p de un celular, menos de 1 MB. Lo que pasa de 2 MB suele ser un video.
+- **El recorte**, como la cámara: la cara más grande con puntaje de 0,9 o más, y solo si mide al menos `CARA_MIN_PX`, con la fórmula del contrato y en JPEG de calidad 80. Después, `rostros.procesar`, el mismo código de `enviarRostro`.
+- **Sin cara** no se procesa nada: no hay evento (RF-05 · C2) ni línea en el registro.
+- **El último contacto** cambia con cada captura buena, haya cara o no. De ahí sale `en_linea`, porque la cámara no tiene MQTT.
+- **Los errores:**
+  - cuáles: no responde en 3 s, no se pudo conectar, una respuesta que no es 200, más de 2 MB o algo que no es un JPEG;
+  - se reintentan con espera de 1, 2, 4, 8 y hasta 10 s, como la cámara con un 5xx;
+  - el registro avisa una vez por motivo y otra cuando vuelve a capturar, sin una línea por segundo. La URL va sin usuario, clave ni parámetros.
+- **MQTT:** el evento, la alerta y el resumen se publican después de confirmar la transacción y solo con conexión, como en `enviarRostro`.
+- **Una tarea por cámara**, en paralelo, así que una lenta no frena a las demás. Un supervisor busca cada 5 s las cámaras nuevas o reactivadas, y cada tarea revisa su cámara antes de cada captura.
+- **Nada en disco:** el cuadro y el recorte solo viven en memoria (RNF-01 · C1).
 
 ## Asistencia
 
@@ -394,6 +447,8 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `R7 · <caso>` y `R7 · orden` | Los 15 casos de la regla y que se responde el primer motivo que falla, en el orden de la regla |
 | `R9 · <caso>` | Segunda en la misma cámara, sin consentimiento, completa, vence, cancelar, otra cámara y vencida sin revisar |
 | `contrato cámara · <fila>` | Cada fila de las tablas de resultados y de errores de `api-dispositivo.md`, el orden de las comprobaciones y el último contacto |
+| `contrato cámara · modo extraer` | Cada segundo, con 3 s de espera y 3 s después de un evento, como la cámara; el recorte sale del cuadro con la fórmula del contrato y va por `rostros.procesar`, con su `firmware` |
+| `RF-10 · C4` | Una cámara de respaldo, falsa y sin red: permitido, desconocido e inscripción; sin cara o con una cara pequeña, nada; las fallas de la URL (tiempo, conexión, 4xx, 5xx, 3xx, no JPEG, más del tope, otro esquema) sin tumbar el bucle, con espera creciente y un aviso por motivo; desactivada, borrada o de otro tipo deja de pedirse, y una URL nueva se usa sin reiniciar; las cámaras en paralelo y las nuevas sin reiniciar; el evento en MQTT, y nada publicado si la transacción no se confirma |
 | `contrato recorte · <caso>` | Los casos de `casos-recorte.json` con `caja_del_recorte` y `recortar_cara_mas_grande`, como en el firmware y el simulador |
 | `contrato API · abrirInscripcion`, `verInscripcion` y `cancelarInscripcion` | Esquema `Inscripcion`, 404, 409 y 422 |
 | `RF-02 · C4` | Sin consentimiento vigente no se abre una inscripción |
@@ -408,7 +463,7 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `RF-06 · C5` | Registro manual: 404, 422 por hora futura, también para una persona inactiva, y dos registros a la vez, con dos conexiones reales, dejan una sola llegada |
 | `RF-05 · C3` | Accesos: filtros por fechas (con sus bordes), resultado, persona y cámara; paginación; orden con empates |
 | `RF-12 · C1` y `C3` | Borrar todas las huellas de una persona o una sola; las llegadas de una persona por rango, de la más reciente a la más antigua |
-| `RNF-01 · C1` y `C3` | Procesar recortes no escribe archivos ni registra la imagen (falla si se llama a `cv2.imwrite`); un desconocido y un `parece_otra_persona` no nombran a nadie más, tampoco en el Evento de MQTT |
+| `RNF-01 · C1` y `C3` | Procesar recortes, también los del modo extraer, no escribe archivos ni registra la imagen (falla si se llama a `cv2.imwrite`); un desconocido y un `parece_otra_persona` no nombran a nadie más, tampoco en el Evento de MQTT |
 | `modelos · SHA-256` | Un modelo que no coincide con su tamaño o su SHA-256 no se acepta ni queda en la carpeta |
 | `registro · INFO` | Un aviso INFO de `accesia` sale en la salida de errores del proceso, con la hora de Colombia |
 | `contrato MQTT · acl` | Mosquitto con el `mosquitto.conf` y la ACL del repositorio: rechaza la conexión anónima, deja entrar a los tres usuarios, y la cámara solo publica en los temas de su client id, nunca en `accesia/servidor/…` |

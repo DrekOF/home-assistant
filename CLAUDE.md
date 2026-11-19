@@ -2,9 +2,9 @@
 Nombre: CLAUDE.md
 Descripción: Reglas e instrucciones para Claude Code en el repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.11
+Versión: 1.14
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -94,6 +94,7 @@ AccesIA/
 ├── servidor/              API, reconocimiento, reglas, MQTT y MCP     frente B
 ├── web/                   web de administración (React + Vite)        frente C
 ├── homeassistant/         configuración de Home Assistant             frente C
+├── complementos/          complementos de Home Assistant OS (D-22)    frente B
 ├── infra/                 Docker Compose, .env y scripts del kit      frentes B y C
 └── scripts/               utilidades del repositorio
 ```
@@ -109,12 +110,17 @@ docker compose -f infra/compose.yaml up -d --build    levanta postgres, mosquitt
 docker compose -f infra/compose.yaml ps               estado y healthchecks
 docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador
                                                       registra una cámara y muestra su token una sola vez
+docker compose -f infra/compose.yaml exec servidor accesia crear-camara patio --nombre Patio --tipo respaldo --url-captura http://<IP>/capture
+                                                      cámara de respaldo (ESP32-CAM o celular): el servidor le pide una foto
+                                                      por segundo (modo extraer; paso a paso en servidor/README.md)
 docker compose -f infra/compose.yaml exec servidor accesia semilla agente [--con-datos-reales]
                                                       crea los datos de la evaluación del agente y revisa las preguntas 1 a 9
 docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borrar
                                                       borra solo los datos de la semilla
 curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
 start http://localhost:8000                           abre la web de administración, que sirve el servidor (sin Node)
+.\scripts\empaquetar-complementos.ps1                arma kit\complementos para copiar a \\<IP de la Pi>\addons (D-22)
+bash complementos/probar.sh                           arranca los complementos de amd64 como en la Pi (Git Bash)
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
 docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build
                                                       plan B (escenario 2): además publica mcp en el 8001 para la Pi
@@ -177,6 +183,9 @@ Firmware de la XIAO ESP32-C6, desde la raíz (necesita ESP-IDF 5.4.4 y PowerShel
 .\firmware\scripts\probar-logica.ps1                  pruebas de la lógica pura en ubuntu:24.04 (Docker Desktop)
 idf.py -C firmware -B firmware\build-c6 -p COM5 flash monitor
                                                       flashea y abre la consola (Ctrl+] sale)
+.\firmware\scripts\armar-kit.ps1 [-FuenteS3 ..\AccesIA-s3]
+                                                      arma kit\firmware: el binario del C6 y, con una copia del PR #7, los del S3
+.\kit\firmware\flashear.ps1 -Placa c6 -Puerto COM5    flashea con esptool y dice cómo poner la placa en modo de descarga
 ```
 
 Más detalle en `infra/README.md`, `servidor/README.md`, `simulador/README.md`, `firmware/README.md`, `scripts/README.md` y `web/README.md`.

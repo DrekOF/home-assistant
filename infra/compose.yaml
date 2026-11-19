@@ -1,9 +1,9 @@
 # Nombre: compose.yaml
 # Descripción: Servicios de AccesIA con Docker Compose: PostgreSQL 18 + pgvector, Mosquitto, el servidor y el servidor MCP del agente.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-12
+# Actualización: 2026-11-18
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 #
 # Las variables salen de infra/.env (se crea con infra/scripts/generar-env.ps1 o .sh).
 # mcp llega con la tarea B3 del Día 3; ollama, si va en Compose, con la C2 (specs/plan.md).
@@ -44,12 +44,15 @@ services:
       - ./mosquitto/claves:/mosquitto/config/claves
       - datos-mosquitto:/mosquitto/data
     healthcheck:
-      # -E sale con 0 cuando el broker acepta la conexión y la suscripción.
+      # -E sale con 0 cuando el broker acepta la conexión y la suscripción. Cada revisión deja tres líneas en el
+      # registro del broker (salud-broker entra y sale): cada 2 s mientras arranca y después cada 5 min, para no tapar
+      # las conexiones de la placa, del servidor y de Home Assistant (Hito 1). servidor no espera a que esté sano.
       test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u servidor -P \"$${MQTT_SERVIDOR_CLAVE}\" -i salud-broker -t accesia/servidor/disponible -E -W 3"]
-      interval: 10s
+      interval: 5m
       timeout: 5s
-      retries: 10
-      start_period: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     restart: unless-stopped
 
   servidor:

@@ -2,9 +2,9 @@
 Nombre: bitacora.md
 Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el método con IA) y qué quedó pendiente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.23
+Versión: 1.26
 -->
 
 # Bitácora
@@ -67,6 +67,135 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - con la B4: las integraciones Ollama y MCP, el agente, la medición de las 10 preguntas y la copia de seguridad (C2, pasos 2, 4 y 6);
   - la decisión sobre el broker del plan B;
   - la IP de la Pi en `arquitectura.md` (P-04), cuando se confirme en clase.
+
+## 2026-11-18 · Día 4 · Tarea B2 · El modo extraer y el ruido de salud-broker
+
+- Quién: el frente B.
+- Qué:
+  - **El modo extraer** (`servidor/accesia/extraer.py`, RF-10 · C4). Una cámara de tipo `respaldo` funciona sin firmware de AccesIA: el servidor le pide una foto por HTTP cada segundo, recorta la cara más grande como lo haría la cámara y la procesa por el mismo camino de `enviarRostro`. Reconoce, inscribe, guarda sus eventos y los publica en MQTT. Sirve para un ESP32-CAM sin tocar su firmware y para un celular con una aplicación de cámara IP.
+  - **Arranca y se detiene con el servidor.** Un supervisor busca cada 5 s las cámaras `respaldo` activas y deja una tarea por cámara, en paralelo. Cada tarea revisa su cámara antes de cada captura, así que una cámara desactivada, borrada o con otra URL cambia sin reiniciar.
+  - **`recortar_cara_mas_grande`** descarta, como la cámara, las caras de menos de `CARA_MIN_PX`.
+  - **El ruido de salud-broker** (pendiente del Hito 1). El healthcheck de `mosquitto` se conectaba cada 10 s y dejaba 3 líneas cada vez: 18 por minuto en el registro del broker. Ahora revisa cada 2 s mientras arranca y después cada 5 min (`start_interval`).
+  - **`servidor/README.md`**, con el paso a paso para registrar una cámara de respaldo con su URL de captura. También `infra/README.md`, `CLAUDE.md` y un plan B en la guía del día de clase.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-extraer`, rama `b/modo-extraer`, desde `main` con las tareas del Día 4).
+  - **Sin esperar la aprobación del plan.** La clase es al día siguiente. El equipo pidió escribir el plan en la descripción del PR, seguir sin esperar y parar solo si algo se salía de las specs o de los contratos. No hizo falta: todo cupo en «Modo extraer» de `api-dispositivo.md` 1.2 y en las esperas que el contrato fija para la cámara.
+  - **Lo que se reutilizó.** `rostros.procesar` (el camino de `enviarRostro`), `recortar_cara_mas_grande` (B2 del Día 2), la publicación después de confirmar (B2 del Día 3) y, en las pruebas, la conexión por turnos del cliente MQTT, que pasó a ser una fixture propia.
+  - **Pruebas primero.** Fallaron porque `accesia.extraer` no existía. Usan una cámara HTTP falsa (`httpx.MockTransport`), sin red, con la visión armada, el reloj de las pruebas y el broker de prueba.
+  - **Un hueco que apareció al planear las roturas:** nada probaba que la cámara cambiara mientras se pedía el cuadro. Se sumaron dos pruebas: si la desactivan o le cambian la URL en ese momento, ese cuadro no cuenta.
+  - **Código roto a propósito.** Se rompió 21 veces, y cada vez falló la prueba que correspondía:
+    - publicar dentro de la transacción;
+    - sin la espera de 3 s después de un evento, o sin esperar cada vez más;
+    - avisar cada falla, o no avisar al volver;
+    - sin contar el contacto;
+    - procesar aunque la cámara se desactive o cambie de URL durante el pedido;
+    - sin `CARA_MIN_PX`, en el modo extraer o en el recorte;
+    - sin revisar la cámara antes de pedir;
+    - seguir redirecciones, sin tope al leer, sin revisar el esquema o sin tiempo de espera total;
+    - la URL completa en el registro;
+    - el supervisor que revisa una sola vez, o las cámaras en serie;
+    - un error inesperado que tumba el bucle;
+    - lo que no es JPEG tomado como un cuadro sin cara;
+    - otro tipo de cámara al procesar.
+  - **Una prueba de B2 del Día 3 que dependía de los tiempos.** En la CI falló `test_el_resumen_periodico_cambia_de_dia_a_medianoche`: esperaba 0,12 s, cambiaba el día y esperaba otros 0,12 s, y en el runner, más lento, el resumen del día siguiente no alcanzó a salir. No tenía que ver con el modo extraer. Ahora espera el resumen de cada día, con el tiempo límite de las demás pruebas de MQTT.
+  - **`main` avanzó** con A3 del Día 4 (PR #24) y después con B4 (PR #26). Se trajo las dos veces y se conservó lo de las dos tareas. En la guía quedan la fila del simulador de A3 y la del ESP32-CAM. Con B4, el complemento del servidor empaqueta el código del servidor, así que en la Pi también corre el modo extraer.
+  - **Un comando bloqueado.** El chequeo de seguridad de Claude Code frenó un comando que editaba `compose.yaml`, porque el `$$` de la contraseña dentro de un heredoc no le dejaba leerlo con certeza. No borraba nada. El cambio se hizo con un script en un archivo.
+  - **Con una cámara HTTP de verdad.** La imagen del servidor corrió sola en el puerto 18001, con una base desechable y una «cámara» en otro contenedor que entrega un JPEG en `/capture`, como un ESP32-CAM.
+    - Se registró con `crear-camara --tipo respaldo --url-captura`, y en 2 s el servidor ya la pedía, una foto por segundo, con `en_linea` en la API.
+    - Una caída con 503 dio un aviso, y la vuelta, otro.
+    - Desactivarla desde la API la detuvo en menos de 1 s.
+    - La primera vez la «cámara» no arrancó, porque Git Bash convirtió su ruta. El servidor avisó una sola vez que no la alcanzaba y siguió reintentando. De ahí salió un cambio de redacción: el aviso decía «no se pudo conectar» y ahora dice «no se pudo alcanzar».
+    - No se probó con caras: no hay fotos con permiso, y los cuadros eran grises.
+    - Después se borraron los contenedores, la red, la imagen y las claves de prueba.
+- Decisiones donde el contrato no decía nada (detalle en `servidor/README.md`, «Modo extraer»):
+  - **El ritmo**, como la cámara: 1 s desde que termina un cuadro, y 3 s después de `permitido`, `denegado` o `desconocido`.
+  - **La captura:** `GET` con 3 s de espera para todo el pedido, solo `http` y `https`, sin seguir redirecciones, y con tope de 2 MB por cuadro.
+  - **Los errores** se reintentan con espera de 1, 2, 4, 8 y hasta 10 s, como la cámara con un 5xx. El registro avisa una vez por motivo y otra cuando vuelve a capturar, y la URL va sin usuario, clave ni parámetros.
+  - **Sin cara o con una cara pequeña** no se procesa nada: no hay evento ni línea en el registro. El último contacto cambia con cada captura buena, haya cara o no.
+  - **httpx** pasa a ser dependencia directa. Ya estaba en el lockfile, por `mcp`.
+- Pruebas: `uv run pytest`: 596 bien y 2 saltadas (las de caras reales, sin fotos), ya con A3 y B4 en `main`. `RF-10 · C4`: 28 bien; `contrato cámara · modo extraer`: 6 bien; `RNF-01 · C1`: 2 bien. `docker compose -f infra/compose.yaml config`: en orden, con el healthcheck nuevo.
+- Cambios de contrato o de specs: ninguno en los contratos. `infra/compose.yaml` 1.2 (el healthcheck de `mosquitto`).
+- Pendiente:
+  - probar con un ESP32-CAM o un celular de verdad, y con caras, si en la clase hay uno;
+  - con D-22, los mismos pasos sirven en la Pi cuando la B4 instale el complemento del servidor: la cámara va en el hotspot.
+## 2026-11-18 · Día 4 · Tarea B4 · Complementos de la base y del servidor
+
+- Quién: el frente B. La corrió la sesión A. Por pedido del equipo, esta noche el plan fue en la descripción del PR, sin esperar su aprobación.
+- Qué:
+  - **`complementos/accesia_base`:**
+    - PostgreSQL 18 con pgvector, con `FROM pgvector/pgvector:pg18`, y los datos en `/data/postgres`;
+    - la clave va en las opciones (`clave_base`, tipo `password`);
+    - copia de seguridad en frío y sin puertos publicados.
+  - **`complementos/accesia_servidor`:** el servidor con la web compilada y los modelos de cara, sobre `python:3.13-slim`, como `servidor/Dockerfile`. Publica solo el 8000, y el MCP queda en el 8001, solo en la red interna. Su `run.sh`:
+    - lee las opciones y las deja legibles solo para root;
+    - espera la base y corre la migración;
+    - levanta Uvicorn con el usuario `accesia`, y `accesia mcp` con el usuario `agente` y un entorno limpio;
+    - sale si uno de los dos termina.
+
+    Las reglas de D-14 son opciones, y las claves son de tipo `password`. Acepta `semilla agente` por la entrada estándar (`hassio.app_stdin`). Las cámaras se crean en la web.
+  - Cada complemento lleva `config.yaml`, un `Dockerfile` con `FROM` explícito, `run.sh`, `DOCS.md`, `README.md` y `translations/es.yaml`.
+  - **`scripts/empaquetar-complementos.ps1`** arma `kit/complementos/`. La web y los modelos salen de las etapas `web` y `modelos` de `servidor/Dockerfile`, así que solo hace falta Docker.
+  - **`complementos/probar.sh`** los arranca como en Home Assistant OS y revisa la salud, la web, el MCP (el `initialize`, el `Host` y las seis herramientas), los usuarios y las opciones.
+  - **`.github/workflows/complementos.yml`** empaqueta, construye para amd64 y arm64 (con QEMU) y corre `probar.sh` en amd64.
+  - **La ACL:** `infra/mosquitto/acl` pasa a `mqtt.md` 1.4. `contrato MQTT · acl` suma dos pruebas: que `homeassistant` lee y escribe en todos los temas, y que la ACL del repositorio tiene las mismas reglas del contrato.
+  - Documentación: `complementos/README.md`, con la instalación paso a paso; `infra/README.md` 1.8, `scripts/README.md` 1.2, `CLAUDE.md` 1.12, `specs/arquitectura.md` 1.13 y `docs/guia-dia-de-clase.md` 1.5.
+- Cómo:
+  - Claude Code leyó la B4, que vino en el PR #18, y la documentación de complementos: configuración, opciones, tipos, traducciones y el `Dockerfile` sin `BUILD_FROM`. En el código del Supervisor comprobó que las opciones de un complemento «legacy» llegan como variables de entorno.
+  - Decisiones, también escritas en la descripción del PR:
+    - **Las opciones** tienen nombres en español. Las claves son de tipo `password`, sin valor por defecto, así que el complemento no arranca sin ellas. La base y el usuario `accesia` quedan fijos, y la clave de la base va en los dos complementos.
+    - **D-15 en el complemento:** el MCP corre con su propio usuario del sistema, sin las claves del dueño en su entorno, y las opciones solo las lee root. Es lo mismo que el Compose ya hacía con el servicio `mcp`.
+    - **Los comandos en la Pi:** las cámaras se crean en la web, que muestra el token una vez, para no dejar el token en el registro. La semilla entra por la entrada estándar, que solo acepta tres textos.
+    - **Las claves en las URL** van codificadas con `@uri` de jq.
+    - **`complementos.yml`** corre solo cuando cambia algo que va dentro de los complementos, porque arm64 con QEMU es lento. El empaquetado va antes de `setup-buildx`, porque el constructor que deja esa acción no carga las imágenes de las etapas.
+    - **Robustez:** cada `Dockerfile` le quita a `run.sh` un posible `\r`, por si se copió con fin de línea CRLF.
+  - Lo que encontró la prueba local:
+    - la web usa `<div id="raiz">`;
+    - `docker exec` necesita `-i` para recibir el script por la entrada estándar;
+    - Docker no deja leer el entorno de un proceso de otro usuario, ni siquiera a root, así que la revisión del MCP corre como `agente`. Así además prueba que ese usuario no puede abrir las opciones.
+- Pruebas:
+  - `uv run pytest` en `servidor/`: 561 en verde y 2 saltadas. `contrato MQTT · acl` tiene 10, con 2 nuevas.
+  - Empaquetado: 15 s con la caché de Docker. `accesia_servidor` pesa 38 MB.
+  - amd64 en el portátil: la base se construyó en 10 s y el servidor en 26 s, con la caché. `probar.sh` pasó entera, con la salud lista en 3 a 8 s.
+  - arm64 con emulación en el portátil (`docker build --platform linux/arm64`): la base en 28 s y el servidor en 37 s. Con esas imágenes, `probar.sh` también pasó entera, con la salud lista en 30 s desde el arranque.
+- Cambios de contrato o de specs: ningún contrato, porque la ACL ya era la de `mqtt.md` 1.4. En `arquitectura.md`: los usuarios del complemento del servidor, los comandos en la Pi y las opciones.
+- Pendiente:
+  - instalar los dos complementos en el devcontainer o en la Pi y conectar Home Assistant con el MCP en `http://local-accesia-servidor:8001/mcp`. Es el ensayo de la C2 del Día 3, con C;
+  - cuando esté en `main`, avisar a C: C1 arma el kit con `kit/complementos`, y la C2 del Día 3 conecta Assist con el MCP;
+  - en la carpeta principal, reiniciar Mosquitto para que lea la ACL nueva.
+
+## 2026-11-18 · Día 4 · Tarea A3 · La IP de la Pi y el kit de flasheo
+
+- Quién: el frente A. La corrió la sesión A. Por pedido del equipo, esta noche el plan fue en la descripción del PR, sin esperar su aprobación.
+- Qué:
+  - **Firmware:**
+    - `valores_de_fabrica.hpp` es nuevo y no usa ESP-IDF. Define `ACCESIA_IP_DE_LA_PI` (`192.168.137.250`, el ejemplo de D-22) y arma con ella las direcciones de fábrica del servidor y del broker;
+    - `config.hpp` lo incluye, y los ejemplos de la consola también usan la IP;
+    - así la IP queda en un solo lugar.
+  - **Simulador:** la IP está en `IP_DE_LA_PI`, en `mqtt.py`. Con ella van los ejemplos de `--servidor` y `--broker` en la ayuda, en el mensaje de error y en el README. Los valores por defecto siguen en `localhost`, para el Compose del portátil.
+  - **Kit de flasheo** en `kit/firmware/`, que Git ignora:
+    - `firmware/scripts/armar-kit.ps1` compila el binario del C6 y, desde una copia del PR #7, los binarios octal y quad del S3, todos con la IP de la Pi;
+    - `firmware/scripts/flashear.ps1` dice qué placa flashea y cómo ponerla en modo de descarga, y flashea cada archivo en su dirección.
+  - Documentación: `firmware/README.md` 1.3, `simulador/README.md` 1.3, `docs/guia-dia-de-clase.md` 1.4, `specs/arquitectura.md` 1.12 (Firmware) y `CLAUDE.md` 1.11.
+- Cómo:
+  - Claude Code leyó la A3, que está en el PR #18, el firmware, el PR #7 y la instalación de ESP-IDF 5.4.4, que trae los toolchains del C6 y del S3.
+  - Decisiones:
+    - **La cabecera pura.** `config.hpp` incluye cabeceras de ESP-IDF y las pruebas de la lógica pura no pueden usarlo. Por eso la IP y las direcciones van en una cabecera aparte, en `accesia_config`, y las pruebas suman esa carpeta.
+    - **Un archivo por dirección.** El kit flashea cada archivo en su dirección, la de `flasher_args.json`, y no una imagen unida desde 0x0. La imagen unida rellenaría la NVS (de 0x9000 a 0xF000) y borraría la configuración de la consola.
+    - **Los binarios del S3** salen del PR #7 (`380fea5`), compilado en una carpeta temporal con la IP de la Pi en lugar de `10.42.0.1`, en los valores de fábrica y en los ejemplos de la consola. El PR #7 no cambia.
+    - **esptool:** el del PATH o el del Python de ESP-IDF. No se bajó nada nuevo.
+  - Correcciones durante la tarea:
+    - el primer armado dejó `10.42.0.1` en la ayuda de la consola del S3, y ahora el script cambia la IP en todo el código copiado;
+    - con `-WhatIf`, el script de activación de ESP-IDF tampoco corría, y ahora se activa de verdad y vuelve a `-WhatIf`;
+    - el kit se volvió a armar después del commit, para que `origen.txt` diga el commit real.
+- Pruebas:
+  - lógica pura del firmware (`probar-logica.ps1`): 43 casos y 204 aserciones en verde, con los dos nuevos `D-22 · …`;
+  - simulador (`uv run pytest`): 187 en verde y 2 saltadas, las de las fotos del equipo, con `D-22 · IP de la Pi`;
+  - el kit compiló con ESP-IDF 5.4.4: el C6 (1 030 KB) y los del S3, octal (1 522 KB) y quad (1 518 KB). Todos llevan `http://192.168.137.250:8000` y `mqtt://192.168.137.250:1883`;
+  - `flashear.ps1 -WhatIf` con las tres placas muestra la placa, el modo de descarga y el comando de esptool. No se flasheó ninguna placa, porque no había una conectada.
+- Cambios de contrato o de specs: ningún contrato. En specs, `arquitectura.md` 1.12 (Firmware).
+- Pendiente:
+  - **P-04:** si en clase la Pi queda en otra IP, se cambia `ACCESIA_IP_DE_LA_PI` y se vuelve a armar el kit, o se ajusta en la placa con `servidor` y `mqtt`. En el simulador, `IP_DE_LA_PI`.
+  - **A2:** probar `flashear.ps1` con la placa.
 
 ## 2026-11-13 · Día 4 · Tareas del Día 4, con D-22
 

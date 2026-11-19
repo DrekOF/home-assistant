@@ -1,10 +1,10 @@
 """
 Nombre: main.py
-Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker. También sirve la web compilada (web/dist) si está (D-04).
+Descripción: Aplicación FastAPI del servidor de AccesIA. Uvicorn la corre con un solo proceso; al arrancar exige SESION_SECRETO, crea el primer administrador, carga los modelos de cara y se conecta a MQTT sin esperar al broker. También sirve la web compilada (web/dist) si está (D-04) y pide los cuadros de las cámaras de respaldo (modo extraer, RF-10 · C4).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 """
 
 import asyncio
@@ -36,6 +36,7 @@ from accesia.api import (
 from accesia.config import configuracion
 from accesia.db import transaccion
 from accesia.errores import registrar_manejadores
+from accesia.extraer import ModoExtraer
 from accesia.mqtt import ClienteMqtt, resumen_periodico
 from accesia.registro import configurar_registro
 from accesia.rostros import ControlDeRitmo
@@ -74,10 +75,15 @@ async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
     app.state.mqtt = cliente
     cliente.iniciar()
     periodico = asyncio.create_task(resumen_periodico(cliente))
+    # Modo extraer: el servidor pide los cuadros de las cámaras de respaldo activas (RF-10 · C4, accesia/extraer.py).
+    extraer = asyncio.create_task(ModoExtraer(app.state).correr(), name="modo-extraer")
     try:
         yield
     finally:
         periodico.cancel()
+        # Se detiene antes de desconectar MQTT, para que no quede nada por publicar.
+        extraer.cancel()
+        await asyncio.gather(extraer, return_exceptions=True)
         await run_in_threadpool(cliente.detener)
 
 

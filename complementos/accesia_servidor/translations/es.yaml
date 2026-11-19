@@ -1,0 +1,52 @@
+# Nombre: es.yaml
+# Descripción: Nombres y descripciones en español de las opciones y el puerto del complemento accesia_servidor.
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+
+configuration:
+  clave_base:
+    name: Clave de la base
+    description: La misma del complemento AccesIA · base de datos (POSTGRES_PASSWORD de infra/.env).
+  clave_agente:
+    name: Clave del usuario agente
+    description: La del usuario de solo lectura que usa el MCP (AGENTE_DB_PASSWORD de infra/.env, D-15).
+  clave_mqtt_servidor:
+    name: Clave MQTT del servidor
+    description: La del usuario servidor en los logins del complemento Mosquitto (MQTT_SERVIDOR_CLAVE de infra/.env).
+  sesion_secreto:
+    name: Secreto de la sesión
+    description: 64 caracteres al azar que firman la cookie de la web (SESION_SECRETO de infra/.env).
+  admin_correo:
+    name: Correo del primer administrador
+    description: Se crea al arrancar si no existe (ADMIN_CORREO). Con un dominio no reservado.
+  admin_clave_inicial:
+    name: Clave inicial del administrador
+    description: De al menos 8 caracteres (ADMIN_CLAVE_INICIAL). Si el administrador ya existe, no se toca.
+  umbral_similitud:
+    name: Umbral de similitud
+    description: R1. Una similitud igual o mayor es la misma persona.
+  ventana_repetido_s:
+    name: Ventana de repetidos (s)
+    description: R4.
+  alerta_desconocidos:
+    name: Desconocidos para la alerta
+    description: R6.
+  alerta_ventana_s:
+    name: Ventana de la alerta (s)
+    description: R6.
+  inscripcion_muestras:
+    name: Muestras de la inscripción
+    description: R9.
+  inscripcion_vence_s:
+    name: Vencimiento de la inscripción (s)
+    description: R9.
+  cara_min_px:
+    name: Alto mínimo de la cara (px)
+    description: R7. El servidor descarta por debajo de 0,8 veces este valor.
+  nitidez_min:
+    name: Nitidez mínima
+    description: R7.
+network:
+  8000/tcp: API y web de AccesIA, para la placa, el simulador y el navegador

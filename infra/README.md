@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit de AccesIA (frentes B y C).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.10
 -->
 
 # Infraestructura · frentes B y C
@@ -41,6 +41,7 @@ Cada día:
 | Probar el servidor | `curl.exe http://localhost:8000/api/v1/salud` |
 | Abrir la web de administración, que sirve el servidor (no necesita Node) | `start http://localhost:8000` |
 | Registrar una cámara y ver su token una sola vez | `docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador` |
+| Registrar una cámara de respaldo, a la que el servidor le pide una foto por segundo (paso a paso en `servidor/README.md`, «Modo extraer») | `docker compose -f infra/compose.yaml exec servidor accesia crear-camara patio --nombre Patio --tipo respaldo --url-captura http://<IP de la cámara>/capture` |
 | Ver los registros del servidor (una línea INFO por recorte, sin imágenes) | `docker compose -f infra/compose.yaml logs -f servidor` |
 | Ver el registro del servidor MCP (dice qué encabezados `Host` acepta) | `docker compose -f infra/compose.yaml logs -f mcp` |
 | Crear los datos de la evaluación del agente y revisar las preguntas 1 a 9 | `docker compose -f infra/compose.yaml exec servidor accesia semilla agente` |
@@ -140,6 +141,12 @@ netsh interface ipv4 show excludedportrange protocol=tcp
 
 Si `POSTGRES_PORT` cae dentro de un rango, cámbialo en `infra/.env` por uno libre (nunca el 5432) y vuelve a correr `docker compose -f infra/compose.yaml up -d`.
 
+## Salud de Mosquitto
+
+El healthcheck de `mosquitto` entra al broker con el usuario `servidor` y el client id `salud-broker`, y cada revisión deja tres líneas en su registro. Por eso revisa cada 2 s mientras arranca y después cada 5 min: queda sano igual de rápido y no tapa las conexiones de la placa, del servidor y de Home Assistant. Antes revisaba cada 10 s (18 líneas por minuto, lo que encontró el Hito 1). `servidor` espera a que `mosquitto` arranque, no a que esté sano.
+
 ## ACL de MQTT
 
-La prueba `contrato MQTT · acl` levanta Mosquitto con `mosquitto/mosquitto.conf` y `mosquitto/acl` y comprueba la ACL con paho-mqtt. Se corre desde `servidor/` con `uv run pytest -k acl`.
+`mosquitto/acl` es la ACL de `mqtt.md` 1.4, la misma del portátil y de la Pi (D-22). `homeassistant` y `addons` leen y escriben en todos los temas, porque Home Assistant lo espera del Mosquitto oficial. Si el broker del Compose ya corría, reinícialo para que la lea: `docker compose -f infra/compose.yaml restart mosquitto`.
+
+La prueba `contrato MQTT · acl` levanta Mosquitto con `mosquitto/mosquitto.conf` y `mosquitto/acl` y comprueba la ACL con paho-mqtt. También revisa que `mosquitto/acl` tenga las mismas reglas que `mqtt.md`. Se corre desde `servidor/` con `uv run pytest -k acl`.

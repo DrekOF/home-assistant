@@ -2,9 +2,9 @@
 Nombre: vision_falsa.py
 Descripción: Visión armada para las pruebas de las reglas: caras con puntaje, tamaño, nitidez y huella elegidos, sin fotos. Incluye huellas de prueba con similitudes exactas y una cámara que envía recortes al servidor.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import math
@@ -66,12 +66,14 @@ class VisionFalsa:
         self._armadas: list[CaraArmada] = []
         self._entregadas: list[tuple[Cara, CaraArmada]] = []
         self.imagenes = 0
+        self.formas: list[tuple[int, int]] = []  # (alto, ancho) de cada imagen que vio, en orden
 
     def preparar(self, caras: Sequence[CaraArmada]) -> None:
         self._armadas = list(caras)
 
     def detectar(self, imagen: np.ndarray) -> list[Cara]:
         self.imagenes += 1
+        self.formas.append(tuple(imagen.shape[:2]))
         self._entregadas = [(armada.cara(), armada) for armada in self._armadas]
         return [cara for cara, _ in self._entregadas]
 

@@ -2,9 +2,9 @@
 Nombre: guia-dia-de-clase.md
 Descripción: Guía para montar AccesIA el día de la clase, en orden y con lo que se debe ver en cada paso: hotspot, la Pi con Home Assistant OS, Mosquitto, la placa, los archivos de Home Assistant, los complementos o el plan B, la cámara y Ollama (D-21 y D-22).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 2.0
+Versión: 2.1
 -->
 
 # Guía del día de clase
@@ -20,12 +20,15 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
 ## Antes de salir
 
 - [ ] El repositorio en `main`, con `infra/.env` y las claves de MQTT del Día 1.
-- [ ] `kit\ollama\` en la carpeta principal: 2,8 GB, con `qwen2.5:1.5b` y `qwen2.5:3b`, para `/share/ollama` sin internet (`homeassistant/README.md`, «El kit de Ollama»).
-- [ ] El binario del C6, del kit de la sesión 1 (hoy está en `firmware\build-c6`), con ESP-IDF 5.4.4 o esptool.
+- [ ] `kit\` en la carpeta principal, que Git ignora. En clase se usa solo esta carpeta:
+  - [ ] `kit\complementos\`: `accesia_base` y `accesia_servidor`, con los modelos de cara (D-22). Se arma con `.\scripts\empaquetar-complementos.ps1`, y se vuelve a armar después de cada `git pull` que cambie el servidor.
+  - [ ] `kit\firmware\`: el binario de la XIAO ESP32-C6 y, por si llega un ESP32-S3, los binarios octal y quad del PR #7, con `flashear.ps1`. Se arma con `.\firmware\scripts\armar-kit.ps1`, y `c6\origen.txt` dice de qué commit sale.
+  - [ ] `kit\ollama\`: 2,8 GB, con `qwen2.5:1.5b` y `qwen2.5:3b`, para `/share/ollama` sin internet (`homeassistant/README.md`, «El kit de Ollama»).
+- [ ] ESP-IDF 5.4.4 en el portátil: `flashear.ps1` usa su esptool si no hay otro en el PATH.
 - [ ] Docker Desktop con las imágenes del plan B ya construidas (`docker compose -f infra/compose.yaml up -d --build` una vez) y `eclipse-mosquitto:2`, que usa el script de prueba.
-- [ ] Si la B4 está en `main`, `kit\complementos\`, que arma su script.
+- [ ] El hotspot ya configurado (paso 1).
 - [ ] El celular con datos: el portátil necesita una conexión para encender el hotspot, y los complementos, internet para instalarse.
-- [ ] El cable USB-C de datos, el módulo DHT y sus cables.
+- [ ] El cable USB-C de datos, el módulo DHT y sus cables, un cable de red y una memoria USB (paso 2).
 
 ## 1. Hotspot y firewall (portátil)
 
@@ -130,7 +133,7 @@ En Configuración → Complementos → Tienda de complementos:
 2. **Terminal & SSH:** Instalar → Iniciar → «Abrir la interfaz web».
 3. **Mosquitto broker**, como en `homeassistant/README.md` («Mosquitto»):
    1. En `\\192.168.137.250\share\mosquitto\`, copia `acl.conf` (de `homeassistant\mosquitto\`) y `accesscontrollist`.
-      - `accesscontrollist` es la ACL de `contratos/mqtt.md` 1.4: `infra\mosquitto\acl` si ya dice «versión 1.4»; si no, el bloque del contrato.
+      - `accesscontrollist` es una copia de `infra\mosquitto\acl`, la ACL de `contratos/mqtt.md`.
       - Va con fin de línea LF.
    2. Instala el complemento. En Configuración → ⋮ → «Editar en YAML»:
 
@@ -159,35 +162,28 @@ En Configuración → Complementos → Tienda de complementos:
 ## 5. Flashear la placa y configurarla por la consola
 
 1. Conecta el módulo DHT: VCC a 3V3, DATA a D2 y GND a GND.
-2. Flashea con el binario del C6 del kit de la sesión 1. Es la carpeta con `flash_args`, `bootloader\`, `partition_table\` y `accesia.bin`; hoy está en `firmware\build-c6`.
-   - **Con ESP-IDF** (acceso directo «IDF_v5.4.4_Powershell»), desde la raíz del repositorio:
+2. Flashea con el kit, desde la carpeta principal:
 
-     ```powershell
-     idf.py -C firmware -B firmware\build-c6 -p COM5 flash monitor
-     ```
+   ```powershell
+   .\kit\firmware\flashear.ps1 -Placa c6 -Puerto COM5
+   ```
 
-   - **Solo con esptool**, desde la carpeta del binario, y después un monitor serie a 115200:
-
-     ```powershell
-     python -m esptool --chip esp32c6 -p COM5 -b 460800 --before default_reset --after hard_reset write_flash "@flash_args"
-     ```
-
-   - El puerto sale en el Administrador de dispositivos como «Dispositivo serie USB». Si no conecta, mantén presionado BOOT mientras conectas el cable.
-3. En el monitor:
+   - El puerto sale en el Administrador de dispositivos como «Dispositivo serie USB». Sin `-Puerto`, esptool busca la placa.
+   - El script dice cómo poner la placa en modo de descarga, flashea y muestra los comandos de la consola que faltan.
+   - Usa el esptool del PATH o el de ESP-IDF 5.4. Con `-WhatIf` muestra el comando sin flashear.
+   - Al volver a flashear, la configuración de la consola se conserva; `-Borrar` la borra con toda la flash.
+3. Abre la consola a 115200 baudios: `python -m serial.tools.miniterm COM5 115200`, con el Python de ESP-IDF, o `idf.py -C firmware -B firmware\build-c6 -p COM5 monitor` si el firmware está compilado. Escribe:
 
    ```text
    wifi AccesIA <clave del hotspot>
    codigo entrada
-   servidor http://192.168.137.250:8000
    mqtt mqtt://192.168.137.250:1883 camara <MQTT_CAMARA_CLAVE>
-   sensor dht22
-   antena interna
    estado
    reiniciar
    ```
 
-   - Si el módulo es azul (DHT11), usa `sensor dht11`.
-   - `antena externa` va solo con una antena en el U.FL.
+   - Los valores de fábrica ya apuntan a la Pi (`192.168.137.250`, D-22), con la puerta en el LED, DHT22 y la antena interna. Si la Pi quedó en otra IP, también `servidor http://<IP>:8000` y `mqtt` con esa IP.
+   - Si el módulo es azul (DHT11), usa `sensor dht11`. `antena externa` va solo con una antena en el U.FL.
    - El token se pone cuando la placa envíe recortes.
    - El código es el client id de MQTT: otro equipo con `entrada` la desconecta.
 
@@ -220,22 +216,23 @@ En Configuración → Complementos → Tienda de complementos:
 - En la campana, «Desconocidos en entrada» con «3 caras desconocidas en 60 s, a las 08:15».
 - El panel ya tiene temperatura, humedad, puerta y cámara en línea; lo demás llega con el servidor (paso 7). «Última persona» dice «Ana Gómez», el ejemplo del script, hasta el primer acceso real.
 
-## 7. Nuestros complementos, si la B4 está lista, o el plan B
+## 7. Nuestros complementos o el plan B
 
-### Con la B4 en `main`
+### Nuestros complementos (B4)
 
-Como dice `specs/arquitectura.md` («Complementos de Home Assistant OS», Instalación). Construir necesita internet una vez: el del celular.
+La B4 está en `main` desde el PR #26. Se instalan como dice `complementos/README.md` («Instalar en la Pi»); el Mosquitto ya quedó en el paso 4. Construir necesita internet una vez: el del celular.
 
-1. Haz `git pull` y arma `kit\complementos\` con el script de la B4.
-2. Por Samba, copia las dos carpetas a `\\192.168.137.250\addons\`.
-3. Tienda de complementos → ⋮ → «Buscar actualizaciones» → «Complementos locales»: instala `accesia_base` y `accesia_servidor`.
-4. En sus opciones, pon las claves de `infra/.env` y las reglas.
-5. Inicia primero la base y después el servidor.
+1. Por Samba, copia `kit\complementos\accesia_base` y `kit\complementos\accesia_servidor` a `\\192.168.137.250\addons\`.
+2. Tienda de complementos → ⋮ → «Buscar actualizaciones» → «Complementos locales»: instala «AccesIA · base de datos» y «AccesIA · servidor». La Pi construye cada imagen.
+3. «AccesIA · base de datos»: pon `clave_base`, la `POSTGRES_PASSWORD` de `infra\.env`, e inícialo.
+4. «AccesIA · servidor»: pon sus opciones con las claves de `infra\.env` (la lista está en `complementos/accesia_servidor/DOCS.md`), enciende el Watchdog e inícialo.
+5. En la web, en Cámaras, crea la cámara `entrada`. Su token sale una sola vez.
 
 **Se ve:**
 
+- El registro del servidor dice que corrió la migración.
 - `curl.exe http://192.168.137.250:8000/api/v1/salud` responde con `"estado":"ok"`.
-- La web abre en `http://192.168.137.250:8000`.
+- La web abre en `http://192.168.137.250:8000/`.
 - En Home Assistant aparecen el dispositivo «AccesIA Servidor» y las entidades de la cámara, y el panel queda completo.
 
 Después sigue el guion del Hito 2 (`tareas/dia-3/00-todos-orden-e-hito-2.md`).
@@ -285,8 +282,8 @@ Como dice `specs/arquitectura.md` («Cuando llegue el módulo de cámara»):
 | Módulo | Qué se hace |
 | --- | --- |
 | Cámara SPI con JPEG para el C6 | No hay firmware para eso. El C6 enviaría el cuadro completo, y eso cambia `api-dispositivo.md` y `openapi.yaml` en su propio PR. En la demo sigue el simulador |
-| Placa ESP32-S3 con cámara | Vuelve el firmware de referencia del PR #7, con su perfil (`esp32s3_eye`, `freenove_s3_cam`, `xiao_s3_sense` o los genéricos), y el contrato no cambia. Dos equipos no pueden usar el mismo código en MQTT: el código de la S3 y quién maneja la puerta se deciden con el frente A |
-| ESP32-CAM | Cámara de respaldo con el modo extraer (`GET /capture`) y el binario `respaldo` del PR #7, si la B2 del Día 4 ya está en `main` |
+| Placa ESP32-S3 con cámara | Vuelve el firmware de referencia del PR #7, que está en el kit: `.\kit\firmware\flashear.ps1 -Detectar` dice si su PSRAM es octal o quad; después se flashea con `-Placa s3-octal` o `-Placa s3-quad`, y por consola se elige su `perfil` (`esp32s3_eye`, `freenove_s3_cam`, `xiao_s3_sense` o los genéricos). El contrato no cambia. Dos equipos no pueden usar el mismo código en MQTT: el código de la S3 y quién maneja la puerta se deciden con el frente A |
+| ESP32-CAM, o un celular con una aplicación de cámara IP | Cámara de respaldo con el modo extraer (B2 del Día 4): el servidor le pide una foto por segundo por HTTP, sin tocar su firmware (RF-10 · C4). Se registra con su URL de captura, como dice `servidor/README.md` («Registrar una cámara de respaldo, paso a paso») |
 
 En todos los casos, la cámara de la demo es el simulador hasta que el firmware nuevo esté probado:
 
@@ -328,11 +325,12 @@ Si una respuesta pasa de 15 s, primero se prueba en la Pi (RNF-03 · C3): las va
 
 | Si falla | Plan B |
 | --- | --- |
-| La cámara de la placa no está lista (D-21) | El simulador con la webcam del portátil; la placa sigue abriendo la puerta |
+| La cámara de la placa no está lista (D-21) | El simulador con la webcam del portátil, con `--servidor http://192.168.137.250:8000`; la placa sigue abriendo la puerta |
+| Llega un ESP32-CAM, o un celular hace de cámara | Cámara de respaldo con el modo extraer (paso 8) |
 | La XIAO ESP32-C6 no conecta | El simulador con la webcam y `--puerta`, que también simula la puerta (A1) |
 | La cámara deja de reconocer durante la demo | Registrar las llegadas a mano en la pantalla Asistencia (RF-06 · C5), cuando esté en `main` |
-| Ollama va lento en la Raspberry | Primero, en la Raspberry: las variantes Q4_0, descripciones más cortas y `qwen2.5:0.5b` si responde bien (RNF-03 · C3). Ollama en el portátil, solo con el visto bueno del docente |
-| La B4 no está lista, o la Raspberry no alcanza para la base y el servidor | Escenario 2 (paso 7) |
+| Ollama va lento en la Raspberry | Primero, en la Raspberry: las variantes Q4_0, descripciones más cortas, `qwen2.5:0.5b` si responde bien y el comienzo del prompt estable (RNF-03 · C3). Ollama en el portátil, solo con el visto bueno del docente |
+| Los complementos no se instalan, o la Raspberry no alcanza para la base y el servidor | Escenario 2 (paso 7) |
 | No hay internet para instalar los complementos | El celular con datos; si tampoco hay, el escenario 2 |
 | La Raspberry no arranca | Pedir una microSD al docente; si no hay, todo en el portátil con el mismo Compose |
 | El hotspot del portátil no funciona | La red del salón o el hotspot del celular, reconfigurando la placa por consola |

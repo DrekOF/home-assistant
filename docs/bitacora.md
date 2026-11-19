@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.23
+Versión: 1.24
 -->
 
 # Bitácora
@@ -52,6 +52,8 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
     - un error inesperado que tumba el bucle;
     - lo que no es JPEG tomado como un cuadro sin cara;
     - otro tipo de cámara al procesar.
+  - **Una prueba de B2 del Día 3 que dependía de los tiempos.** En la CI falló `test_el_resumen_periodico_cambia_de_dia_a_medianoche`: esperaba 0,12 s, cambiaba el día y esperaba otros 0,12 s, y en el runner, más lento, el resumen del día siguiente no alcanzó a salir. No tenía que ver con el modo extraer. Ahora espera el resumen de cada día, con el tiempo límite de las demás pruebas de MQTT.
+  - **`main` avanzó** con A3 del Día 4 (PR #24): se trajo y se conservaron la fila del simulador de A3 y la del ESP32-CAM en la guía.
   - **Un comando bloqueado.** El chequeo de seguridad de Claude Code frenó un comando que editaba `compose.yaml`, porque el `$$` de la contraseña dentro de un heredoc no le dejaba leerlo con certeza. No borraba nada. El cambio se hizo con un script en un archivo.
   - **Con una cámara HTTP de verdad.** La imagen del servidor corrió sola en el puerto 18001, con una base desechable y una «cámara» en otro contenedor que entrega un JPEG en `/capture`, como un ESP32-CAM.
     - Se registró con `crear-camara --tipo respaldo --url-captura`, y en 2 s el servidor ya la pedía, una foto por segundo, con `en_linea` en la API.
@@ -71,6 +73,39 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pendiente:
   - probar con un ESP32-CAM o un celular de verdad, y con caras, si en la clase hay uno;
   - con D-22, los mismos pasos sirven en la Pi cuando la B4 instale el complemento del servidor: la cámara va en el hotspot.
+## 2026-11-18 · Día 4 · Tarea A3 · La IP de la Pi y el kit de flasheo
+
+- Quién: el frente A. La corrió la sesión A. Por pedido del equipo, esta noche el plan fue en la descripción del PR, sin esperar su aprobación.
+- Qué:
+  - **Firmware:**
+    - `valores_de_fabrica.hpp` es nuevo y no usa ESP-IDF. Define `ACCESIA_IP_DE_LA_PI` (`192.168.137.250`, el ejemplo de D-22) y arma con ella las direcciones de fábrica del servidor y del broker;
+    - `config.hpp` lo incluye, y los ejemplos de la consola también usan la IP;
+    - así la IP queda en un solo lugar.
+  - **Simulador:** la IP está en `IP_DE_LA_PI`, en `mqtt.py`. Con ella van los ejemplos de `--servidor` y `--broker` en la ayuda, en el mensaje de error y en el README. Los valores por defecto siguen en `localhost`, para el Compose del portátil.
+  - **Kit de flasheo** en `kit/firmware/`, que Git ignora:
+    - `firmware/scripts/armar-kit.ps1` compila el binario del C6 y, desde una copia del PR #7, los binarios octal y quad del S3, todos con la IP de la Pi;
+    - `firmware/scripts/flashear.ps1` dice qué placa flashea y cómo ponerla en modo de descarga, y flashea cada archivo en su dirección.
+  - Documentación: `firmware/README.md` 1.3, `simulador/README.md` 1.3, `docs/guia-dia-de-clase.md` 1.4, `specs/arquitectura.md` 1.12 (Firmware) y `CLAUDE.md` 1.11.
+- Cómo:
+  - Claude Code leyó la A3, que está en el PR #18, el firmware, el PR #7 y la instalación de ESP-IDF 5.4.4, que trae los toolchains del C6 y del S3.
+  - Decisiones:
+    - **La cabecera pura.** `config.hpp` incluye cabeceras de ESP-IDF y las pruebas de la lógica pura no pueden usarlo. Por eso la IP y las direcciones van en una cabecera aparte, en `accesia_config`, y las pruebas suman esa carpeta.
+    - **Un archivo por dirección.** El kit flashea cada archivo en su dirección, la de `flasher_args.json`, y no una imagen unida desde 0x0. La imagen unida rellenaría la NVS (de 0x9000 a 0xF000) y borraría la configuración de la consola.
+    - **Los binarios del S3** salen del PR #7 (`380fea5`), compilado en una carpeta temporal con la IP de la Pi en lugar de `10.42.0.1`, en los valores de fábrica y en los ejemplos de la consola. El PR #7 no cambia.
+    - **esptool:** el del PATH o el del Python de ESP-IDF. No se bajó nada nuevo.
+  - Correcciones durante la tarea:
+    - el primer armado dejó `10.42.0.1` en la ayuda de la consola del S3, y ahora el script cambia la IP en todo el código copiado;
+    - con `-WhatIf`, el script de activación de ESP-IDF tampoco corría, y ahora se activa de verdad y vuelve a `-WhatIf`;
+    - el kit se volvió a armar después del commit, para que `origen.txt` diga el commit real.
+- Pruebas:
+  - lógica pura del firmware (`probar-logica.ps1`): 43 casos y 204 aserciones en verde, con los dos nuevos `D-22 · …`;
+  - simulador (`uv run pytest`): 187 en verde y 2 saltadas, las de las fotos del equipo, con `D-22 · IP de la Pi`;
+  - el kit compiló con ESP-IDF 5.4.4: el C6 (1 030 KB) y los del S3, octal (1 522 KB) y quad (1 518 KB). Todos llevan `http://192.168.137.250:8000` y `mqtt://192.168.137.250:1883`;
+  - `flashear.ps1 -WhatIf` con las tres placas muestra la placa, el modo de descarga y el comando de esptool. No se flasheó ninguna placa, porque no había una conectada.
+- Cambios de contrato o de specs: ningún contrato. En specs, `arquitectura.md` 1.12 (Firmware).
+- Pendiente:
+  - **P-04:** si en clase la Pi queda en otra IP, se cambia `ACCESIA_IP_DE_LA_PI` y se vuelve a armar el kit, o se ajusta en la placa con `servidor` y `mqtt`. En el simulador, `IP_DE_LA_PI`.
+  - **A2:** probar `flashear.ps1` con la placa.
 
 ## 2026-11-13 · Día 4 · Tareas del Día 4, con D-22
 
@@ -139,6 +174,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - el Hito 1, primero; C1 y C2 del Día 3, y el Hito 2 en clase;
   - P-03, el módulo de cámara, y P-04, la RAM y la IP de la Pi;
   - las tareas del Día 5 (ensayo general e Hito 3), al cerrar el Día 4.
+
 ## 2026-11-13 · Día 2 · Hito 1
 
 - Quién: Cristhian Eduardo Sánchez Mosquera, que se inscribió, y otro integrante del equipo, sin inscribir, para el desconocido. Lo coordinó la sesión de la tarea C del Día 2.

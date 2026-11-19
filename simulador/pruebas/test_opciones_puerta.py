@@ -2,9 +2,9 @@
 Nombre: test_opciones_puerta.py
 Descripción: Prueba «contrato MQTT · broker» de las opciones del comando: sin --puerta no se crea el cliente MQTT (la placa conserva su código), y con --puerta se valida el código, la clave y el broker antes de conectarse.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 from pathlib import Path
@@ -15,7 +15,8 @@ from dobles import CLAVE_MQTT, TOKEN, Publicado, ServidorFalso, escribir_foto, i
 
 import simulador.comandos as comandos
 from simulador.comandos import construir_parser, principal
-from simulador.mqtt import Broker, PuertaMqtt, codigo_valido, leer_broker
+from simulador.mqtt import (BROKER_DE_LA_PI, FORMA_BROKER, IP_DE_LA_PI, Broker, PuertaMqtt, codigo_valido,
+                            leer_broker)
 from simulador.recorte import Cara
 
 pytestmark = pytest.mark.marca("contrato MQTT · broker")
@@ -171,3 +172,11 @@ def test_broker_con_clave_no_la_repite(capsys: pytest.CaptureFixture) -> None:
 def test_codigo_como_en_openapi_y_la_placa(codigo: str, valido: bool) -> None:
     """^[a-z0-9-]{3,32}$ y distinto de «servidor», como openapi.yaml y codigo_valido de la placa."""
     assert codigo_valido(codigo) is valido
+
+
+@pytest.mark.marca("D-22 · IP de la Pi")
+def test_los_ejemplos_de_la_pi_son_validos_y_salen_de_un_solo_lugar() -> None:
+    assert leer_broker(BROKER_DE_LA_PI) == Broker(IP_DE_LA_PI, 1883)
+    assert IP_DE_LA_PI in FORMA_BROKER
+    assert comandos.SERVIDOR_DE_LA_PI == f"http://{IP_DE_LA_PI}:8000"
+    assert IP_DE_LA_PI != "192.168.137.1"  # el portátil, que con D-22 solo es el plan B

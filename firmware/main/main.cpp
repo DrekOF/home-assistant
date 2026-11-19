@@ -1,13 +1,14 @@
 /**
  * Nombre: main.cpp
- * Descripción: Arranque de la placa (D-21): configuración, antena, consola, puerta, Wi-Fi, MQTT, sensor de ambiente y LED.
+ * Descripción: Arranque de la placa: configuración, consola, puerta, Wi-Fi y MQTT, y lo de cada target: la cámara y su modelo en la ESP32-CAM (D-24); la antena, el sensor y el LED en la XIAO ESP32-C6 (D-21).
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  *
- * En la XIAO ESP32-C6 no hay cámara todavía: la placa abre la puerta con el LED y publica su estado y la
- * temperatura y la humedad por MQTT. La cámara llega con accesia_vision cuando llegue el módulo (P-03).
+ * En la ESP32-CAM, la placa detecta caras con ESP-DL 1.1, envía el recorte al servidor, publica su presencia y
+ * abre la puerta con el LED rojo. El Wi-Fi y MQTT arrancan antes que la cámara y el modelo, porque ESP-DL toma en
+ * cada detección la RAM interna que quede libre.
  */
 
 #include <cstdio>
@@ -20,12 +21,16 @@
 
 #include "accesia/config.hpp"
 #include "accesia/consola.hpp"
+#include "accesia/led.hpp"
 #include "accesia/mensajes.hpp"
 #include "accesia/mqtt.hpp"
 #include "accesia/puerta.hpp"
 #include "accesia/red.hpp"
 
-#if CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32
+#include "accesia/esp32cam.hpp"
+#include "accesia/placa_esp32cam.hpp"
+#elif CONFIG_IDF_TARGET_ESP32C6
 #include "accesia/ambiente.hpp"
 #include "accesia/placa.hpp"
 #endif
@@ -34,7 +39,10 @@ namespace {
 
 constexpr const char* TAG = "accesia";
 
-#if CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32
+constexpr const char* PERFIL = accesia::PERFIL_ESP32CAM;
+constexpr int PIN_LED_COMPARTIDO = accesia::PIN_LED_ROJO;  // la puerta de fábrica es el LED rojo
+#elif CONFIG_IDF_TARGET_ESP32C6
 constexpr const char* PERFIL = accesia::PERFIL_C6;
 constexpr int PIN_LED_COMPARTIDO = accesia::PIN_LED;  // la puerta de fábrica es el LED de estado
 #else
@@ -59,7 +67,9 @@ std::string armar_estado()
     estado.ip = accesia::red_ip();
     estado.rssi = accesia::red_rssi();
     estado.libre_kb = static_cast<int>(esp_get_free_heap_size() / 1024);
-#if CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32
+    estado.psram_kb = accesia::esp32cam_psram_kb();
+#elif CONFIG_IDF_TARGET_ESP32C6
     estado.sensor = accesia::nombre_sensor(accesia::ambiente_tipo());
     estado.antena = accesia::nombre_antena(accesia::placa_antena());
 #endif
@@ -67,15 +77,14 @@ std::string armar_estado()
     return accesia::mensaje_estado(estado);
 }
 
-#if CONFIG_IDF_TARGET_ESP32C6
-accesia::Conexion conexion()
+/// Para el parpadeo del LED: lento sin Wi-Fi, rápido sin broker y apagado con todo conectado.
+[[maybe_unused]] accesia::Conexion conexion()
 {
     if (!accesia::red_conectada()) {
         return accesia::Conexion::sin_wifi;
     }
     return accesia::mqtt_conectado() ? accesia::Conexion::conectada : accesia::Conexion::sin_broker;
 }
-#endif
 
 }  // namespace
 
@@ -100,12 +109,22 @@ extern "C" void app_main(void)
     enlaces.al_recibir_puerta = accesia::puerta_orden;
     enlaces.puerta_abierta = accesia::puerta_abierta;
     enlaces.armar_estado = armar_estado;
-#if CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32
+    enlaces.publica_presencia = true;
+    enlaces.armar_presencia = accesia::esp32cam_mensaje_presencia;
+#elif CONFIG_IDF_TARGET_ESP32C6
     enlaces.publica_ambiente = true;
 #endif
     revisar(accesia::mqtt_iniciar(config, enlaces), "MQTT");
 
-#if CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32
+    accesia::EnlacesEsp32Cam camara;
+    camara.publicar_presencia = accesia::mqtt_publicar_presencia;
+    camara.puerta_abierta_en_led = accesia::puerta_abierta_en_led;
+    camara.conexion = conexion;
+    camara.hay_red = accesia::red_conectada;
+    revisar(accesia::esp32cam_iniciar(config, camara), "la cámara");
+#elif CONFIG_IDF_TARGET_ESP32C6
     revisar(accesia::ambiente_iniciar(accesia::mqtt_publicar_ambiente), "el sensor");
     revisar(accesia::placa_iniciar(accesia::puerta_abierta_en_led, conexion), "el LED");
 #endif

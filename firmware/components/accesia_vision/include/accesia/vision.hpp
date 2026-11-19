@@ -1,17 +1,14 @@
 /**
  * Nombre: vision.hpp
- * Descripción: Punto de extensión para la cámara que llega la próxima clase (D-21, P-03): fuente de cuadros y detector.
+ * Descripción: Interfaces de la cámara de la placa: la fuente de cuadros y el detector (D-24).
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  *
- * Solo interfaces, sin código de cámara ni de TinyML. Qué las implementa depende del módulo (arquitectura.md,
- * «Cuando llegue el módulo de cámara»):
- *   - Cámara SPI con JPEG en el C6: la fuente lee el JPEG por SPI; el detector es un clasificador int8 de
- *     TensorFlow Lite Micro (esp-tflite-micro) que dice si hay alguien, sin cajas. El envío del cuadro completo
- *     necesita antes un cambio de api-dispositivo.md y openapi.yaml, en su propio PR.
- *   - ESP32-S3 con cámara: vuelve el firmware del PR #7 (esp32-camera y HumanFaceDetect), con cajas y recorte.
+ * En la ESP32-CAM (D-24, P-05) las implementan accesia_camara (esp32-camera, QVGA en RGB565) y accesia_deteccion
+ * (ESP-DL 1.1, MSR01 + MNP01), con cajas y recorte, y accesia_esp32cam las usa en su ciclo. Si vuelve el ESP32-S3
+ * del PR #7, sus HumanFaceDetect de ESP-DL 3 serían otra implementación del detector.
  * El ciclo de envío usa la espera de accesia_recorte (1 s, o 3 s tras una decisión).
  */
 
@@ -49,6 +46,7 @@ struct Deteccion {
     bool hay_alguien = false;
     float puntaje = 0.0f;
     std::vector<Caja> caras;  // vacío si el detector no da cajas (por ejemplo, un clasificador)
+    std::vector<float> puntajes;  // uno por cara, en el mismo orden de caras
 };
 
 /// El modelo TinyML que corre en la placa.

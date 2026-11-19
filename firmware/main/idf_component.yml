@@ -1,16 +1,31 @@
 # Nombre: idf_component.yml
 # Descripción: Dependencias del firmware en el ESP Component Registry, con versiones fijas y reglas por target.
 # Fecha de creación: 2026-11-12
-# Actualización: 2026-11-12
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 #
-# Cada target tiene su lock: firmware/dependencies.lock.esp32c6 (en Git) fija también las dependencias de estas.
-# esp-idf-lib/dht 1.2.0 declara soporte para esp32c6 (D-21). Su ayuda va fija en la versión de la misma época,
-# porque la dht la pide con «*» y si no subiría sola a la más nueva.
+# Cada target tiene su lock (en Git), que fija también las dependencias de estas: dependencies.lock.esp32 y
+# dependencies.lock.esp32c6.
+#
+# La ESP32-CAM (esp32, D-24): esp32-camera 2.1.9, la misma del firmware del S3 (PR #7), y ESP-DL 1.1.0, con
+# HumanFaceDetectMSR01 + MNP01 ya compilados para el ESP32 clásico. ESP-DL 1.1.0 no declara versión de ESP-IDF;
+# compila y corre con la 5.4.4 (P-05). La 2.0.0 exige ESP-IDF 5.0, y human_face_detect, de ESP-DL 3, solo trae
+# modelos del S3 y del P4.
+#
+# La XIAO ESP32-C6 (esp32c6, D-21): esp-idf-lib/dht 1.2.0 declara soporte para esp32c6. Su ayuda va fija en la
+# versión de la misma época, porque la dht la pide con «*» y si no subiría sola a la más nueva.
 
 dependencies:
   idf: ">=5.4.4,<5.5"
+  espressif/esp32-camera:
+    version: "2.1.9"
+    rules:
+      - if: "target == esp32"
+  espressif/esp-dl:
+    version: "1.1.0"
+    rules:
+      - if: "target == esp32"
   esp-idf-lib/dht:
     version: "1.2.0"
     rules:

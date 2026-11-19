@@ -1,10 +1,10 @@
 /**
  * Nombre: mensajes.cpp
- * Descripción: Arma los temas y los JSON de ambiente, estado y descubrimiento de la placa (contratos/mqtt.md 1.2).
+ * Descripción: Arma los temas y los JSON de presencia, ambiente, estado y descubrimiento de la placa (contratos/mqtt.md 1.6).
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  *
  * Sin biblioteca de JSON: los textos se escapan aquí y los números van con printf en la configuración regional «C».
  */
@@ -117,6 +117,47 @@ std::string mensaje_descubrimiento(const std::string& codigo, SensorAmbiente sen
     return json;
 }
 
+std::string mensaje_presencia(bool presente, std::optional<float> puntaje)
+{
+    std::string json = "{\"presente\": ";
+    json += presente ? "true" : "false";
+    json += ", \"puntaje\": ";
+    if (presente && puntaje) {
+        const float acotado = *puntaje < 0.0f ? 0.0f : (*puntaje > 1.0f ? 1.0f : *puntaje);
+        char texto[16];
+        std::snprintf(texto, sizeof(texto), "%.2f", static_cast<double>(acotado));
+        json += texto;
+    } else {
+        json += "null";
+    }
+    return json + "}";
+}
+
+std::string tema_descubrimiento_presencia(const std::string& codigo)
+{
+    return "homeassistant/binary_sensor/" + codigo + "/presencia/config";
+}
+
+std::string mensaje_descubrimiento_presencia(const std::string& codigo, const std::string& version)
+{
+    const std::string entidad = "accesia_" + codigo_para_entidad(codigo) + "_presencia";
+    const std::string estado = tema(codigo, "presencia");
+
+    std::string json = "{";
+    json += "\"name\": \"Presencia\"";
+    json += ", \"unique_id\": " + json_texto(entidad);
+    json += ", \"default_entity_id\": " + json_texto("binary_sensor." + entidad);
+    json += ", \"state_topic\": " + json_texto(estado);
+    json += ", \"value_template\": " + json_texto("{{ 'ON' if value_json.presente else 'OFF' }}");
+    json += ", \"json_attributes_topic\": " + json_texto(estado);
+    json += ", \"device_class\": \"occupancy\"";
+    json += ", \"availability_topic\": " + json_texto(tema(codigo, "disponible"));
+    json += ", \"device\": {\"identifiers\": [" + json_texto("accesia_" + codigo) + "]}";
+    json += ", \"origin\": {\"name\": \"AccesIA firmware\", \"sw_version\": " + json_texto(version) + "}";
+    json += "}";
+    return json;
+}
+
 std::string mensaje_estado(const EstadoPlaca& estado)
 {
     std::string json = "{";
@@ -124,6 +165,9 @@ std::string mensaje_estado(const EstadoPlaca& estado)
     json += ", \"firmware\": " + json_texto(estado.firmware);
     json += ", \"ip\": " + (estado.ip.empty() ? std::string("null") : json_texto(estado.ip));
     json += ", \"rssi\": " + (estado.rssi ? std::to_string(*estado.rssi) : std::string("null"));
+    if (estado.psram_kb) {
+        json += ", \"psram_kb\": " + std::to_string(*estado.psram_kb);
+    }
     json += ", \"libre_kb\": " + std::to_string(estado.libre_kb);
     if (!estado.sensor.empty()) {
         json += ", \"sensor\": " + json_texto(estado.sensor);

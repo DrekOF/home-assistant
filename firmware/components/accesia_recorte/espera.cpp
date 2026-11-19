@@ -1,10 +1,10 @@
 /**
  * Nombre: espera.cpp
- * Descripción: Espera entre recortes según el resultado de la respuesta del servidor (api-dispositivo.md).
+ * Descripción: Espera entre recortes según el resultado de la respuesta del servidor o el error del envío (api-dispositivo.md).
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 #include "accesia/espera.hpp"
@@ -27,9 +27,14 @@ void EsperaEntreRecortes::recorte_enviado()
 
 void EsperaEntreRecortes::respuesta_recibida(std::int64_t ahora_ms, std::string_view resultado)
 {
+    esperar_desde(ahora_ms, espera_tras(resultado));
+}
+
+void EsperaEntreRecortes::esperar_desde(std::int64_t ahora_ms, std::int64_t espera_ms)
+{
     esperando_respuesta_ = false;
     hay_espera_ = true;
-    listo_desde_ms_ = ahora_ms + espera_tras(resultado);
+    listo_desde_ms_ = ahora_ms + espera_ms;
 }
 
 bool EsperaEntreRecortes::puede_enviar(std::int64_t ahora_ms) const

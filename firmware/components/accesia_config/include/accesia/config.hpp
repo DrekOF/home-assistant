@@ -2,12 +2,12 @@
  * Nombre: config.hpp
  * Descripción: Configuración común de la placa en NVS (arquitectura.md, «Consola serial»), y claves propias de cada componente.
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-18
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.2
+ * Versión: 1.3
  *
  * Lo común a cualquier placa va en Config: Wi-Fi, servidor, código, token, MQTT y puerta. Lo propio de un
- * componente (el sensor o la antena del C6; el perfil y los pines del S3) lo guarda él con config_texto.
+ * componente (cara_min en la ESP32-CAM; el sensor o la antena del C6) lo guarda él con config_texto.
  */
 
 #pragma once
@@ -31,7 +31,11 @@ inline constexpr const char* WIFI_POR_DEFECTO = "AccesIA";
 inline constexpr const char* MQTT_USUARIO_POR_DEFECTO = "camara";
 inline constexpr int PUERTA_SEGUNDOS_POR_DEFECTO = 3;
 
-#if CONFIG_IDF_TARGET_ESP32C6
+#if CONFIG_IDF_TARGET_ESP32
+// En la ESP32-CAM AI-Thinker la puerta es el LED rojo, en GPIO33, que enciende en bajo (D-24).
+inline constexpr int PUERTA_PIN_POR_DEFECTO = 33;
+inline constexpr bool PUERTA_ACTIVO_BAJO_POR_DEFECTO = true;
+#elif CONFIG_IDF_TARGET_ESP32C6
 // En la XIAO ESP32-C6 la puerta es el LED de usuario, en GPIO15, que enciende en bajo (D-21).
 inline constexpr int PUERTA_PIN_POR_DEFECTO = 15;
 inline constexpr bool PUERTA_ACTIVO_BAJO_POR_DEFECTO = true;

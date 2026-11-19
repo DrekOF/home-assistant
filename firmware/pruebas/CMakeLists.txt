@@ -1,9 +1,9 @@
 # Nombre: CMakeLists.txt
-# Descripción: Pruebas de la lógica pura del firmware con doctest, sin placa: recorte y espera; los mensajes MQTT, la puerta, el ambiente, el LED y los pines de la XIAO ESP32-C6, y los valores de fábrica.
+# Descripción: Pruebas de la lógica pura del firmware con doctest, sin placa: recorte, espera y envío; los mensajes MQTT, la presencia, la puerta, el ambiente, el LED, los pines de la ESP32-CAM y de la XIAO ESP32-C6, y los valores de fábrica.
 # Fecha de creación: 2026-11-12
-# Actualización: 2026-11-18
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.2
+# Versión: 1.3
 #
 # Se corren con firmware/scripts/probar-logica.ps1 (contenedor ubuntu:24.04) o con probar-logica.sh en Linux.
 # No usan ESP-IDF: compilan los mismos archivos del componente accesia_recorte con el g++ del equipo.
@@ -36,23 +36,24 @@ set(CASOS_RECORTE ${CMAKE_CURRENT_SOURCE_DIR}/../../specs/contratos/casos-recort
 # Detiene la prueba ante comportamiento indefinido (desbordes, divisiones o desplazamientos inválidos).
 set(SANITIZAR -fsanitize=undefined -fno-sanitize-recover=all)
 
-add_library(accesia_recorte STATIC ${RECORTE}/recorte.cpp ${RECORTE}/espera.cpp)
+add_library(accesia_recorte STATIC ${RECORTE}/recorte.cpp ${RECORTE}/espera.cpp ${RECORTE}/envio_logica.cpp)
 target_include_directories(accesia_recorte PUBLIC ${RECORTE}/include)
 target_compile_options(accesia_recorte PRIVATE -Wall -Wextra -Wpedantic -Werror ${SANITIZAR})
 target_link_options(accesia_recorte PUBLIC ${SANITIZAR})
 
-# Lógica pura de la placa (D-21): mensajes MQTT, puerta, ambiente, LED y pines de la XIAO ESP32-C6.
+# Lógica pura de la placa: mensajes MQTT, presencia y pines de la ESP32-CAM (D-24); puerta y LED; ambiente y pines
+# de la XIAO ESP32-C6 (D-21).
 set(LOGICA ${CMAKE_CURRENT_SOURCE_DIR}/../components/accesia_logica)
 add_library(accesia_logica STATIC
     ${LOGICA}/mensajes.cpp ${LOGICA}/puerta_logica.cpp ${LOGICA}/ambiente_logica.cpp ${LOGICA}/led.cpp
-    ${LOGICA}/placa_c6.cpp)
+    ${LOGICA}/placa_c6.cpp ${LOGICA}/presencia_logica.cpp ${LOGICA}/placa_esp32cam.cpp)
 target_include_directories(accesia_logica PUBLIC ${LOGICA}/include)
 target_compile_options(accesia_logica PRIVATE -Wall -Wextra -Wpedantic -Werror ${SANITIZAR})
 target_link_options(accesia_logica PUBLIC ${SANITIZAR})
 
 add_executable(pruebas principal.cpp prueba_recorte.cpp prueba_espera.cpp
     prueba_mensajes.cpp prueba_puerta.cpp prueba_ambiente.cpp prueba_led.cpp prueba_placa.cpp
-    prueba_valores.cpp)
+    prueba_valores.cpp prueba_presencia.cpp prueba_envio.cpp prueba_esp32cam.cpp)
 target_include_directories(pruebas SYSTEM PRIVATE ${TERCEROS})
 # Solo para valores_de_fabrica.hpp, que no usa ESP-IDF; config.hpp sí lo necesita y las pruebas no lo incluyen.
 target_include_directories(pruebas PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../components/accesia_config/include)

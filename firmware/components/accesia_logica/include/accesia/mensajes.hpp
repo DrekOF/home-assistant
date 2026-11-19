@@ -1,10 +1,10 @@
 /**
  * Nombre: mensajes.hpp
- * Descripción: Temas y mensajes MQTT de la placa según contratos/mqtt.md 1.2: ambiente, estado y descubrimiento (lógica pura).
+ * Descripción: Temas y mensajes MQTT de la placa según contratos/mqtt.md 1.6: presencia, ambiente, estado y descubrimiento (lógica pura).
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 #pragma once
@@ -38,12 +38,23 @@ std::string tema_descubrimiento(const std::string& codigo, SensorAmbiente sensor
 /// JSON de descubrimiento de un sensor de la placa, como el ejemplo de mqtt.md («Entidades que publica la placa»).
 std::string mensaje_descubrimiento(const std::string& codigo, SensorAmbiente sensor, const std::string& version);
 
-/// Datos del mensaje EstadoCamara de la placa. No lleva psram_kb: la XIAO ESP32-C6 no tiene PSRAM.
+/// Mensaje Presencia (mqtt.md 1.6): {"presente": true, "puntaje": 0.93}. El puntaje va de 0 a 1 con dos
+/// decimales, y en null cuando no hay nadie o no se conoce.
+std::string mensaje_presencia(bool presente, std::optional<float> puntaje);
+
+/// Tema del descubrimiento del sensor de presencia: homeassistant/binary_sensor/{codigo}/presencia/config.
+std::string tema_descubrimiento_presencia(const std::string& codigo);
+
+/// JSON de descubrimiento del sensor de presencia, como el ejemplo «Presencia» de mqtt.md 1.6.
+std::string mensaje_descubrimiento_presencia(const std::string& codigo, const std::string& version);
+
+/// Datos del mensaje EstadoCamara de la placa. La XIAO ESP32-C6 no lleva psram_kb, porque no tiene PSRAM.
 struct EstadoPlaca {
     std::string perfil;
     std::string firmware;
     std::string ip;           // vacío si todavía no tiene IP: el campo va en null
     std::optional<int> rssi;  // sin Wi-Fi: null
+    std::optional<int> psram_kb;  // vacío si la placa no tiene PSRAM, y el campo no va
     int libre_kb = 0;
     std::string sensor;  // dht22 o dht11; vacío si la placa no tiene sensor, y el campo no va
     std::string antena;  // interna o externa; vacío si la placa no elige antena, y el campo no va

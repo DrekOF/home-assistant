@@ -1,19 +1,20 @@
 /**
  * Nombre: consola.cpp
- * Descripción: Consola serial de la placa: los comandos de arquitectura.md, leídos por UART0 y por el USB nativo a la vez.
+ * Descripción: Consola serial de la placa: los comandos de arquitectura.md, leídos por UART0 y, si la placa lo tiene, por el USB nativo.
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-18
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.2
+ * Versión: 1.3
  *
- * La consola principal de ESP-IDF es UART0 y la secundaria, el USB Serial/JTAG, que solo envía texto. Por eso
- * los comandos los leen dos tareas propias, con el driver de UART y el de USB Serial/JTAG, y los pasan a
- * esp_console_run. La salida sigue por la consola de ESP-IDF y llega a los dos puertos.
+ * La consola principal de ESP-IDF es UART0. En la XIAO ESP32-C6 la secundaria es el USB Serial/JTAG, que solo
+ * envía texto: por eso los comandos los leen tareas propias, con el driver de UART y el de USB Serial/JTAG, y los
+ * pasan a esp_console_run. La salida sigue por la consola de ESP-IDF y llega a los dos puertos. La ESP32-CAM no
+ * tiene USB nativo: su consola es solo UART0, con el adaptador USB (D-24).
  *
  * El driver de USB Serial/JTAG solo se usa para leer: la consola secundaria escribe directo en el FIFO y solo lo
  * vacía con cada salto de línea, así que el eco y el indicador lo vacían a mano (enviar_ya).
  *
- * Los comandos propios de cada placa (sensor y antena en el C6; perfil, pin y cara_min en el S3) los registra su
+ * Los comandos propios de cada placa (cara_min en la ESP32-CAM; sensor y antena en el C6) los registra su
  * componente con consola_registrar.
  */
 
@@ -26,17 +27,20 @@
 #include <string_view>
 #include <vector>
 
+#include "sdkconfig.h"
+
 #include "driver/uart.h"
 #include "driver/uart_vfs.h"
-#include "driver/usb_serial_jtag.h"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#if CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG
+#include "driver/usb_serial_jtag.h"
 #include "hal/usb_serial_jtag_ll.h"
-#include "sdkconfig.h"
+#endif
 
 #include "accesia/config.hpp"
 
@@ -64,7 +68,9 @@ bool (*gpio_utilizable)(int, std::string&) = nullptr;
 void enviar_ya()
 {
     fflush(stdout);
+#if CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG
     usb_serial_jtag_ll_txfifo_flush();
+#endif
 }
 
 bool leer_entero(const char* texto, int& valor)

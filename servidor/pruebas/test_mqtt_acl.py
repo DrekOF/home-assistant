@@ -2,9 +2,9 @@
 Nombre: test_mqtt_acl.py
 Descripción: Prueba «contrato MQTT · acl»: Mosquitto con el mosquitto.conf y la ACL del repositorio, comprobados con paho-mqtt. Usa un broker propio, sin los retenidos de las demás pruebas.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 """
 
 import threading
@@ -201,6 +201,45 @@ def test_la_placa_publica_solo_el_descubrimiento_de_sus_dos_sensores(
     marcar(clientes, escucha_descubrimiento, "homeassistant/prueba/marca")
     for tema in prohibidos:
         assert not escucha_descubrimiento.recibio(tema), f"La placa publicó en {tema}."
+
+
+def test_la_placa_publica_su_presencia_solo_con_su_codigo(clientes: Callable[..., Cliente], escucha: Cliente) -> None:
+    """mqtt.md 1.6 (D-24): accesia/{codigo}/presencia, con el resultado del modelo de la placa."""
+    placa = clientes("entrada", "camara")
+    assert not placa.conectar().is_failure
+    carga = uuid.uuid4().hex
+
+    placa.publicar("accesia/entrada/presencia", carga)
+    assert escucha.esperar("accesia/entrada/presencia", carga), "La placa no pudo publicar su presencia."
+
+    placa.publicar("accesia/otra/presencia", carga)
+    marcar(clientes, escucha)
+    assert not escucha.recibio("accesia/otra/presencia"), "La placa publicó la presencia de otro código."
+
+
+def test_la_placa_publica_el_descubrimiento_de_su_presencia_y_nada_mas(
+    clientes: Callable[..., Cliente], escucha_descubrimiento: Cliente
+) -> None:
+    """mqtt.md 1.6 (D-24): homeassistant/binary_sensor/{codigo}/presencia/config, y ningún otro binary_sensor."""
+    placa = clientes("entrada", "camara")
+    assert not placa.conectar().is_failure
+    carga = uuid.uuid4().hex
+
+    tema = "homeassistant/binary_sensor/entrada/presencia/config"
+    placa.publicar(tema, carga)
+    assert escucha_descubrimiento.esperar(tema, carga), f"La placa no pudo publicar en {tema}."
+
+    prohibidos = (
+        "homeassistant/binary_sensor/otra/presencia/config",
+        "homeassistant/binary_sensor/entrada/otro/config",
+        "homeassistant/binary_sensor/accesia_entrada/presencia/config",
+        "homeassistant/sensor/entrada/presencia/config",
+    )
+    for prohibido in prohibidos:
+        placa.publicar(prohibido, carga)
+    marcar(clientes, escucha_descubrimiento, "homeassistant/prueba/marca")
+    for prohibido in prohibidos:
+        assert not escucha_descubrimiento.recibio(prohibido), f"La placa publicó en {prohibido}."
 
 
 def test_homeassistant_lee_y_escribe_en_todos_los_temas(clientes: Callable[..., Cliente]) -> None:

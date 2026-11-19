@@ -120,7 +120,12 @@ Se hace antes de la B4, con el usuario `servidor` y el broker de la Pi, desde la
 - **Después:** los mensajes son los ejemplos del contrato, así que «Última persona» queda en «Ana Gómez» hasta el siguiente acceso real.
 - **Plan B:** con el broker del portátil, se corre con `-Broker 192.168.137.1`.
 
-Probado el 2026-11-18 contra el broker del portátil, con un contenedor que respondía como Home Assistant: publica, recibe el ABRIR y no deja la clave en la sesión. Contra Home Assistant de verdad se prueba en clase.
+Probado el 2026-11-18:
+
+- contra el broker del portátil, con un contenedor que respondía como Home Assistant: publica, recibe el ABRIR y no deja la clave en la sesión;
+- con el broker inalcanzable: en menos de un minuto dice qué revisar, sin colgarse.
+
+Contra Home Assistant de verdad se prueba en clase.
 
 ## Con la B4 en `main`
 

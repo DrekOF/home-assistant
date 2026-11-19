@@ -58,6 +58,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pruebas:
   - los dos modelos del kit, con las opciones del complemento: «Martes» (1.5b) y «El día después del lunes es el martes» (3b), con `flash_attn = enabled`;
   - `probar-automatizaciones.ps1` contra el broker del portátil: publica, recibe el ABRIR y borra la clave de la sesión. El script se analiza sin errores en Windows PowerShell;
+  - `probar-automatizaciones.ps1` con el broker inalcanzable. La primera versión se cortaba con «Bad file descriptor», porque Windows PowerShell 5.1 convierte en excepción el stderr de Docker. Se corrigió y ahora, en 44 s, dice qué revisar; cada envío tiene además un límite de 15 s;
   - los YAML de `homeassistant/config/` se leen, y las 10 entidades del panel son las de `mqtt.md`;
   - `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml config`: `mcp` publica el 8001 y lo demás no cambia.
 - Cambios de contrato o de specs: ninguno. `infra/mosquitto/acl` sigue para la B4.

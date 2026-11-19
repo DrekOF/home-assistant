@@ -4,7 +4,7 @@ Descripción: Guía para montar AccesIA el día de la clase con el hardware que 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Guía del día de clase
@@ -53,6 +53,7 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
 | Si falla | Plan B |
 | --- | --- |
 | La cámara de la placa no está lista (D-21) | Simulador con la webcam del portátil, con `--servidor http://192.168.137.250:8000`; la placa sigue abriendo la puerta |
+| Llega un ESP32-CAM, o un celular hace de cámara | Cámara de respaldo: el servidor le pide una foto por segundo por HTTP, sin tocar su firmware (RF-10 · C4). Se registra con su URL de captura, como dice `servidor/README.md` («Registrar una cámara de respaldo, paso a paso») |
 | La XIAO ESP32-C6 no conecta | Simulador con la webcam del portátil, que también simula la puerta |
 | La cámara deja de reconocer durante la demo | Registrar las llegadas a mano en la pantalla Asistencia (RF-06 · C5) |
 | Ollama va lento en la Raspberry | Primero, en la Raspberry: las variantes Q4_0, descripciones más cortas, `qwen2.5:0.5b` si responde bien y el comienzo del prompt estable (RNF-03 · C3). Ollama en el portátil, con `infra/compose.ollama-portatil.yaml`, solo con el visto bueno del docente |

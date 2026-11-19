@@ -1,9 +1,9 @@
 # Nombre: pyproject.toml
 # Descripción: Proyecto Python del servidor de AccesIA (frente B): dependencias, pruebas y empaquetado con uv.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-13
+# Actualización: 2026-11-18
 # Autor: Equipo AccesIA
-# Versión: 1.5
+# Versión: 1.6
 
 [project]
 name = "accesia"
@@ -16,6 +16,8 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "email-validator>=2.3.0",
     "fastapi>=0.115",
+    # El modo extraer pide los cuadros de las cámaras de respaldo por HTTP (RF-10 · C4).
+    "httpx>=0.28",
     "itsdangerous>=2.2.0",
     # SDK oficial de MCP (contratos/mcp-agente.md): en la 2.x, FastMCP se llama MCPServer.
     "mcp>=2.3,<3",

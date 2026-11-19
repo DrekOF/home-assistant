@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.13
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -110,6 +110,9 @@ docker compose -f infra/compose.yaml up -d --build    levanta postgres, mosquitt
 docker compose -f infra/compose.yaml ps               estado y healthchecks
 docker compose -f infra/compose.yaml exec servidor accesia crear-camara entrada --nombre Entrada --tipo simulador
                                                       registra una cámara y muestra su token una sola vez
+docker compose -f infra/compose.yaml exec servidor accesia crear-camara patio --nombre Patio --tipo respaldo --url-captura http://<IP>/capture
+                                                      cámara de respaldo (ESP32-CAM o celular): el servidor le pide una foto
+                                                      por segundo (modo extraer; paso a paso en servidor/README.md)
 docker compose -f infra/compose.yaml exec servidor accesia semilla agente [--con-datos-reales]
                                                       crea los datos de la evaluación del agente y revisa las preguntas 1 a 9
 docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borrar

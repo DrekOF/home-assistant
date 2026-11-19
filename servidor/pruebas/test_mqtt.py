@@ -2,9 +2,9 @@
 Nombre: test_mqtt.py
 Descripción: Pruebas del servidor en MQTT con Mosquitto en un contenedor: disponibilidad, Evento (después de confirmar y solo con conexión), la parte de MQTT de R4, Resumen, la salud y la disponibilidad y el estado de las cámaras (contrato MQTT, R4, RF-10 · C3, RNF-01 · C3 y contrato API · salud).
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import asyncio
@@ -395,12 +395,19 @@ def test_el_resumen_periodico_cambia_de_dia_a_medianoche(reloj, mqtt_servidor, e
     reloj.momento = hora(20, 23, 59, 58)
     escucha.olvidar()
 
+    def resumen_del(fecha: str):
+        # Espera en otro hilo, para que el bucle siga publicando. Sin tiempos fijos: en la CI el runner es más lento.
+        return asyncio.to_thread(escucha.esperar, RESUMEN, lambda mensaje: mensaje.json()["fecha"] == fecha)
+
     async def dos_vueltas() -> None:
         tarea = asyncio.create_task(resumen_periodico(mqtt_servidor, intervalo_s=0.05))
-        await asyncio.sleep(0.12)
-        reloj.momento = hora(21, 0, 0, 2)
-        await asyncio.sleep(0.12)
-        tarea.cancel()
+        try:
+            await resumen_del("2026-11-20")
+            reloj.momento = hora(21, 0, 0, 2)
+            await resumen_del("2026-11-21")
+        finally:
+            tarea.cancel()
+            await asyncio.gather(tarea, return_exceptions=True)
 
     asyncio.run(dos_vueltas())
 

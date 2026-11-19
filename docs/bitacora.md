@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.24
+Versión: 1.25
 -->
 
 # Bitácora
@@ -23,6 +23,56 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pendiente:
 ```
 
+## 2026-11-18 · Día 4 · Tarea B2 · El modo extraer y el ruido de salud-broker
+
+- Quién: el frente B.
+- Qué:
+  - **El modo extraer** (`servidor/accesia/extraer.py`, RF-10 · C4). Una cámara de tipo `respaldo` funciona sin firmware de AccesIA: el servidor le pide una foto por HTTP cada segundo, recorta la cara más grande como lo haría la cámara y la procesa por el mismo camino de `enviarRostro`. Reconoce, inscribe, guarda sus eventos y los publica en MQTT. Sirve para un ESP32-CAM sin tocar su firmware y para un celular con una aplicación de cámara IP.
+  - **Arranca y se detiene con el servidor.** Un supervisor busca cada 5 s las cámaras `respaldo` activas y deja una tarea por cámara, en paralelo. Cada tarea revisa su cámara antes de cada captura, así que una cámara desactivada, borrada o con otra URL cambia sin reiniciar.
+  - **`recortar_cara_mas_grande`** descarta, como la cámara, las caras de menos de `CARA_MIN_PX`.
+  - **El ruido de salud-broker** (pendiente del Hito 1). El healthcheck de `mosquitto` se conectaba cada 10 s y dejaba 3 líneas cada vez: 18 por minuto en el registro del broker. Ahora revisa cada 2 s mientras arranca y después cada 5 min (`start_interval`).
+  - **`servidor/README.md`**, con el paso a paso para registrar una cámara de respaldo con su URL de captura. También `infra/README.md`, `CLAUDE.md` y un plan B en la guía del día de clase.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-extraer`, rama `b/modo-extraer`, desde `main` con las tareas del Día 4).
+  - **Sin esperar la aprobación del plan.** La clase es al día siguiente. El equipo pidió escribir el plan en la descripción del PR, seguir sin esperar y parar solo si algo se salía de las specs o de los contratos. No hizo falta: todo cupo en «Modo extraer» de `api-dispositivo.md` 1.2 y en las esperas que el contrato fija para la cámara.
+  - **Lo que se reutilizó.** `rostros.procesar` (el camino de `enviarRostro`), `recortar_cara_mas_grande` (B2 del Día 2), la publicación después de confirmar (B2 del Día 3) y, en las pruebas, la conexión por turnos del cliente MQTT, que pasó a ser una fixture propia.
+  - **Pruebas primero.** Fallaron porque `accesia.extraer` no existía. Usan una cámara HTTP falsa (`httpx.MockTransport`), sin red, con la visión armada, el reloj de las pruebas y el broker de prueba.
+  - **Un hueco que apareció al planear las roturas:** nada probaba que la cámara cambiara mientras se pedía el cuadro. Se sumaron dos pruebas: si la desactivan o le cambian la URL en ese momento, ese cuadro no cuenta.
+  - **Código roto a propósito.** Se rompió 21 veces, y cada vez falló la prueba que correspondía:
+    - publicar dentro de la transacción;
+    - sin la espera de 3 s después de un evento, o sin esperar cada vez más;
+    - avisar cada falla, o no avisar al volver;
+    - sin contar el contacto;
+    - procesar aunque la cámara se desactive o cambie de URL durante el pedido;
+    - sin `CARA_MIN_PX`, en el modo extraer o en el recorte;
+    - sin revisar la cámara antes de pedir;
+    - seguir redirecciones, sin tope al leer, sin revisar el esquema o sin tiempo de espera total;
+    - la URL completa en el registro;
+    - el supervisor que revisa una sola vez, o las cámaras en serie;
+    - un error inesperado que tumba el bucle;
+    - lo que no es JPEG tomado como un cuadro sin cara;
+    - otro tipo de cámara al procesar.
+  - **Una prueba de B2 del Día 3 que dependía de los tiempos.** En la CI falló `test_el_resumen_periodico_cambia_de_dia_a_medianoche`: esperaba 0,12 s, cambiaba el día y esperaba otros 0,12 s, y en el runner, más lento, el resumen del día siguiente no alcanzó a salir. No tenía que ver con el modo extraer. Ahora espera el resumen de cada día, con el tiempo límite de las demás pruebas de MQTT.
+  - **`main` avanzó** con A3 del Día 4 (PR #24) y después con B4 (PR #26). Se trajo las dos veces y se conservó lo de las dos tareas. En la guía quedan la fila del simulador de A3 y la del ESP32-CAM. Con B4, el complemento del servidor empaqueta el código del servidor, así que en la Pi también corre el modo extraer.
+  - **Un comando bloqueado.** El chequeo de seguridad de Claude Code frenó un comando que editaba `compose.yaml`, porque el `$$` de la contraseña dentro de un heredoc no le dejaba leerlo con certeza. No borraba nada. El cambio se hizo con un script en un archivo.
+  - **Con una cámara HTTP de verdad.** La imagen del servidor corrió sola en el puerto 18001, con una base desechable y una «cámara» en otro contenedor que entrega un JPEG en `/capture`, como un ESP32-CAM.
+    - Se registró con `crear-camara --tipo respaldo --url-captura`, y en 2 s el servidor ya la pedía, una foto por segundo, con `en_linea` en la API.
+    - Una caída con 503 dio un aviso, y la vuelta, otro.
+    - Desactivarla desde la API la detuvo en menos de 1 s.
+    - La primera vez la «cámara» no arrancó, porque Git Bash convirtió su ruta. El servidor avisó una sola vez que no la alcanzaba y siguió reintentando. De ahí salió un cambio de redacción: el aviso decía «no se pudo conectar» y ahora dice «no se pudo alcanzar».
+    - No se probó con caras: no hay fotos con permiso, y los cuadros eran grises.
+    - Después se borraron los contenedores, la red, la imagen y las claves de prueba.
+- Decisiones donde el contrato no decía nada (detalle en `servidor/README.md`, «Modo extraer»):
+  - **El ritmo**, como la cámara: 1 s desde que termina un cuadro, y 3 s después de `permitido`, `denegado` o `desconocido`.
+  - **La captura:** `GET` con 3 s de espera para todo el pedido, solo `http` y `https`, sin seguir redirecciones, y con tope de 2 MB por cuadro.
+  - **Los errores** se reintentan con espera de 1, 2, 4, 8 y hasta 10 s, como la cámara con un 5xx. El registro avisa una vez por motivo y otra cuando vuelve a capturar, y la URL va sin usuario, clave ni parámetros.
+  - **Sin cara o con una cara pequeña** no se procesa nada: no hay evento ni línea en el registro. El último contacto cambia con cada captura buena, haya cara o no.
+  - **httpx** pasa a ser dependencia directa. Ya estaba en el lockfile, por `mcp`.
+- Pruebas: `uv run pytest`: 596 bien y 2 saltadas (las de caras reales, sin fotos), ya con A3 y B4 en `main`. `RF-10 · C4`: 28 bien; `contrato cámara · modo extraer`: 6 bien; `RNF-01 · C1`: 2 bien. `docker compose -f infra/compose.yaml config`: en orden, con el healthcheck nuevo.
+- Cambios de contrato o de specs: ninguno en los contratos. `infra/compose.yaml` 1.2 (el healthcheck de `mosquitto`).
+- Pendiente:
+  - probar con un ESP32-CAM o un celular de verdad, y con caras, si en la clase hay uno;
+  - con D-22, los mismos pasos sirven en la Pi cuando la B4 instale el complemento del servidor: la cámara va en el hotspot.
 ## 2026-11-18 · Día 4 · Tarea B4 · Complementos de la base y del servidor
 
 - Quién: el frente B. La corrió la sesión A. Por pedido del equipo, esta noche el plan fue en la descripción del PR, sin esperar su aprobación.

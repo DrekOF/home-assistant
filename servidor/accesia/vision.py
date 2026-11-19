@@ -2,9 +2,9 @@
 Nombre: vision.py
 Descripción: Visión del servidor con la imagen solo en memoria (RF-04 · C1 y C4): decodificar el JPEG, detectar caras con YuNet, recortar con la fórmula del contrato, y sacar la huella con SFace y la nitidez de R7.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import logging
@@ -128,15 +128,18 @@ def recortar(imagen: np.ndarray, cara: Cara) -> np.ndarray:
     return imagen[y0:y1, x0:x1]
 
 
-def recortar_cara_mas_grande(cuadro: np.ndarray, vision: Vision) -> np.ndarray | None:
+def recortar_cara_mas_grande(cuadro: np.ndarray, vision: Vision, cara_min_px: int | None = None) -> np.ndarray | None:
     """Lo que hace la cámara antes de enviar: detecta con YuNet en el cuadro completo, elige la cara más grande y la
     recorta con la fórmula del contrato. None si no hay cara.
 
-    Queda lista para una cámara que envíe cuadros completos (por ejemplo, la XIAO ESP32-C6, que no detecta caras) y
-    para el modo extraer de la cámara de respaldo (RF-10 · C4): el recorte sigue después el camino de siempre.
+    Con cara_min_px, tampoco la recorta si mide menos de eso de alto: la cámara no envía caras más pequeñas que
+    CARA_MIN_PX (api-dispositivo.md). La usa el modo extraer de la cámara de respaldo (RF-10 · C4), y el recorte
+    sigue después el camino de siempre.
     """
     cara = cara_mas_grande(caras_validas(vision.detectar(cuadro)))
-    return None if cara is None else recortar(cuadro, cara)
+    if cara is None or (cara_min_px is not None and cara.alto < cara_min_px):
+        return None
+    return recortar(cuadro, cara)
 
 
 def nitidez(alineada: np.ndarray) -> float:

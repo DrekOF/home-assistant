@@ -1,0 +1,11 @@
+{
+  "evento_id": "01a1e6d0-1c2b-7e3f-8a9b-0c1d2e3f4a5b",
+  "dispositivo": "entrada",
+  "resultado": "permitido",
+  "motivo": null,
+  "persona": { "id": "01a1e5c2-7f3a-7b2c-9d4e-5f6a7b8c9d0e", "nombre": "Ana Gómez" },
+  "similitud": 0.71,
+  "repetido": false,
+  "asistencia": { "estado": "a_tiempo", "minutos_tarde": null },
+  "hora": "2026-11-20T06:58:12-05:00"
+}

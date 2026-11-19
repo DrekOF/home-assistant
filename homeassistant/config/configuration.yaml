@@ -1,0 +1,31 @@
+# Nombre: configuration.yaml
+# Descripción: configuration.yaml de Home Assistant OS para AccesIA: el de fábrica, con las automatizaciones de AccesIA aparte (contratos/mqtt.md) y el panel «Portería» en YAML (RF-07 · C4).
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+# Si el de la Pi sigue como vino de fábrica, se reemplaza por este. Si no, solo se cambia la línea «automation:» por las dos
+# de abajo y se agrega el bloque «lovelace:» (homeassistant/README.md). La zona horaria y el idioma se ponen en la interfaz.
+
+# Las integraciones de siempre. No se quita.
+default_config:
+
+# Los temas de la carpeta themes.
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Las automatizaciones de la interfaz y, aparte, las de AccesIA (contratos/mqtt.md).
+automation ui: !include automations.yaml
+automation accesia: !include automatizaciones_accesia.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Panel «Portería» en YAML, para que quede en Git. La dirección de un panel necesita un guion.
+lovelace:
+  dashboards:
+    accesia-porteria:
+      mode: yaml
+      title: Portería
+      icon: mdi:door
+      show_in_sidebar: true
+      filename: porteria.yaml

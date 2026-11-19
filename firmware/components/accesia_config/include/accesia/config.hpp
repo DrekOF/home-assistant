@@ -2,9 +2,9 @@
  * Nombre: config.hpp
  * Descripción: Configuración común de la placa en NVS (arquitectura.md, «Consola serial»), y claves propias de cada componente.
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-18
  * Autor: Equipo AccesIA
- * Versión: 1.1
+ * Versión: 1.2
  *
  * Lo común a cualquier placa va en Config: Wi-Fi, servidor, código, token, MQTT y puerta. Lo propio de un
  * componente (el sensor o la antena del C6; el perfil y los pines del S3) lo guarda él con config_texto.
@@ -17,16 +17,17 @@
 #include "esp_err.h"
 #include "sdkconfig.h"
 
+#include "accesia/valores_de_fabrica.hpp"
+
 namespace accesia {
 
 /// Sin salida: no hay LED ni relé para la puerta.
 inline constexpr int PIN_NINGUNO = -1;
 
-// Valores de fábrica. La red, el servidor y el broker son los del hotspot de Windows del portátil (D-21); el
-// usuario MQTT de las cámaras y los 3 s de la puerta, los de arquitectura.md y mqtt.md.
+// Valores de fábrica. La red es el hotspot de Windows del portátil (D-21); el servidor y el broker, los de la Pi
+// (SERVIDOR_POR_DEFECTO y MQTT_POR_DEFECTO, en valores_de_fabrica.hpp, D-22); el usuario MQTT de las cámaras y
+// los 3 s de la puerta, los de arquitectura.md y mqtt.md.
 inline constexpr const char* WIFI_POR_DEFECTO = "AccesIA";
-inline constexpr const char* SERVIDOR_POR_DEFECTO = "http://192.168.137.1:8000";
-inline constexpr const char* MQTT_POR_DEFECTO = "mqtt://192.168.137.1:1883";
 inline constexpr const char* MQTT_USUARIO_POR_DEFECTO = "camara";
 inline constexpr int PUERTA_SEGUNDOS_POR_DEFECTO = 3;
 

@@ -1,9 +1,9 @@
 # Nombre: CMakeLists.txt
-# Descripción: Pruebas de la lógica pura del firmware con doctest, sin placa: recorte y espera, y los mensajes MQTT, la puerta, el ambiente, el LED y los pines de la XIAO ESP32-C6.
+# Descripción: Pruebas de la lógica pura del firmware con doctest, sin placa: recorte y espera; los mensajes MQTT, la puerta, el ambiente, el LED y los pines de la XIAO ESP32-C6, y los valores de fábrica.
 # Fecha de creación: 2026-11-12
-# Actualización: 2026-11-12
+# Actualización: 2026-11-18
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 #
 # Se corren con firmware/scripts/probar-logica.ps1 (contenedor ubuntu:24.04) o con probar-logica.sh en Linux.
 # No usan ESP-IDF: compilan los mismos archivos del componente accesia_recorte con el g++ del equipo.
@@ -51,8 +51,11 @@ target_compile_options(accesia_logica PRIVATE -Wall -Wextra -Wpedantic -Werror $
 target_link_options(accesia_logica PUBLIC ${SANITIZAR})
 
 add_executable(pruebas principal.cpp prueba_recorte.cpp prueba_espera.cpp
-    prueba_mensajes.cpp prueba_puerta.cpp prueba_ambiente.cpp prueba_led.cpp prueba_placa.cpp)
+    prueba_mensajes.cpp prueba_puerta.cpp prueba_ambiente.cpp prueba_led.cpp prueba_placa.cpp
+    prueba_valores.cpp)
 target_include_directories(pruebas SYSTEM PRIVATE ${TERCEROS})
+# Solo para valores_de_fabrica.hpp, que no usa ESP-IDF; config.hpp sí lo necesita y las pruebas no lo incluyen.
+target_include_directories(pruebas PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../components/accesia_config/include)
 target_compile_options(pruebas PRIVATE -Wall -Wextra -Werror ${SANITIZAR})
 target_compile_definitions(pruebas PRIVATE CASOS_RECORTE="${CASOS_RECORTE}")
 target_link_libraries(pruebas PRIVATE accesia_recorte accesia_logica)

@@ -2,9 +2,9 @@
 Nombre: requisitos.md
 Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criterios de aceptación.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
 # Requisitos
@@ -72,7 +72,7 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 ### RF-08 Agente · frentes B (MCP) y C (Home Assistant)
 
-- C1 Las 5 herramientas de `contratos/mcp-agente.md` funcionan por MCP.
+- C1 Las herramientas de `contratos/mcp-agente.md` funcionan por MCP: las cinco consultas y, desde la 1.5, `fecha_y_hora_GetDateTime`.
 - C2 Se usan desde Assist con el agente de Ollama.
 - C3 Responde bien al menos 9 de las 10 preguntas de evaluación; la 9 y la 10 son obligatorias.
 - C4 No puede escribir: el usuario `agente` falla al insertar, actualizar o borrar, y al leer las tablas directamente.
@@ -144,7 +144,7 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 - C1 Respuesta a la cámara en menos de 1 s en el portátil y de 2 s en la Raspberry.
 - C2 Puerta abierta en menos de 2 s desde que llega el recorte.
-- C3 Se mide la respuesta de Assist en la Raspberry con el modelo elegido (D-22). Si pasa de 15 s, primero se prueba en la Pi: las variantes Q4_0 del modelo, descripciones más cortas de las herramientas, `qwen2.5:0.5b` si responde bien, y que el comienzo del prompt no cambie entre preguntas (`arquitectura.md`, «Velocidad del agente en la Pi»). Pasar Ollama al portátil, con `infra/compose.ollama-portatil.yaml`, solo vale con el visto bueno del profesor, que pide Ollama dentro de la Pi.
+- C3 Se mide la respuesta de Assist en la Raspberry con el modelo elegido (D-22). Si pasa de 15 s, primero se prueba en la Pi: las variantes Q4_0 del modelo, descripciones más cortas de las herramientas, `qwen2.5:0.5b` si responde bien, y que el comienzo del prompt no cambie entre preguntas, que ya logra `mcp-agente.md` 1.5 (`arquitectura.md`, «Velocidad del agente en la Pi»). Pasar Ollama al portátil, con `infra/compose.ollama-portatil.yaml`, solo vale con el visto bueno del profesor, que pide Ollama dentro de la Pi.
 
 ### RNF-04 Portabilidad
 

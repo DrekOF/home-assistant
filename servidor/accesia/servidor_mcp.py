@@ -1,10 +1,10 @@
 """
 Nombre: servidor_mcp.py
-Descripción: Servidor MCP del agente (contratos/mcp-agente.md): «AccesIA», Streamable HTTP en /mcp, puerto 8001, las cinco herramientas de solo lectura con el usuario agente (D-15) y sin autenticación (D-16).
+Descripción: Servidor MCP del agente (contratos/mcp-agente.md): «AccesIA», Streamable HTTP en /mcp, puerto 8001, las seis herramientas de solo lectura con el usuario agente (D-15) y sin autenticación (D-16).
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 
 Usa el SDK oficial mcp 2.x, donde FastMCP se llama MCPServer. Lo arranca el comando «accesia mcp» en el servicio
 mcp de Docker Compose, con la misma imagen del servidor.
@@ -52,6 +52,11 @@ SOLO_LECTURA = ToolAnnotations(read_only_hint=True, destructive_hint=False, idem
 FECHA = "Fecha como AAAA-MM-DD, o las palabras hoy, ayer o antier (en hora de Colombia)."
 NOMBRE_O_PARTE = "Nombre o parte del nombre de la persona, de 2 a 60 caracteres; no importan tildes ni mayúsculas."
 
+# Home Assistant no agrega al prompt su línea de fecha y hora si alguna herramienta tiene un nombre que termina en
+# «GetDateTime» (conversation/chat_log.py). Esa línea cambia cada segundo y no deja que Ollama reutilice entre
+# preguntas el comienzo del prompt, con las herramientas (mcp-agente.md 1.5, D-22). Por eso el sufijo va en inglés.
+FECHA_Y_HORA = "fecha_y_hora_GetDateTime"
+
 
 def hosts_permitidos(extra: Sequence[str] = ()) -> list[str]:
     """Los encabezados Host que acepta el servidor: los fijos y los de MCP_HOSTS_PERMITIDOS, sin repetir."""
@@ -59,7 +64,7 @@ def hosts_permitidos(extra: Sequence[str] = ()) -> list[str]:
 
 
 def crear_servidor(motor: Engine) -> MCPServer:
-    """El servidor «AccesIA» con las cinco herramientas del contrato, todas de solo lectura."""
+    """El servidor «AccesIA» con las seis herramientas del contrato, todas de solo lectura."""
     herramientas = agente.Herramientas(motor)
     # log_level WARNING: el SDK configura el registro raíz con basicConfig; así solo deja pasar avisos.
     servidor = MCPServer(NOMBRE, log_level="WARNING")
@@ -118,6 +123,15 @@ def crear_servidor(motor: Engine) -> MCPServer:
         horas: Annotated[int, Field(description="Cuántas horas hacia atrás, de 1 a 168. Por defecto, 24.")] = 24,
     ) -> dict[str, Any]:
         return herramientas.desconocidos_recientes(horas)
+
+    @servidor.tool(
+        name=FECHA_Y_HORA,
+        description="Dice la fecha, el día de la semana y la hora actuales en Colombia. Úsala solo si la pregunta "
+        "necesita la fecha o la hora exacta; para hoy, ayer o antier no hace falta.",
+        annotations=SOLO_LECTURA,
+    )
+    def fecha_y_hora() -> dict[str, Any]:
+        return herramientas.fecha_y_hora()
 
     return servidor
 

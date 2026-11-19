@@ -1,21 +1,22 @@
 """
 Nombre: test_agente.py
-Descripción: Pruebas «contrato agente · <herramienta>», «contrato agente · preguntas» y «RNF-01 · C4»: las cinco herramientas del agente con los datos de la semilla y el usuario agente, sin modelo.
+Descripción: Pruebas «contrato agente · <herramienta>», «contrato agente · preguntas» y «RNF-01 · C4»: las seis herramientas del agente con los datos de la semilla y el usuario agente, sin modelo.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 
 Hoy es el viernes 2026-11-20 a las 10:00 (hora_fija.HOY): ayer es el 19 y antier, el 18.
 """
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import armar
 import pytest
-from hora_fija import HOY
-from sqlalchemy import Connection, Engine
+from hora_fija import HOY, ahora_fijo
+from sqlalchemy import Connection, Engine, create_engine
 
 from accesia import agente, semilla
 from accesia.agente import Herramientas
@@ -304,6 +305,27 @@ def test_desconocidos_por_camara_y_10_en_ultimos(conexion: Connection) -> None:
     assert len(resultado["ultimos"]) == 10
     assert resultado["ultimos"][0] == "2026-11-20 09:03"
     assert resultado["ultimos"][-1] == "2026-11-20 09:30"
+
+
+# --- fecha_y_hora_GetDateTime (mcp-agente.md 1.5) ---
+
+
+@marca("fecha_y_hora_GetDateTime")
+def test_fecha_y_hora_en_colombia(herramientas: Herramientas) -> None:
+    assert herramientas.fecha_y_hora() == {"fecha": "2026-11-20", "dia": "viernes", "hora": "10:00"}
+
+
+@marca("fecha_y_hora_GetDateTime")
+def test_fecha_y_hora_cerca_de_la_medianoche_es_la_de_colombia(herramientas: Herramientas) -> None:
+    # El sábado 21 a las 04:30 en UTC todavía es el viernes 20 a las 23:30 en Colombia (R8).
+    with ahora_fijo(datetime(2026, 11, 21, 4, 30, 59, tzinfo=UTC)):
+        assert herramientas.fecha_y_hora() == {"fecha": "2026-11-20", "dia": "viernes", "hora": "23:30"}
+
+
+@marca("fecha_y_hora_GetDateTime")
+def test_fecha_y_hora_no_toca_la_base() -> None:
+    sin_base = Herramientas(create_engine("postgresql+psycopg://nadie@127.0.0.1:1/nada"))
+    assert sin_base.fecha_y_hora() == {"fecha": "2026-11-20", "dia": "viernes", "hora": "10:00"}
 
 
 # --- Las preguntas 1 a 9 de la evaluación ---

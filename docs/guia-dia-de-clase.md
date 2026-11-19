@@ -300,7 +300,7 @@ El simulador va sin `--puerta`, porque la placa maneja la puerta de `entrada`.
 ## 9. Ollama y el agente, según la RAM
 
 1. **El complemento de Ollama,** como en `homeassistant/README.md` («Ollama»):
-   - por Samba, `kit\ollama\blobs` y `kit\ollama\manifests` a `\\192.168.137.250\share\ollama\`;
+   - por Samba, `kit\ollama\blobs` y `kit\ollama\manifests` a `\\192.168.137.250\share\ollama\`. Las otras dos carpetas del kit (`metadata` y `manifests-v2`) las crea Ollama solo;
    - el repositorio `https://github.com/SirUli/homeassistant-ollama-addon` y el complemento instalado;
    - `OLLAMA_FLASH_ATTENTION` en `1`, y el 11434 borrado en Red;
    - Iniciar.

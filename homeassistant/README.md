@@ -100,6 +100,7 @@ Qué se ve:
 
 - `kit/ollama/` está en la carpeta principal del repositorio, y Git lo ignora.
 - Tiene la estructura de `OLLAMA_MODELS`, que es `blobs/` más `manifests/registry.ollama.ai/library/qwen2.5/{1.5b,3b}`. No lleva la llave de identidad de Ollama, que el complemento guarda en su `/data`.
+- Ollama 0.40 suma otras dos carpetas: `metadata/`, una caché que arma solo al cargar cada modelo, y `manifests-v2/`, que está vacía. Da lo mismo copiarlas o no: sin ellas, el complemento las vuelve a crear.
 - Se armó el 2026-11-18:
   - el 1.5b se copió del volumen `ollama-cache`;
   - el 3b se bajó con `ollama pull` en un contenedor `ollama/ollama:0.40.16` con `OLLAMA_MODELS` apuntando al kit.

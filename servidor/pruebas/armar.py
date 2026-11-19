@@ -2,9 +2,9 @@
 Nombre: armar.py
 Descripción: Arma datos directamente en la base para las pruebas del servidor: horarios con bloques, personas, consentimientos, cámaras, inscripciones, huellas, eventos y asistencia.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 import math
@@ -74,11 +74,13 @@ def camara(
     ultimo_contacto: datetime | None = None,
     token_hash: str = "0" * 64,
     activo: bool = True,
+    url_captura: str | None = None,
 ) -> str:
+    """Una cámara. Las de tipo respaldo necesitan su URL de captura (la base lo exige)."""
     conexion.execute(
         text(
-            "INSERT INTO dispositivo (codigo, nombre, tipo, token_hash, ultimo_contacto, activo) "
-            "VALUES (:codigo, :nombre, :tipo, :token_hash, :ultimo_contacto, :activo)"
+            "INSERT INTO dispositivo (codigo, nombre, tipo, token_hash, ultimo_contacto, activo, url_captura) "
+            "VALUES (:codigo, :nombre, :tipo, :token_hash, :ultimo_contacto, :activo, :url_captura)"
         ),
         {
             "codigo": codigo,
@@ -87,6 +89,7 @@ def camara(
             "token_hash": token_hash,
             "ultimo_contacto": ultimo_contacto,
             "activo": activo,
+            "url_captura": url_captura,
         },
     )
     return codigo

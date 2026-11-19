@@ -1,10 +1,10 @@
 """
 Nombre: conftest.py
-Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector y Mosquitto con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada, el cliente MQTT del servidor con un suscriptor de prueba, la semilla del agente con el usuario agente y marcas de las specs.
+Descripción: Fixtures de las pruebas del servidor de AccesIA: PostgreSQL 18 + pgvector y Mosquitto con testcontainers, la API con sesión dentro de la transacción de cada prueba, un reloj que la prueba controla, cámaras con visión armada, el cliente MQTT del servidor con un suscriptor de prueba, la conexión por turnos para lo que corre fuera de una petición, la semilla del agente con el usuario agente y marcas de las specs.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 """
 
 import itertools
@@ -293,19 +293,13 @@ def escucha(broker_mqtt: tuple[str, int]):
 
 
 @pytest.fixture
-def conectar_mqtt(app: FastAPI, broker_mqtt, conexion: Connection, candado_de_la_base: threading.Lock, escucha):
-    """Conecta el cliente MQTT del servidor al broker de prueba, como al arrancar, y lo deja en la app.
-
-    Es una función para que la prueba prepare antes lo que el servidor debe encontrar al conectarse. Usa la
-    conexión de la prueba, por turnos con las peticiones, y espera a que termine lo que hace al conectarse.
-    """
-    from accesia.mqtt import ClienteMqtt, Publicacion
-    from mqtt_de_prueba import ESPERA_S, url_del_servidor
-
-    creados = []
+def conexion_por_turnos(conexion: Connection, candado_de_la_base: threading.Lock) -> Callable[[], object]:
+    """La conexión de la prueba para lo que el servidor hace fuera de una petición (el cliente MQTT y el modo
+    extraer), por turnos con las peticiones: cada uso abre su propio savepoint, como una transacción del servidor."""
+    from mqtt_de_prueba import ESPERA_S
 
     @contextmanager
-    def conexion_de_la_prueba() -> Iterator[Connection]:
+    def abrir() -> Iterator[Connection]:
         # Con tiempo límite: si una petición la tiene tomada (por ejemplo, porque el servidor publica dentro de la
         # petición y no después de confirmar), la prueba falla en vez de quedarse esperando para siempre.
         if not candado_de_la_base.acquire(timeout=ESPERA_S):
@@ -316,8 +310,23 @@ def conectar_mqtt(app: FastAPI, broker_mqtt, conexion: Connection, candado_de_la
         finally:
             candado_de_la_base.release()
 
+    return abrir
+
+
+@pytest.fixture
+def conectar_mqtt(app: FastAPI, broker_mqtt, conexion_por_turnos, escucha):
+    """Conecta el cliente MQTT del servidor al broker de prueba, como al arrancar, y lo deja en la app.
+
+    Es una función para que la prueba prepare antes lo que el servidor debe encontrar al conectarse. Usa la
+    conexión de la prueba, por turnos con las peticiones, y espera a que termine lo que hace al conectarse.
+    """
+    from accesia.mqtt import ClienteMqtt, Publicacion
+    from mqtt_de_prueba import ESPERA_S, url_del_servidor
+
+    creados = []
+
     def conectar(client_id: str = "servidor", antes: Callable[[ClienteMqtt], object] | None = None):
-        cliente = ClienteMqtt(url_del_servidor(broker_mqtt), conexiones=conexion_de_la_prueba, client_id=client_id)
+        cliente = ClienteMqtt(url_del_servidor(broker_mqtt), conexiones=conexion_por_turnos, client_id=client_id)
         creados.append(cliente)
         app.state.mqtt = cliente
         if antes is not None:

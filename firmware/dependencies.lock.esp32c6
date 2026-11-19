@@ -47,6 +47,6 @@ direct_dependencies:
 - esp-idf-lib/dht
 - esp-idf-lib/esp_idf_lib_helpers
 - idf
-manifest_hash: af5639082d2294b95120047ee592b6bc3a0fc419f9ca82fc46ec577c5dac931a
+manifest_hash: 30d00b641e28a561687bf68c0cfc4d31282426bd0565f61a8831f26f71a56121
 target: esp32c6
 version: 2.0.0

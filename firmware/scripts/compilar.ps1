@@ -1,12 +1,13 @@
 ﻿# Nombre: compilar.ps1
-# Descripción: Compila el firmware de la placa: la XIAO ESP32-C6 en firmware/build-c6/ (D-21).
+# Descripción: Compila el firmware de la placa: la ESP32-CAM en firmware/build-esp32cam/ (D-24) y, si se pide, la XIAO ESP32-C6 en firmware/build-c6/ (D-21).
 # Fecha de creación: 2026-11-12
-# Actualización: 2026-11-12
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 #
 # Uso, desde la raíz del repositorio, en PowerShell (no en Git Bash: idf.py no funciona en MSYS):
-#   .\firmware\scripts\compilar.ps1
+#   .\firmware\scripts\compilar.ps1                      la ESP32-CAM de la demo
+#   .\firmware\scripts\compilar.ps1 -Placa esp32cam, c6  las dos placas
 #
 # Si idf.py no está a mano, activa ESP-IDF 5.4 con el script que dejó EIM (C:\Espressif\tools\eim_idf.json).
 # Cada placa compila en su carpeta, con su sdkconfig adentro. Si vuelve el ESP32-S3 (PR #7), suma aquí sus
@@ -14,8 +15,8 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('c6')]
-    [string[]]$Placa = @('c6')
+    [ValidateSet('esp32cam', 'c6')]
+    [string[]]$Placa = @('esp32cam')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,7 +26,8 @@ $tamanoFactory = 3MB  # partición factory de particiones.csv
 
 # Cada placa con su target y su carpeta. ESP-IDF suma solo sdkconfig.defaults.<target> al común.
 $placas = @{
-    c6 = @{ Target = 'esp32c6'; Carpeta = 'build-c6' }
+    esp32cam = @{ Target = 'esp32'; Carpeta = 'build-esp32cam' }
+    c6       = @{ Target = 'esp32c6'; Carpeta = 'build-c6' }
 }
 
 function Activar-EspIdf {

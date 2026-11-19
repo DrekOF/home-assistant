@@ -1,9 +1,13 @@
 # Nombre: sdkconfig.defaults.esp32c6
 # Descripción: Configuración de la XIAO ESP32-C6 (D-21): 4 MB de flash y sin PSRAM. ESP-IDF la suma a sdkconfig.defaults.
 # Fecha de creación: 2026-11-12
-# Actualización: 2026-11-12
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 
 # CPU a 160 MHz, lo más que da el ESP32-C6.
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
+
+# Consola secundaria por el USB Serial/JTAG del USB-C. La salida va por UART0 y por el USB; los comandos los leen
+# dos tareas propias (accesia_consola), porque la consola secundaria solo envía texto.
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y

@@ -1,10 +1,10 @@
 /**
  * Nombre: consola.hpp
- * Descripción: Consola serial de la placa, por UART0 y por el USB nativo: comandos comunes y los que registra cada componente.
+ * Descripción: Consola serial de la placa, por UART0 y, si lo tiene, por el USB nativo: comandos comunes y los que registra cada componente.
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.1
+ * Versión: 1.2
  */
 
 #pragma once
@@ -16,8 +16,8 @@
 
 namespace accesia {
 
-/// Registra los comandos comunes (arquitectura.md, «Consola serial») y arranca las dos tareas que los leen: una
-/// por UART0 y otra por el USB Serial/JTAG.
+/// Registra los comandos comunes (arquitectura.md, «Consola serial») y arranca las tareas que los leen: una por
+/// UART0 y, en la XIAO ESP32-C6, otra por el USB Serial/JTAG. La ESP32-CAM solo tiene UART0.
 esp_err_t consola_iniciar();
 
 /// Suma el comando de un componente, como «sensor» o «antena». «uso» y «ejemplo» salen en «ayuda».

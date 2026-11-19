@@ -1,11 +1,12 @@
 # Nombre: sdkconfig.defaults
 # Descripción: Configuración común del firmware, para cualquier target.
 # Fecha de creación: 2026-11-12
-# Actualización: 2026-11-12
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 #
-# ESP-IDF suma solo el archivo del target elegido: sdkconfig.defaults.esp32c6 en la XIAO ESP32-C6 (D-21).
+# ESP-IDF suma solo el archivo del target elegido: sdkconfig.defaults.esp32 en la ESP32-CAM (D-24) y
+# sdkconfig.defaults.esp32c6 en la XIAO ESP32-C6 (D-21).
 
 # Optimización por rendimiento.
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
@@ -15,10 +16,8 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="particiones.csv"
 
-# Consola: UART0 principal y USB Serial/JTAG secundaria. La salida va por los dos; los comandos los leen
-# dos tareas propias (accesia_consola), porque la consola secundaria solo envía texto.
+# Consola principal en UART0. La XIAO ESP32-C6 suma el USB Serial/JTAG como secundaria (su archivo).
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
-CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
 
 # Pila de la tarea principal para el arranque de todos los componentes.
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144

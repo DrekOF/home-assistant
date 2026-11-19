@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.14
+Versión: 1.15
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -60,10 +60,10 @@ SQL               líneas que empiezan con --
 ## Hardware
 
 - Entregado el 12/11/2026 (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry Pi 5 con Home Assistant OS.
-- Desde el 19/11/2026 (D-24), la cámara de la demo es una ESP32-CAM, con todo en esa placa: el modelo de visión, que pone el equipo, la puerta y MQTT. La placa detecta y envía; el reconocimiento sigue en el servidor. Qué modelo va en la placa (caras con ESP-DL o personas con TensorFlow Lite Micro) lo decide una prueba de factibilidad (P-05). Si la ESP32-CAM se queda corta, el respaldo es una ESP32-S3 con el firmware del PR #7.
+- Desde el 19/11/2026 (D-24), la cámara de la demo es una ESP32-CAM, con todo en esa placa: el modelo de visión, que pone el equipo, la puerta y MQTT. La placa detecta y envía; el reconocimiento sigue en el servidor. El modelo de la placa son caras con ESP-DL 1.1 (P-05), y su firmware es el target `esp32` de `firmware/`. Si la ESP32-CAM se queda corta, el respaldo es una ESP32-S3 con el firmware del PR #7.
 - La XIAO ESP32-C6 y su sensor DHT dejan de usarse, y RF-14 queda fuera de alcance.
-- Hasta que el firmware de la ESP32-CAM esté listo, la cámara es el simulador (`simulador/`), que cumple el mismo contrato. Todo se sigue probando con él.
-- Los pines de la ESP32-CAM los fija la sesión del firmware en `specs/arquitectura.md`; no asumas otros. Los de la XIAO ESP32-C6 quedan allí como referencia.
+- El simulador (`simulador/`) cumple el mismo contrato que la ESP32-CAM, y todo se sigue probando también con él.
+- Los pines de la ESP32-CAM están en `specs/arquitectura.md`; no asumas otros. Los de la XIAO ESP32-C6 quedan allí como referencia.
 - La demo corre todo en la Pi (D-22): la base, el servidor (con la web y el MCP), Mosquitto y Ollama son complementos de Home Assistant OS, en el hotspot de Windows del portátil. Docker Compose en el portátil queda para desarrollar y como plan B (escenario 2). Las imágenes se siguen construyendo para arm64 y amd64.
 
 ## Web
@@ -91,7 +91,7 @@ AccesIA/
 │   └── contratos/         API, MQTT, MCP del agente y base de datos (mandan sobre el código)
 ├── tareas/                tareas para Claude Code, por día y por frente
 ├── docs/                  bitácora, guía del día de clase y diagramas
-├── firmware/              placa XIAO ESP32-C6 (ESP-IDF, C++)         frente A
+├── firmware/              placa ESP32-CAM (ESP-IDF, C++)             frente A
 ├── simulador/             cámara simulada con la webcam (Python)      frente A
 ├── servidor/              API, reconocimiento, reglas, MQTT y MCP     frente B
 ├── web/                   web de administración (React + Vite)        frente C
@@ -174,16 +174,19 @@ npm run e2e                                           Playwright con el simulacr
 npm run e2e:servidor                                  Playwright contra el servidor real (Compose arriba; credenciales de infra/.env)
 ```
 
-Firmware de la XIAO ESP32-C6, desde la raíz (necesita ESP-IDF 5.4.4 y PowerShell, no Git Bash):
+Firmware de la ESP32-CAM, desde la raíz (necesita ESP-IDF 5.4.4 y PowerShell, no Git Bash):
 
 ```text
-.\firmware\scripts\compilar.ps1                       compila en firmware\build-c6
+.\firmware\scripts\compilar.ps1                       compila la ESP32-CAM en firmware\build-esp32cam
+                                                      (-Placa esp32cam, c6 suma la XIAO ESP32-C6)
 .\firmware\scripts\probar-logica.ps1                  pruebas de la lógica pura en ubuntu:24.04 (Docker Desktop)
-idf.py -C firmware -B firmware\build-c6 -p COM5 flash monitor
+idf.py -C firmware -B firmware\build-esp32cam -p COM5 flash monitor
                                                       flashea y abre la consola (Ctrl+] sale)
 .\firmware\scripts\armar-kit.ps1 [-FuenteS3 ..\AccesIA-s3]
-                                                      arma kit\firmware: el binario del C6 y, con una copia del PR #7, los del S3
-.\kit\firmware\flashear.ps1 -Placa c6 -Puerto COM5    flashea con esptool y dice cómo poner la placa en modo de descarga
+                                                      arma kit\firmware: la ESP32-CAM y, con una copia del PR #7, los del S3
+.\kit\firmware\flashear.ps1 -Placa esp32cam -Puerto COM5 -Monitor
+                                                      flashea con esptool, dice cómo poner la placa en modo de descarga
+                                                      y abre la consola (Ctrl+T Ctrl+R dos veces reinicia; Ctrl+] sale)
 ```
 
 Más detalle en `infra/README.md`, `servidor/README.md`, `simulador/README.md`, `firmware/README.md`, `scripts/README.md` y `web/README.md`.

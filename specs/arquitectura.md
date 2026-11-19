@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.15
+Versión: 1.16
 -->
 
 # Arquitectura
@@ -17,8 +17,8 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 
 | Pieza | Qué hace | Tecnología | Frente | Carpeta |
 | --- | --- | --- | --- | --- |
-| Cámara | Detecta con un modelo TinyML y envía. Con D-24 es una ESP32-CAM, con el modelo en la placa (cuál, P-05); hasta tener su firmware la hace el simulador, y el firmware del ESP32-S3 del PR #7 es el respaldo | ESP-IDF 5.4 (C++), `espressif/esp32-camera`, `espressif/human_face_detect` (MSR + MNP, int8), esp-mqtt | A | `firmware/` |
-| Placa del punto de acceso | Con D-24, la misma ESP32-CAM: abre la puerta y publica su estado y su presencia. La XIAO ESP32-C6 de D-21, que abría la puerta con un LED y leía un sensor de temperatura y humedad, queda sin uso | Seeed Studio XIAO ESP32-C6, ESP-IDF 5.4 (C++), esp-mqtt, `esp-idf-lib/dht` | A | `firmware/` |
+| Cámara | Detecta caras con un modelo TinyML y envía el recorte. Con D-24 es una ESP32-CAM AI-Thinker, con ESP-DL 1.1 en la placa (P-05); el firmware del ESP32-S3 del PR #7 es el respaldo y el simulador cumple el mismo contrato | ESP-IDF 5.4 (C++), `espressif/esp32-camera`, `espressif/esp-dl` 1.1 (`HumanFaceDetectMSR01` + `MNP01`), esp-mqtt; en el S3, `espressif/human_face_detect` (MSR + MNP, int8) | A | `firmware/` |
+| Placa del punto de acceso | Con D-24, la misma ESP32-CAM: abre la puerta con su LED rojo y publica su estado y su presencia. La XIAO ESP32-C6 de D-21, que abría la puerta con un LED y leía un sensor de temperatura y humedad, queda sin uso | ESP32-CAM AI-Thinker, ESP-IDF 5.4 (C++), esp-mqtt; antes, la XIAO ESP32-C6 con `esp-idf-lib/dht` | A | `firmware/` |
 | Simulador | Hace lo mismo que la cámara con la webcam o con una carpeta de fotos | Python 3.13, OpenCV (YuNet), httpx, paho-mqtt | A | `simulador/` |
 | Servidor | Huella, reglas, inscripción, asistencia, eventos MQTT, API y web | Python 3.13, FastAPI, OpenCV (YuNet + SFace), SQLAlchemy 2, psycopg 3, pgvector, Alembic, paho-mqtt | B | `servidor/` |
 | Servidor MCP | Herramientas de solo lectura del agente | SDK oficial `mcp` 2.x de Python (`MCPServer`, que en la 1.x se llamaba FastMCP), mismo paquete del servidor | B | `servidor/` |
@@ -59,7 +59,7 @@ Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un c
 
 Un desconocido no recibe ni publica a quién se parece. Las repeticiones de R4 no guardan evento: la de un `permitido` se publica con `repetido: true` para que la puerta se abra otra vez, y la de un `denegado` no publica nada.
 
-Con el hardware de D-21, el paso 1 lo hace el simulador hasta que llegue el módulo de cámara, y el paso 6 lo hace la placa con su LED.
+Con D-24, la ESP32-CAM hace el paso 1 con ESP-DL 1.1 y el paso 6 con su LED rojo. El simulador hace lo mismo con la webcam.
 
 ### Llegada registrada a mano
 
@@ -238,9 +238,36 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 
 ## Firmware
 
+### Placa de la demo: ESP32-CAM AI-Thinker (D-24)
+
+Un solo binario para la ESP32-CAM AI-Thinker: ESP32 clásico (en la placa del equipo, ESP32-D0WD-V3, revisión v3.1), 4 MB de flash, 4 MB de PSRAM y cámara OV2640. No tiene USB: se flashea y se usa la consola por UART0, con su base USB-C (ESP32-CAM-MB) o un adaptador USB-TTL. La tabla de particiones de 4 MB no cambia. Hace de cámara y de punto de acceso.
+
+| Uso | Pin | Nota |
+| --- | --- | --- |
+| Cámara OV2640 | PWDN 32, XCLK 0, SIOD 26, SIOC 27; D0 a D7: 5, 18, 19, 21, 36, 39, 34 y 35; VSYNC 25, HREF 23, PCLK 22 | Perfil AI-Thinker de esp32-camera; RESET sin conectar |
+| LED rojo | GPIO33 | Enciende en bajo. Hace de puerta y muestra el estado |
+| LED del flash | GPIO4 | Blanco y muy brillante: queda apagado |
+| UART0 | GPIO1 (TX) y GPIO3 (RX) | La consola y el flasheo |
+| PSRAM | GPIO16 y GPIO17 | No sirven para otra cosa |
+| Libres para un relé | GPIO2, 4, 13, 14 y 15 | Con el comando `puerta`. GPIO12 no: decide el voltaje de la flash al arrancar |
+| Modo de descarga | GPIO0 a GND al arrancar | La base lo hace sola con DTR y RTS; con un adaptador, a mano |
+
+Los pines de la cámara salen del perfil AI-Thinker de esp32-camera y se comprobaron con la placa del equipo en la prueba de factibilidad (P-05). El LED rojo, todavía no.
+
+Comportamiento:
+
+- Captura en QVGA (320 × 240) y RGB565, con dos cuadros en la PSRAM, y detecta con ESP-DL 1.1: MSR01 propone candidatas y MNP01 confirma cada una. Medido en la placa: MSR de 55 a 70 ms por cuadro y MNP de 102 ms por candidata; con una cara, de 230 a 440 ms por cuadro, con el JPEG del recorte (6,5 a 9,4 KB) incluido.
+- Envía el recorte como dice «Cámara», más abajo, desde una tarea propia: la detección sigue mientras llega la respuesta.
+- MQTT, con su código como client id (la ACL lo exige):
+  - se suscribe a `accesia/{codigo}/puerta/set`;
+  - publica la puerta, su estado general cada 60 s (con `psram_kb`), su disponibilidad con último deseo y su presencia, con el descubrimiento de su sensor de presencia (`contratos/mqtt.md` 1.6).
+- La presencia pasa a `true` con la primera cara y a `false` tras 5 s sin caras, como dice `firmware/README.md` (`mqtt.md` 1.6 deja ese tiempo al firmware).
+- La puerta manda sobre el LED rojo, como en el C6: con `ABRIR` queda encendido los segundos configurados (3 por defecto), y la placa publica `abierta` y luego `cerrada`; el resto del tiempo parpadea mientras se conecta al Wi-Fi o al broker.
+- ESP-DL 1.1 reserva sus búferes primero en la RAM interna y, en cada detección, toma la que haya libre. Los búferes del Wi-Fi y de lwIP van a la PSRAM, y `estado` muestra la memoria interna mínima.
+
 ### Placa de la demo: XIAO ESP32-C6 (D-21, sin uso desde D-24)
 
-Con D-24, la placa de la demo es una ESP32-CAM. Sus pines y su firmware los fija la sesión del firmware; hasta entonces no se asumen. Lo de esta sección queda como referencia.
+Con D-24, la placa de la demo es la ESP32-CAM, la de arriba. Lo de esta sección queda como referencia: el target `esp32c6` sigue compilando.
 
 Un solo binario para la Seeed Studio XIAO ESP32-C6: 4 MB de flash, 512 KB de SRAM y sin PSRAM. La tabla de particiones de 4 MB no cambia. Todavía no tiene cámara: maneja la puerta, publica su estado y lee un sensor de temperatura y humedad.
 
@@ -266,27 +293,28 @@ Comportamiento:
 
 ### Consola serial
 
-Se guarda en NVS y no requiere recompilar. Los comandos entran por UART0 y por el USB nativo.
+Se guarda en NVS y no requiere recompilar. Los comandos entran por UART0, que en la ESP32-CAM es el USB de su base o un adaptador; en la XIAO ESP32-C6, también por el USB nativo.
 
 | Comando | Ejemplo |
 | --- | --- |
-| `estado` | Muestra la placa, el Wi-Fi, la IP, el servidor, MQTT, el sensor con su última lectura y la antena |
+| `estado` | Muestra el Wi-Fi, el servidor, el código, MQTT y la puerta. En la ESP32-CAM, también la cámara, el modelo, la presencia, el último envío y la memoria; en el C6, el sensor y la antena |
 | `wifi <ssid> <clave>` | `wifi AccesIA clave123` (el hotspot del portátil) |
 | `servidor <url>` | `servidor http://192.168.137.250:8000` |
 | `codigo <codigo>` | `codigo entrada` |
 | `token <token>` | El token que da la web al crear la cámara |
 | `mqtt <url> <usuario> <clave>` | `mqtt mqtt://192.168.137.250:1883 camara clave123` |
-| `puerta <pin> <segundos> [bajo\|alto]` | `puerta 15 3 bajo`, lo de fábrica en el C6. El nivel es el que enciende; `-1` si no hay LED ni relé |
-| `sensor <dht22\|dht11>` | `sensor dht11` |
-| `antena <interna\|externa>` | `antena externa` |
+| `puerta <pin> <segundos> [bajo\|alto]` | `puerta 33 3 bajo`, lo de fábrica en la ESP32-CAM (en el C6, `puerta 15 3 bajo`). El nivel es el que enciende; `-1` si no hay LED ni relé |
+| `cara_min <px>` | `cara_min 80`, igual que `CARA_MIN_PX` del servidor. Solo en la ESP32-CAM |
+| `sensor <dht22\|dht11>` | `sensor dht11`. Solo en el C6 |
+| `antena <interna\|externa>` | `antena externa`. Solo en el C6 |
 | `reiniciar` | Reinicia la placa |
 | `ayuda` | Lista los comandos |
 
-Los valores de fábrica apuntan a la Pi (D-22): servidor `http://192.168.137.250:8000` y MQTT `mqtt://192.168.137.250:1883`, con el usuario `camara`. La IP está en un solo lugar, `ACCESIA_IP_DE_LA_PI` en `valores_de_fabrica.hpp`. Si en clase es otra (P-04), se cambia ahí y se recompila, o en la placa con `servidor` y `mqtt`, sin recompilar. Los comandos `perfil`, `pin` y `cara_min` son del firmware del ESP32-S3 y vuelven con él.
+Los valores de fábrica apuntan a la Pi (D-22): servidor `http://192.168.137.250:8000` y MQTT `mqtt://192.168.137.250:1883`, con el usuario `camara`. La IP está en un solo lugar, `ACCESIA_IP_DE_LA_PI` en `valores_de_fabrica.hpp`. Si en clase es otra (P-04), se cambia ahí y se recompila, o en la placa con `servidor` y `mqtt`, sin recompilar. `perfil` y `pin` son del firmware del ESP32-S3 y vuelven con él.
 
 ### Cámara
 
-Así se comporta cualquier cámara que envíe recortes (hoy el simulador; el ESP32-S3 de referencia):
+Así se comporta cualquier cámara que envíe recortes (la ESP32-CAM, el simulador y el ESP32-S3 de respaldo):
 
 - Captura en QVGA (320 × 240) para detectar; recorta la cara más grande (la de mayor área) con la fórmula de `contratos/api-dispositivo.md` y la envía en JPEG de calidad 80.
 - Después de cada respuesta espera al menos 1 s, contado desde que la recibe, antes de enviar otro recorte. Tras `permitido`, `denegado` o `desconocido` espera 3 s.
@@ -294,7 +322,7 @@ Así se comporta cualquier cámara que envíe recortes (hoy el simulador; el ESP
 
 #### Cuando llegue el módulo de cámara
 
-Ya se decidió (D-24): es una ESP32-CAM, con todo en esa placa, y el modelo lo decide P-05. Lo que sigue era el plan para el C6 y queda como referencia.
+Ya se decidió (D-24 y P-05): es la ESP32-CAM, con caras de ESP-DL 1.1 («Placa de la demo: ESP32-CAM AI-Thinker»). Lo que sigue era el plan para el C6 y queda como referencia.
 
 El firmware del C6 deja un punto de extensión, sin código de cámara ni de TinyML: una fuente de cuadros y un detector. Lo que se haga depende del módulo:
 
@@ -320,7 +348,7 @@ El firmware del ESP32-S3 del enunciado quedó en el PR #7, en borrador, por si s
 | `generico_octal` | Otra ESP32-S3 con cámara; pines por consola | octal | `octal` |
 | `generico_quad` | Otra ESP32-S3 con cámara; pines por consola | quad | `quad` |
 
-Sus binarios auxiliares, `diagnostico` (chip, flash, PSRAM y sensor de cualquier placa) y `respaldo` (`GET /capture` para el modo extraer, RF-10 · C4), quedan para cuando vuelva el S3 o llegue un ESP32-CAM.
+Sus binarios auxiliares, `diagnostico` (chip, flash, PSRAM y sensor de cualquier placa) y `respaldo` (`GET /capture` para el modo extraer, RF-10 · C4), quedan para cuando vuelva el S3, o para otra ESP32-CAM que haga de cámara de respaldo.
 
 ## Simulador
 

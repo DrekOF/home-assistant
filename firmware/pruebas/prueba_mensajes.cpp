@@ -1,10 +1,10 @@
 /**
  * Nombre: prueba_mensajes.cpp
- * Descripción: Pruebas de los mensajes MQTT de la placa contra contratos/mqtt.md 1.2: ambiente, descubrimiento y estado.
+ * Descripción: Pruebas de los mensajes MQTT de la placa contra contratos/mqtt.md: ambiente, descubrimiento y estado (la presencia, en prueba_presencia.cpp).
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 #include <doctest/doctest.h>
@@ -105,6 +105,23 @@ TEST_CASE("contrato MQTT · estado")
         "ip": "192.168.137.23", "rssi": -52, "libre_kb": 210, "sensor": "dht22", "antena": "interna",
         "segundos_encendida": 5321 })"));
     CHECK_FALSE(mensaje.contains("psram_kb"));
+}
+
+TEST_CASE("contrato MQTT · estado · ESP32-CAM, con psram_kb y sin sensor ni antena (D-24)")
+{
+    accesia::EstadoPlaca estado;
+    estado.perfil = "esp32cam";
+    estado.firmware = "tinyml-esp32cam-0.3.0";
+    estado.ip = "192.168.137.31";
+    estado.rssi = -61;
+    estado.psram_kb = 4096;
+    estado.libre_kb = 3900;
+    estado.segundos_encendida = 120;
+
+    // Los campos del ejemplo del ESP32-S3 de mqtt.md 1.6, que también tiene PSRAM.
+    const json mensaje = json::parse(accesia::mensaje_estado(estado));
+    CHECK(mensaje == json::parse(R"({ "perfil": "esp32cam", "firmware": "tinyml-esp32cam-0.3.0",
+        "ip": "192.168.137.31", "rssi": -61, "psram_kb": 4096, "libre_kb": 3900, "segundos_encendida": 120 })"));
 }
 
 TEST_CASE("contrato MQTT · estado · sin IP ni RSSI van en null, y sin sensor ni antena no van")

@@ -1,0 +1,24 @@
+# Nombre: sdkconfig.defaults.esp32
+# Descripción: Configuración de la ESP32-CAM AI-Thinker (D-24): ESP32 clásico, 4 MB de flash y 4 MB de PSRAM. ESP-IDF la suma a sdkconfig.defaults.
+# Fecha de creación: 2026-11-19
+# Actualización: 2026-11-19
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Sin USB nativo: la consola es solo UART0, por el adaptador o la base USB.
+
+# CPU a 240 MHz: la detección corre en la placa.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Flash a 80 MHz, como en los ejemplos de la AI-Thinker; la PSRAM a 80 MHz lo exige.
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+
+# PSRAM de 4 MB: los dos cuadros de la cámara, el JPEG del recorte y lo que ESP-DL no alcance a poner en la RAM
+# interna.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# ESP-DL 1.1 reserva sus búferes primero en la RAM interna y, durante cada detección, toma lo que haya libre (en la
+# prueba de factibilidad bajó a 57 KB, sin Wi-Fi). Los búferes del Wi-Fi y de lwIP van a la PSRAM para que la red
+# no dependa de esa memoria.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y

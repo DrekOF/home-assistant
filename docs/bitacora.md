@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.27
+Versión: 1.28
 -->
 
 # Bitácora
@@ -22,6 +22,66 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-19 · Tarea A · El firmware de la ESP32-CAM (D-24, P-05)
+
+- Quién: el frente A. La corrió la sesión del firmware, con el equipo probando en la placa durante la clase. Por pedido del equipo, el plan fue en la descripción del PR #30, sin esperar su aprobación.
+- Qué:
+  - **P-05, la prueba de factibilidad** (menos de media hora): ¿caras con ESP-DL en el ESP32 clásico, con nuestro ESP-IDF 5.4.4?
+    - ESP-DL 3.3.14 corre en el ESP32 desde la 3.1.5, pero `human_face_detect` 0.5.2 solo trae modelos del S3 y del P4, con los pesos acomodados para cada chip: no sirve;
+    - ESP-DL 2.0.0 exige ESP-IDF 5.0;
+    - ESP-DL 1.1.0 no declara versión de ESP-IDF, trae `MSR01` y `MNP01` compilados para el ESP32 y compiló con la 5.4.4. Es la elegida.
+
+    El equipo corrió el binario de prueba en su placa (ESP32-D0WD-V3, revisión v3.1). Midió MSR de 55 a 70 ms por cuadro, MNP de 102 ms por candidata y, con una cara y el JPEG del recorte, de 230 a 440 ms por cuadro. Sin Wi-Fi, la memoria interna bajó hasta 57 KB.
+  - **El target `esp32`** en el proyecto del firmware, con componentes solo para él:
+    - `accesia_camara`: la OV2640 y el JPEG del recorte, del PR #7;
+    - `accesia_deteccion`: ESP-DL 1.1;
+    - `accesia_envio`: el `POST` de `api-dispositivo.md` 1.2 y su respuesta;
+    - `accesia_esp32cam`: el ciclo en dos tareas, el LED rojo y `cara_min`.
+  - **Lógica pura, con pruebas:**
+    - la presencia, que vuelve a `false` tras 5 s sin caras;
+    - su mensaje y su descubrimiento, como en `mqtt.md` 1.6;
+    - la espera tras cada respuesta del servidor (401, 403, 429, sin respuesta y 5xx);
+    - los pines de la placa.
+  - **MQTT y puerta:** la presencia, retenida, al cambiar y al conectarse; la puerta en el LED rojo (GPIO33); la consola por UART0.
+  - **Kit:**
+    - `kit\firmware\esp32cam`;
+    - `flashear.ps1` 1.1, con `-Placa esp32cam` y `-Monitor` (miniterm con DTR y RTS en 0, para la base USB-C);
+    - `armar-kit.ps1` 1.1, sin el C6.
+  - **CI:** compila `esp32` y `esp32c6`.
+  - **Documentos:** `firmware/README.md` 1.4 y `CLAUDE.md` 1.15.
+- Cómo:
+  - **Qué hizo Claude Code.** Consultó en el ESP Component Registry qué versiones de ESP-DL declaran el ESP32. Compiló un proyecto de prueba en una carpeta temporal y comparó byte a byte los modelos del S3 y del P4. El binario de prueba no guardaba imágenes: medía con un cuadro sintético y con los cuadros de la cámara en memoria.
+  - Decisiones:
+    - **ESP-DL 1.1 y no la 3:** es la única con modelos de caras para el ESP32 clásico que compila con nuestro ESP-IDF. Viene compilada, sin código fuente.
+    - **Dos tareas:** la detección (núcleo 1) no espera al servidor; el envío va en el núcleo 0, junto al Wi-Fi. Así la presencia no se congela mientras llega la respuesta.
+    - **La memoria:** ESP-DL 1.1 reserva primero en la RAM interna y, en cada detección, toma la que haya libre.
+      - Los búferes del Wi-Fi y de lwIP van a la PSRAM, y el Wi-Fi arranca antes que la cámara.
+      - La memoria interna mínima sale en `estado` y cada 60 s.
+    - **La ruta con espacio:** ESP-DL 1.1 le pasa `-L <carpeta>` al enlazador como un solo argumento, y el espacio de «Inteligencia artificial» lo corta. `firmware/CMakeLists.txt` lo cambia por un directorio de enlace bien citado.
+    - **El flasheo:** con la base USB-C del equipo, esptool pone la placa en modo de descarga y la reinicia por RTS. Por eso el monitor abre con DTR y RTS en 0, y Ctrl+T Ctrl+R reinicia, porque la base tapa el botón RST.
+    - **Docker Desktop estaba cerrado** y no se abrió, porque la demo corre en la Pi. Las pruebas de la lógica las corrió la CI.
+  - El binario quedó en `kit\firmware\esp32cam` de la carpeta principal antes de abrir el PR, para que el equipo lo flasheara en la clase.
+- Pruebas:
+  - CI del PR #30: las 6 comprobaciones en verde al primer intento, incluidas la compilación de `esp32` y de `esp32c6` (unos 3 min cada una) y las pruebas de la lógica pura, con las nuevas de la presencia, el envío y los pines.
+  - En el portátil: el binario de la ESP32-CAM pesa 1,70 MB, el 54 % de la partición de 3 MB. La IRAM queda al 97 % y la DRAM estática al 39 %. El del C6 sigue compilando: 1,06 MB.
+  - `flashear.ps1 -Placa esp32cam -Monitor -WhatIf` y `-Monitor -WhatIf`: los comandos de esptool y de miniterm que se esperaban.
+- Cambios de contrato o de specs:
+  - Ningún contrato: `api-dispositivo.md` 1.2 no cambia, la 1.3 (PR #29) no hace falta, y la presencia sigue `mqtt.md` 1.6.
+  - Specs:
+    - `arquitectura.md` 1.16: la placa de la demo, sus pines y su consola;
+    - `requisitos.md` 1.9: RF-01 con la ESP32-CAM;
+    - `decisiones.md` 1.17: el registro de P-05, sin otra D-24;
+    - `specs/README.md` 1.5: P-05 resuelto, con las cifras medidas.
+- Pendiente:
+  - probar el firmware completo en la placa:
+    - la memoria interna mínima con Wi-Fi, MQTT y HTTP;
+    - el envío y su respuesta;
+    - la presencia en Home Assistant;
+    - la puerta en el LED rojo;
+  - para la sesión 4: el paso de la placa en la guía del día de clase, con `.\kit\firmware\flashear.ps1 -Placa esp32cam -Puerto COM5 -Monitor`;
+  - cerrar el borrador del PR #29 (`api-dispositivo.md` 1.3), que con caras no hace falta;
+  - lo del C6 en las tareas del Día 4 (A2).
 
 ## 2026-11-19 · D-24 · La ESP32-CAM como cámara, con su modelo en la placa
 

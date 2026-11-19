@@ -1,10 +1,10 @@
 /**
  * Nombre: mqtt.cpp
- * Descripción: Cliente MQTT de la placa con esp-mqtt: temas y mensajes de contratos/mqtt.md 1.2.
+ * Descripción: Cliente MQTT de la placa con esp-mqtt: temas y mensajes de contratos/mqtt.md 1.6.
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-19
  * Autor: Equipo AccesIA
- * Versión: 1.0
+ * Versión: 1.1
  */
 
 #include "accesia/mqtt.hpp"
@@ -46,6 +46,7 @@ std::string tema_puerta_set;
 std::string tema_puerta_estado;
 std::string tema_estado;
 std::string tema_ambiente;
+std::string tema_presencia;
 std::string motivo_sin_mqtt;
 
 void publicar(const std::string& tema, const std::string& carga, int qos, bool retenido)
@@ -66,12 +67,22 @@ void publicar_estado()
 
 void publicar_descubrimiento()
 {
-    if (!enlaces_actuales.publica_ambiente) {
-        return;
-    }
     const std::string version = version_programa();
-    for (const SensorAmbiente sensor : {SensorAmbiente::temperatura, SensorAmbiente::humedad}) {
-        publicar(tema_descubrimiento(codigo, sensor), mensaje_descubrimiento(codigo, sensor, version), 1, true);
+    if (enlaces_actuales.publica_presencia) {
+        publicar(tema_descubrimiento_presencia(codigo), mensaje_descubrimiento_presencia(codigo, version), 1, true);
+    }
+    if (enlaces_actuales.publica_ambiente) {
+        for (const SensorAmbiente sensor : {SensorAmbiente::temperatura, SensorAmbiente::humedad}) {
+            publicar(tema_descubrimiento(codigo, sensor), mensaje_descubrimiento(codigo, sensor, version), 1, true);
+        }
+    }
+}
+
+/// La presencia de ahora, retenida, cada vez que se conecta (mqtt.md 1.6).
+void publicar_presencia_actual()
+{
+    if (enlaces_actuales.publica_presencia && enlaces_actuales.armar_presencia != nullptr) {
+        publicar(tema_presencia, enlaces_actuales.armar_presencia(), 1, true);
     }
 }
 
@@ -90,6 +101,7 @@ void al_evento(void*, esp_event_base_t, int32_t id, void* datos)
         publicar(tema_disponible, "online", 1, true);
         esp_mqtt_client_subscribe(cliente, tema_puerta_set.c_str(), 1);
         publicar_descubrimiento();
+        publicar_presencia_actual();
         if (enlaces_actuales.puerta_abierta != nullptr) {
             publicar(tema_puerta_estado, enlaces_actuales.puerta_abierta() ? "abierta" : "cerrada", 1, true);
         }
@@ -153,6 +165,7 @@ esp_err_t mqtt_iniciar(const Config& config, const EnlacesMqtt& enlaces)
     tema_puerta_estado = tema(codigo, "puerta/estado");
     tema_estado = tema(codigo, "estado");
     tema_ambiente = tema(codigo, "ambiente");
+    tema_presencia = tema(codigo, "presencia");
 
     esp_mqtt_client_config_t configuracion = {};
     configuracion.broker.address.uri = url.c_str();
@@ -202,9 +215,14 @@ void mqtt_publicar_ambiente(const std::string& mensaje)
     publicar(tema_ambiente, mensaje, 0, true);
 }
 
+void mqtt_publicar_presencia(const std::string& mensaje)
+{
+    publicar(tema_presencia, mensaje, 1, true);
+}
+
 void mqtt_borrar_descubrimiento()
 {
-    if (!enlaces_actuales.publica_ambiente) {
+    if (!enlaces_actuales.publica_ambiente && !enlaces_actuales.publica_presencia) {
         return;
     }
     if (!conectado) {
@@ -212,9 +230,14 @@ void mqtt_borrar_descubrimiento()
                codigo.empty() ? "anterior" : codigo.c_str());
         return;
     }
-    for (const SensorAmbiente sensor : {SensorAmbiente::temperatura, SensorAmbiente::humedad}) {
-        // Un mensaje vacío y retenido borra el config retenido.
-        esp_mqtt_client_publish(cliente, tema_descubrimiento(codigo, sensor).c_str(), "", 0, 1, 1);
+    // Un mensaje vacío y retenido borra el config retenido.
+    if (enlaces_actuales.publica_presencia) {
+        esp_mqtt_client_publish(cliente, tema_descubrimiento_presencia(codigo).c_str(), "", 0, 1, 1);
+    }
+    if (enlaces_actuales.publica_ambiente) {
+        for (const SensorAmbiente sensor : {SensorAmbiente::temperatura, SensorAmbiente::humedad}) {
+            esp_mqtt_client_publish(cliente, tema_descubrimiento(codigo, sensor).c_str(), "", 0, 1, 1);
+        }
     }
     vTaskDelay(pdMS_TO_TICKS(300));  // que alcancen a salir antes de guardar el código nuevo
     printf("Se borró el descubrimiento del código %s.\n", codigo.c_str());

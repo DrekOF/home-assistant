@@ -122,10 +122,11 @@ start http://localhost:8000                           abre la web de administrac
 .\scripts\empaquetar-complementos.ps1                arma kit\complementos para copiar a \\<IP de la Pi>\addons (D-22)
 bash complementos/probar.sh                           arranca los complementos de amd64 como en la Pi (Git Bash)
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
-docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build
-                                                      plan B (escenario 2): además publica mcp en el 8001 para la Pi
-.\homeassistant\scripts\probar-automatizaciones.ps1 [-Broker 192.168.137.1]
-                                                      prueba las automatizaciones de Home Assistant sin el servidor
+docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml up -d
+                                                      plan B (escenario 2, D-23): la base, el servidor y el MCP en el portátil,
+                                                      con el broker de la Pi; antes, down (pasos en infra/README.md)
+.\homeassistant\scripts\probar-automatizaciones.ps1 [-Broker <IP>]
+                                                      prueba las automatizaciones de Home Assistant sin el servidor (broker de la Pi)
 ```
 
 Desde `servidor/` (necesita uv y Docker Desktop abierto):

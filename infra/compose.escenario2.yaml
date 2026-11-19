@@ -1,11 +1,13 @@
 # Nombre: compose.escenario2.yaml
-# Descripción: Plan B (escenario 2 de D-21, plan B desde D-22): la base, el servidor y Mosquitto en el portátil, y Home Assistant y Ollama en la Pi. Publica mcp (8001) en la red del portátil para que Home Assistant OS lo alcance. Se usa junto con compose.yaml.
+# Descripción: Plan B (escenario 2, D-22 y D-23): la base, el servidor y el MCP en el portátil, y Home Assistant, Mosquitto y Ollama en la Pi. Publica mcp (8001) en la red del portátil para que Home Assistant OS lo alcance. Se usa con compose.yaml y con compose.broker-pi.yaml, que lleva el servidor al broker de la Pi.
 # Fecha de creación: 2026-11-18
-# Actualización: 2026-11-18
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.0
-# Uso, desde la raíz del repositorio:
-#   docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build
+# Versión: 1.1
+# Uso, desde la raíz del repositorio y con las imágenes ya construidas:
+#   docker compose -f infra/compose.yaml down
+#   docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml up -d
+# Si la Pi no tiene Mosquitto, sin compose.broker-pi.yaml: el broker vuelve al portátil (D-23).
 # Es una excepción a D-16 y D-19: solo en el hotspot del portátil o en otra red propia, y con el firewall abierto solo para
 # 192.168.137.0/24 (docs/guia-dia-de-clase.md). compose.yaml no tiene el servicio homeassistant, así que no hay nada que quitar.
 # MCP_HOSTS_PERMITIDOS de infra/.env debe tener la IP del portátil en el hotspot (192.168.137.1:8001 por defecto).

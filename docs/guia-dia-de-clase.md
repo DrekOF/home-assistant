@@ -11,7 +11,7 @@ Versión: 2.1
 
 Meta: pasar de las cajas cerradas a la primera persona reconocida en menos de 45 minutos, sin depender del internet de la universidad.
 
-El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry Pi 5 con Home Assistant OS. En la demo todo corre en la Pi, como complementos de Home Assistant OS, en el hotspot de Windows del portátil (D-22). El escenario 2, con la base y el servidor en el portátil, queda como plan B.
+El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry Pi 5 con Home Assistant OS. En la demo todo corre en la Pi, como complementos de Home Assistant OS, en el hotspot de Windows del portátil (D-22). El escenario 2, con la base y el servidor en el portátil y el broker en la Pi (D-23), queda como plan B.
 
 - **Las claves:** salen de `infra/.env` del portátil y no se escriben en el repositorio ni en esta guía.
 - **«Se ve»:** cada paso termina con lo que se debe ver. Si no se ve, no se sigue: se arregla primero.
@@ -45,12 +45,13 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
 
 4. **Firewall.**
    - En la demo no se abre nada: todo corre en la Pi, y el portátil solo sale hacia ella (el simulador y el navegador).
-   - Para el plan B (paso 7), una persona del equipo, en PowerShell como administrador:
+   - Para el plan B (paso 7), una persona del equipo, en PowerShell como administrador, deja entrar el 8001 del MCP solo desde el hotspot:
 
      ```powershell
-     New-NetFirewallRule -DisplayName "AccesIA plan B" -Direction Inbound -Protocol TCP -LocalPort 1883,8000,8001 -RemoteAddress 192.168.137.0/24 -Action Allow
+     New-NetFirewallRule -DisplayName "AccesIA plan B" -Direction Inbound -Protocol TCP -LocalPort 8001 -RemoteAddress 192.168.137.0/24 -Action Allow
      ```
 
+   - Si el broker vuelve al portátil (paso 7, «Si la Pi no tiene Mosquitto»), suma el 1883: `Set-NetFirewallRule -DisplayName "AccesIA plan B" -LocalPort 1883,8001`.
    - Para quitarla: `Remove-NetFirewallRule -DisplayName "AccesIA plan B"`.
 
 **Se ve:** la zona encendida, con `AccesIA` en 2,4 GHz, y el adaptador «Conexión de área local*» del hotspot con `192.168.137.1` en `ipconfig`. Si es otra IP, se usa esa donde esta guía dice `192.168.137.1`.
@@ -106,7 +107,7 @@ Antes, en «Dispositivos conectados» de la zona, revisa que ningún equipo teng
 - `ping 192.168.137.250` responde.
 - `http://192.168.137.250:8123` abre Home Assistant.
 
-Si la IP queda otra, se anota en `specs/arquitectura.md` (P-04) y se usa en el resto de la guía.
+Si la IP queda otra, se anota en `specs/arquitectura.md` (P-04) y se usa en el resto de la guía; para el plan B, también en `IP_DE_LA_PI` (paso 7).
 
 ## 3. Terminar la configuración de Home Assistant y ver la RAM
 
@@ -237,43 +238,37 @@ La B4 está en `main` desde el PR #26. Se instalan como dice `complementos/READM
 
 Después sigue el guion del Hito 2 (`tareas/dia-3/00-todos-orden-e-hito-2.md`).
 
-### Sin la B4: plan B (escenario 2)
+### Si no se pueden instalar: plan B (escenario 2, D-23)
 
-Así está en las specs (`specs/arquitectura.md`, «Red y despliegue»; `contratos/mqtt.md`, «Broker»): la base, el servidor y Mosquitto en el portátil; Home Assistant y Ollama en la Pi.
+La base, el servidor y el MCP corren en el portátil, y Home Assistant, Mosquitto y Ollama siguen en la Pi. El servidor del portátil usa el broker de la Pi, así que Home Assistant y la placa no se tocan.
 
 1. Crea la regla del firewall del paso 1.
-2. Desde la carpeta principal:
+2. Desde la carpeta principal, con las imágenes ya construidas:
 
    ```powershell
-   docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build
+   docker compose -f infra/compose.yaml down
+   docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml up -d
    curl.exe http://localhost:8000/api/v1/salud
    ```
 
-3. En Home Assistant: integración MQTT → ⋮ → «Reconfigurar», con:
-   - el broker `192.168.137.1` y el puerto `1883`;
-   - el usuario `homeassistant` y la clave `MQTT_HA_CLAVE`.
-
-   Detén el complemento Mosquitto de la Pi, para que no haya dos brokers.
-4. En la consola de la placa:
-
-   ```text
-   servidor http://192.168.137.1:8000
-   mqtt mqtt://192.168.137.1:1883 camara <MQTT_CAMARA_CLAVE>
-   reiniciar
-   ```
-
-5. El agente usa `http://192.168.137.1:8001/mcp` (paso 9).
+   Si la Pi quedó en otra IP, antes del `up`: `$env:IP_DE_LA_PI = "<IP de la Pi>"`.
+3. En la web del portátil, `http://localhost:8000`, la cámara `entrada` ya existe. En Cámaras → `entrada` → «Cambiar token», el token nuevo sale una sola vez. Es para el simulador, que en el plan B va sin `--servidor`, porque el servidor es el del portátil.
+4. El agente usa `http://192.168.137.1:8001/mcp` (paso 9).
 
 **Se ve:**
 
-- La salud da `"estado":"ok"` en el portátil.
-- En Home Assistant aparecen «AccesIA Servidor» y las entidades.
-- La placa queda en línea.
-- `.\homeassistant\scripts\probar-automatizaciones.ps1 -Broker 192.168.137.1` dice «Bien».
+- `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml ps` muestra `postgres`, `servidor` y `mcp` sanos, sin `mosquitto`.
+- La salud responde `"mqtt":"ok"` y `"estado":"ok"`.
+- En Home Assistant aparecen «AccesIA Servidor» y las entidades de la cámara, sin tocar la integración MQTT.
+- `.\homeassistant\scripts\probar-automatizaciones.ps1` sigue diciendo «Bien».
 
-> **Pendiente de decisión.** Una variante dejaría el broker en la Pi y solo apuntaría el servidor del portátil a él (su `MQTT_URL`), sin reconfigurar Home Assistant ni la placa.
->
-> No está en las specs: `contratos/mqtt.md` 1.4 dice que en el plan B el broker es el del portátil. Si el equipo la acepta, se anota en `decisiones.md` y en el contrato, y se suma su archivo de Compose antes de usarla.
+**Si la Pi no tiene Mosquitto** (por ejemplo, porque no hubo internet para instalarlo), el broker vuelve al portátil, como antes de D-23:
+
+1. Suma el 1883 a la regla del firewall (paso 1).
+2. Levanta sin `compose.broker-pi.yaml`: `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d`.
+3. En Home Assistant: Añadir integración → MQTT, con el broker `192.168.137.1`, el puerto `1883`, el usuario `homeassistant` y la clave `MQTT_HA_CLAVE`.
+4. En la consola de la placa: `mqtt mqtt://192.168.137.1:1883 camara <MQTT_CAMARA_CLAVE>` y `reiniciar`.
+5. Prueba las automatizaciones con `.\homeassistant\scripts\probar-automatizaciones.ps1 -Broker 192.168.137.1`.
 
 ## 8. Según el módulo de cámara que nos den (P-03)
 
@@ -330,8 +325,8 @@ Si una respuesta pasa de 15 s, primero se prueba en la Pi (RNF-03 · C3): las va
 | La XIAO ESP32-C6 no conecta | El simulador con la webcam y `--puerta`, que también simula la puerta (A1) |
 | La cámara deja de reconocer durante la demo | Registrar las llegadas a mano en la pantalla Asistencia (RF-06 · C5), cuando esté en `main` |
 | Ollama va lento en la Raspberry | Primero, en la Raspberry: las variantes Q4_0, descripciones más cortas, `qwen2.5:0.5b` si responde bien y el comienzo del prompt estable (RNF-03 · C3). Ollama en el portátil, solo con el visto bueno del docente |
-| Los complementos no se instalan, o la Raspberry no alcanza para la base y el servidor | Escenario 2 (paso 7) |
-| No hay internet para instalar los complementos | El celular con datos; si tampoco hay, el escenario 2 |
+| Los complementos no se instalan, o la Raspberry no alcanza para la base y el servidor | Escenario 2, con el broker de la Pi (paso 7, D-23) |
+| No hay internet para instalar los complementos | El celular con datos; si tampoco hay, el escenario 2, y sin Mosquitto en la Pi, con el broker del portátil (paso 7) |
 | La Raspberry no arranca | Pedir una microSD al docente; si no hay, todo en el portátil con el mismo Compose |
 | El hotspot del portátil no funciona | La red del salón o el hotspot del celular, reconfigurando la placa por consola |
 

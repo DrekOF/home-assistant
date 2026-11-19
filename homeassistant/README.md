@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Home Assistant OS de AccesIA en la Raspberry Pi 5 (D-22): qué archivos van al repositorio, cómo se copian a la Pi y cómo se configuran Mosquitto y Ollama (frente C).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 2.0
+Versión: 2.1
 -->
 
 # Home Assistant · frente C
@@ -47,8 +47,7 @@ Qué se ve:
 1. Por Samba, en `\\192.168.137.250\share\mosquitto\` (si la carpeta no existe, se crea), copia dos archivos:
    - `acl.conf`, de `homeassistant/mosquitto/acl.conf`;
    - `accesscontrollist`, sin extensión.
-     - Es la ACL de `contratos/mqtt.md` 1.4.
-     - Se copia de `infra/mosquitto/acl` cuando la B4 lo ponga al día: su encabezado dirá «versión 1.4». Mientras tanto, se copia el bloque de la ACL del contrato.
+     - Es una copia de `infra/mosquitto/acl`, la ACL de `contratos/mqtt.md`, que la B4 puso al día.
      - Va con fin de línea LF, que VS Code muestra abajo a la derecha: con CRLF, Mosquitto no reconoce los temas.
 2. Configuración → Complementos → Tienda de complementos → «Mosquitto broker» → Instalar.
 3. En su pestaña Configuración, ⋮ → «Editar en YAML»:
@@ -118,7 +117,7 @@ Se hace antes de la B4, con el usuario `servidor` y el broker de la Pi, desde la
 - **El Evento:** el script publica el Evento `permitido` y espera el ABRIR de Home Assistant. Con la placa conectada, el LED se enciende 3 s (RF-07 · C2).
 - **La Alerta:** el script la publica, y en la campana aparece «Desconocidos en entrada» con «3 caras desconocidas en 60 s, a las 08:15» (RF-07 · C3). Si dice otra hora, la zona horaria de Home Assistant no es `America/Bogota`.
 - **Después:** los mensajes son los ejemplos del contrato, así que «Última persona» queda en «Ana Gómez» hasta el siguiente acceso real.
-- **Plan B:** con el broker del portátil, se corre con `-Broker 192.168.137.1`.
+- **Plan B:** con la D-23, el broker sigue siendo el de la Pi, así que se corre igual. `-Broker 192.168.137.1` es solo para cuando el broker vuelve al portátil, y `-Broker <IP>`, si la Pi quedó en otra IP.
 
 Probado el 2026-11-18:
 
@@ -127,19 +126,19 @@ Probado el 2026-11-18:
 
 Contra Home Assistant de verdad se prueba en clase.
 
-## Con la B4 en `main`
+## Con los complementos de la B4
 
-Pendiente: lo pide la C2 del Día 3 (paso 2) y se hace cuando estén los complementos `accesia_base` y `accesia_servidor`.
+Pendiente para la clase: lo pide la C2 del Día 3 (paso 2), y se hace con `accesia_base` y `accesia_servidor` ya instalados en la Pi (`complementos/README.md`; guía, paso 7).
 
 - **Integración Ollama:** con `http://<hash>-ollama:11434` y el modelo según la RAM (D-22).
-- **Integración Model Context Protocol:** con `http://local-accesia-servidor:8001/mcp`. Si el servidor MCP cambia, se recarga la integración.
+- **Integración Model Context Protocol:** con `http://local-accesia-servidor:8001/mcp`; en el plan B, `http://192.168.137.1:8001/mcp`. Si el servidor MCP cambia, se recarga la integración.
 - **El agente de Ollama:** con las instrucciones de `contratos/mcp-agente.md`. En «Herramientas de IA» se marca solo AccesIA, y «Control de dispositivos» queda apagado (D-15).
 - **El asistente de voz «Portería»:** en español.
 - **«Exponer»:** el botón «Abrir puerta» no se expone.
 
 ## Copia de seguridad
 
-Pendiente, para después de la B4 (C2, paso 6). Lleva Mosquitto con sus `logins` y la ACL, los complementos, las integraciones, el agente, las automatizaciones y el panel. El modelo de Ollama no entra, porque el complemento lo excluye (`backup_exclude`).
+Pendiente, para cuando los complementos estén en la Pi (C2, paso 6). Lleva Mosquitto con sus `logins` y la ACL, los complementos, las integraciones, el agente, las automatizaciones y el panel. El modelo de Ollama no entra, porque el complemento lo excluye (`backup_exclude`).
 
 Se toma cifrada y sin inscripciones, porque incluye la base con las huellas. Queda en `kit/` y nunca en el repositorio.
 
@@ -147,4 +146,4 @@ Se toma cifrada y sin inscripciones, porque incluye la base con las huellas. Que
 
 - Assist no tiene control de dispositivos, y la puerta no se expone (D-15).
 - Ni el MCP ni Ollama se publican fuera de la Pi (D-16).
-- `infra/mosquitto/acl` lo pone al día la B4; aquí solo se dice cómo se copia al complemento.
+- `infra/mosquitto/acl` es del frente B, y la B4 lo puso al día; aquí solo se dice cómo se copia al complemento.

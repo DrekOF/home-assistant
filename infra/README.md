@@ -12,7 +12,7 @@ Versión: 1.10
 | Qué | Archivo |
 | --- | --- |
 | Servicios (`specs/arquitectura.md`) | `compose.yaml`: `postgres`, `mosquitto`, `servidor` y `mcp` (el servidor MCP del agente, tarea B3 del Día 3). Ollama no va en Compose desde D-22: corre en la Pi, y en el portátil solo con `compose.ollama-portatil.yaml` (Día 4) y el visto bueno del profesor |
-| Escenario 2, el plan B desde D-22: Home Assistant OS y Ollama en la Raspberry, y la base, el servidor y Mosquitto en el portátil | `compose.escenario2.yaml`, que se usa con `compose.yaml` y publica `mcp` (ver «Plan B: escenario 2») |
+| Escenario 2, el plan B desde D-22: Home Assistant OS, Mosquitto y Ollama en la Raspberry, y la base, el servidor y el MCP en el portátil (D-23) | `compose.escenario2.yaml`, que publica `mcp`, y `compose.broker-pi.yaml`, que lleva el servidor al broker de la Pi; los dos con `compose.yaml` (ver «Plan B: escenario 2») |
 | Variables (Git ignora `.env`) | `.env.example`; `scripts/generar-env` crea `.env` con claves nuevas |
 | Broker MQTT | `mosquitto/mosquitto.conf`, `mosquitto/acl` y `mosquitto/claves/` (ignorada) |
 | Scripts | `scripts/`: `generar-env` y `crear-claves-mqtt`, en `.ps1` (Windows) y `.sh` (Linux y Raspberry); el Día 4, `instalar.sh` y `verificar.sh` del kit |
@@ -65,19 +65,7 @@ El servicio `mcp` corre `accesia mcp` con la misma imagen del servidor (`servido
 - En `compose.yaml` no se publica fuera de la red de Docker (D-16). Dentro de ella, su dirección es `http://mcp:8001/mcp`.
 - Acepta los encabezados `Host` `mcp:8001`, `localhost:8001`, `127.0.0.1:8001` y los de `MCP_HOSTS_PERMITIDOS`. Si `infra/.env` no trae esa variable, Compose usa `192.168.137.1:8001`.
 
-**Pendiente para la C2 (escenario 2, D-21).** Home Assistant OS, en la Pi, llama al servidor MCP en `http://192.168.137.1:8001/mcp`, pero `compose.yaml` no publica el 8001. Lo tiene que resolver `compose.escenario2.yaml`:
-
-- Publicar el 8001 de `mcp` en la red del portátil, por ejemplo:
-
-  ```yaml
-  services:
-    mcp:
-      ports:
-        - "8001:8001"
-  ```
-
-- Dejar entrar el 8001 en el firewall de Windows solo desde `192.168.137.0/24`.
-- Si el portátil no queda en `192.168.137.1`, poner su IP en `MCP_HOSTS_PERMITIDOS` (por ejemplo, `MCP_HOSTS_PERMITIDOS=192.168.137.5:8001`) y volver a crear el servicio `mcp`.
+**En el escenario 2,** Home Assistant OS llama al servidor MCP en `http://192.168.137.1:8001/mcp`, y `compose.escenario2.yaml` publica el 8001 (ver «Plan B: escenario 2»). Si el portátil no queda en `192.168.137.1`, su IP va en `MCP_HOSTS_PERMITIDOS` (por ejemplo, `MCP_HOSTS_PERMITIDOS=192.168.137.5:8001`) y se vuelve a crear el servicio `mcp`.
 
 ## Semilla del agente para la evaluación
 
@@ -102,34 +90,37 @@ El servicio `mcp` corre `accesia mcp` con la misma imagen del servidor (`servido
 
 ## Plan B: escenario 2
 
-Desde D-22, la demo corre en la Pi. Si la B4 no está lista, o la Pi no alcanza para la base y el servidor, se usa el escenario 2: Home Assistant OS y Ollama siguen en la Pi, y la base, el servidor y Mosquitto corren en el portátil (`specs/arquitectura.md`, «Red y despliegue»).
+Desde D-22, la demo corre en la Pi. Si los complementos no se pueden instalar, o la Pi no alcanza para la base y el servidor, se usa el escenario 2 (D-23): Home Assistant OS, su Mosquitto y Ollama siguen en la Pi, y la base, el servidor y el MCP corren en el portátil (`specs/arquitectura.md`, «Red y despliegue»).
 
-- **Qué cambia `compose.escenario2.yaml`:** solo publica `mcp` en el 8001 de la red del portátil, para que Home Assistant OS llegue al servidor MCP.
+- **`compose.escenario2.yaml`** publica `mcp` en el 8001 de la red del portátil, para que Home Assistant OS llegue al servidor MCP.
   - Es una excepción a D-16 y D-19, que vale solo en el hotspot o en otra red propia.
   - `compose.yaml` no tiene el servicio `homeassistant`, así que no hay nada que quitar.
+- **`compose.broker-pi.yaml`** (D-23) conecta el servidor al Mosquitto de la Pi con el usuario `servidor`, y el Mosquitto del Compose no arranca. La IP sale de `IP_DE_LA_PI`, por defecto `192.168.137.250`. Home Assistant y la placa no se tocan.
 - **Firewall:** antes de usarlo, una persona del equipo abre el firewall solo para la red del hotspot. Los cambios del firewall no los hace Claude Code:
 
   ```powershell
-  New-NetFirewallRule -DisplayName "AccesIA plan B" -Direction Inbound -Protocol TCP -LocalPort 1883,8000,8001 -RemoteAddress 192.168.137.0/24 -Action Allow
+  New-NetFirewallRule -DisplayName "AccesIA plan B" -Direction Inbound -Protocol TCP -LocalPort 8001 -RemoteAddress 192.168.137.0/24 -Action Allow
   ```
 
-  Con eso entran el 1883 (MQTT, para la placa y Home Assistant), el 8000 (la placa y el simulador) y el 8001 (`mcp`). El 11434 se abre solo si Ollama pasa al portátil, con el visto bueno del profesor.
+  Con eso entra el 8001 (`mcp`). El 1883 se suma solo si el broker vuelve al portátil, el 8000 cuando la placa envíe recortes, y el 11434 solo si Ollama pasa al portátil, con el visto bueno del profesor.
 
 | Para qué | Comando |
 | --- | --- |
-| Revisar la configuración sin levantar nada | `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml config --services` |
-| Levantar el plan B | `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build` |
-| Volver al Compose de siempre (deja de publicar el 8001) | `docker compose -f infra/compose.yaml up -d` |
+| Revisar la configuración sin levantar nada | `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml config --services` |
+| Bajar el Compose de siempre, que trae su Mosquitto (conserva los datos) | `docker compose -f infra/compose.yaml down` |
+| Levantar el plan B, con las imágenes ya construidas | `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml up -d` |
+| Si la Pi quedó en otra IP, antes del `up` (o en `IP_DE_LA_PI` de `infra/.env`) | `$env:IP_DE_LA_PI = "<IP de la Pi>"` |
+| Volver al Compose de siempre, con su Mosquitto y sin publicar el 8001 | `docker compose -f infra/compose.yaml up -d` |
 | Quitar la regla del firewall | `Remove-NetFirewallRule -DisplayName "AccesIA plan B"` |
 
-- **Al levantarlo:**
-  - en Home Assistant OS, la integración MQTT se reconfigura hacia `192.168.137.1:1883` con el usuario `homeassistant` y su clave de `infra/.env`, y se detiene el complemento Mosquitto de la Pi;
-  - la placa se reconfigura por consola hacia `192.168.137.1`;
-  - el agente usa `http://192.168.137.1:8001/mcp`.
+- **Si la Pi no tiene Mosquitto** (por ejemplo, porque no hubo internet para instalarlo), el broker vuelve al portátil, como antes de D-23:
+  - se levanta sin `compose.broker-pi.yaml`: `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d`;
+  - la regla del firewall suma el 1883: `Set-NetFirewallRule -DisplayName "AccesIA plan B" -LocalPort 1883,8001`;
+  - en Home Assistant OS, la integración MQTT va a `192.168.137.1:1883` con el usuario `homeassistant` y su clave de `infra/.env`, y la placa se reconfigura por consola hacia `192.168.137.1`.
 
   Los pasos están en `docs/guia-dia-de-clase.md` (paso 7).
 - **`MCP_HOSTS_PERMITIDOS`** de `infra/.env` debe tener la IP del portátil en el hotspot: `192.168.137.1:8001` por defecto.
-- **Revisado** el 2026-11-18 con `config`: `mcp` publica el 8001 y lo demás no cambia. Falta la prueba con la Pi, en clase (C2, paso 5).
+- **Probado** el 2026-11-19 en el portátil, con un Mosquitto aparte que hacía de broker de la Pi: el servidor se conecta a él, la salud da `"mqtt":"ok"`, el MCP responde en el 8001 y el Mosquitto del Compose no arranca (bitácora, D-23). Falta la prueba con la Pi, en clase (C2, paso 5).
 
 ## Puertos reservados por Windows
 

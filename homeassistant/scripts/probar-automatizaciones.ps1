@@ -1,12 +1,12 @@
 ﻿# Nombre: probar-automatizaciones.ps1
 # Descripción: Prueba las automatizaciones de AccesIA en Home Assistant sin el servidor (C2 del Día 3): publica con el usuario servidor el Evento «permitido» y la Alerta de contratos/mqtt.md, y espera el ABRIR que manda Home Assistant. La clave sale de infra/.env y no se muestra.
 # Fecha de creación: 2026-11-18
-# Actualización: 2026-11-18
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 # Uso, desde la raíz del repositorio, con Docker Desktop abierto (usa la imagen eclipse-mosquitto:2):
-#   .\homeassistant\scripts\probar-automatizaciones.ps1                         broker de la Pi (192.168.137.250)
-#   .\homeassistant\scripts\probar-automatizaciones.ps1 -Broker 192.168.137.1   broker del portátil (plan B)
+#   .\homeassistant\scripts\probar-automatizaciones.ps1                         broker de la Pi (192.168.137.250), también en el plan B (D-23)
+#   .\homeassistant\scripts\probar-automatizaciones.ps1 -Broker 192.168.137.1   broker del portátil, si la Pi no tiene Mosquitto
 # Los mensajes son los ejemplos del contrato: después, «Última persona» muestra «Ana Gómez» hasta el siguiente acceso real.
 
 param(

@@ -2,9 +2,9 @@
 Nombre: C2-jhon-home-assistant-y-agente.md
 Descripción: Tarea C2 del Día 3 del frente C, ajustada a D-22: Home Assistant OS en la Raspberry Pi 5 con todo en ella; Mosquitto oficial con la ACL, el complemento de Ollama y su modelo, automatizaciones, panel Portería y Assist con Ollama y el MCP del complemento del servidor (B4 del Día 4); ensayo en el devcontainer; compose.escenario2.yaml como plan B; copia de seguridad de Home Assistant OS; primera medición de las 10 preguntas del agente.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 3 · Frente C · C2 · Home Assistant y agente
@@ -45,7 +45,7 @@ Queda hecha la primera medición de las 10 preguntas (RF-08 · C3), con lo que m
      - `logins` con `servidor` y `camara`, con las claves de `infra/.env`;
      - `customize` activo con la carpeta `mosquitto`, `/share/mosquitto/acl.conf` con su línea `acl_file` y, en `/share/mosquitto/accesscontrollist`, la ACL de `mqtt.md` 1.4;
      - la integración MQTT de Home Assistant se configura sola, con el usuario `homeassistant`.
-   - El complemento de Ollama de SirUli, con el modelo de D-22 en `/share/ollama`, cargado en memoria (`OLLAMA_KEEP_ALIVE=-1`). Si el complemento publica el 11434, se le quita en su configuración de red (D-16).
+   - El complemento de Ollama de SirUli, con el modelo de D-22 en `/share/ollama`, cargado en memoria (`OLLAMA_KEEP_ALIVE=-1`). El complemento publica el 11434 por defecto: en su sección Red se desactiva ese puerto, para que se cumpla D-16. Home Assistant llega a Ollama por la red interna. En sus opciones, `OLLAMA_FLASH_ATTENTION` pasa a 1: con el 0 por defecto y la caché `q8_0`, Ollama 0.40.16 no carga el modelo (`specs/arquitectura.md`, «Complementos de Home Assistant OS»).
    - `homeassistant/config/`, como en la versión 1.0:
      - `automatizaciones_accesia.yaml`, con el contenido exacto de `mqtt.md`;
      - las dos líneas de `configuration.yaml` que lo incluyen;
@@ -56,7 +56,7 @@ Queda hecha la primera medición de las 10 preguntas (RF-08 · C3), con lo que m
    - instalar `accesia_base` y `accesia_servidor` como dice `specs/arquitectura.md` («Complementos de Home Assistant OS»), con las claves y las reglas en sus opciones;
    - en Home Assistant OS:
      - integración Ollama, con la URL del complemento de Ollama y el modelo de D-22;
-     - integración Model Context Protocol, con `http://local-accesia-servidor:8001/mcp`;
+     - integración Model Context Protocol, con `http://local-accesia-servidor:8001/mcp`. Home Assistant relee las herramientas cada 30 minutos: si se actualizó el servidor MCP, se recarga la integración;
      - el agente de Ollama con las instrucciones de `mcp-agente.md`;
      - en «Herramientas de IA» se marca solo AccesIA, y «Control de dispositivos» queda apagado (D-15, RF-08 · C5);
      - el asistente de voz «Portería» en español;
@@ -69,7 +69,7 @@ Queda hecha la primera medición de las 10 preguntas (RF-08 · C3), con lo que m
 4. Primera medición de las 10 preguntas (RF-08 · C3; RNF-03 · C3), con los datos de `semilla agente` (con `--con-datos-reales` si la base ya tiene datos, y `--borrar` después):
    - en la Pi o, sin ella, en el devcontainer, con el mismo modelo. En el portátil cuenta si responde bien; el tiempo que vale es el de la Pi;
    - se anotan en la bitácora el modelo, el equipo, la respuesta y el tiempo de cada pregunta;
-   - la caché del prompt: comparar `prompt_eval_count` de Ollama en dos preguntas seguidas. Según el código de Home Assistant, su línea de fecha y hora va después de nuestras instrucciones y antes de las herramientas (`specs/arquitectura.md`, «Velocidad del agente en la Pi»). Se anota qué se reutiliza y, si hace falta, se propone en el PR el cambio de `mcp-agente.md`;
+   - la caché del prompt: con `mcp-agente.md` 1.5, Home Assistant no agrega su línea de fecha y hora, y la segunda pregunta solo procesa la pregunta. Ya se midió en el portátil con `servidor/scripts/cache_del_prompt.py` (`specs/arquitectura.md`, «Velocidad del agente en la Pi»). En el devcontainer se repite con el mismo script, apuntando al Ollama del complemento; en la Pi se anota el tiempo de la segunda pregunta;
    - si no llega a 9 de 10 (la 9 y la 10 son obligatorias), se prueba un modelo más reciente de tamaño parecido y se propone el cambio de D-06 en el PR;
    - si una respuesta pasa de 15 s en la Pi, se sigue RNF-03 · C3: primero se prueba en la Pi, y Ollama solo pasa al portátil con el visto bueno del profesor.
 5. Plan B, `infra/compose.escenario2.yaml` (el escenario 2 de D-21, para cuando la Pi no alcance para la base y el servidor):
@@ -100,7 +100,7 @@ Queda hecha la primera medición de las 10 preguntas (RF-08 · C3), con lo que m
 - C3 (RF-07 · C3 y C4) La alerta de R6 crea una notificación, y el panel «Portería» muestra lo que pide RF-07 · C4.
 - C4 (RF-08 · C2 y C5) Assist usa las herramientas de AccesIA con el agente de Ollama de la Pi y no puede abrir la puerta.
 - C5 (RF-08 · C3; RNF-03 · C3) La primera medición de las 10 preguntas queda en la bitácora, con el modelo, el equipo, los tiempos y lo que mostró `prompt_eval_count`.
-- C6 (D-22) El MCP y Ollama no se publican fuera de la Pi: Home Assistant los alcanza por la red interna. Mosquitto usa la ACL de `mqtt.md` 1.4.
+- C6 (D-22) El MCP y Ollama no se publican fuera de la Pi: el 11434 del complemento de Ollama queda desactivado en su sección Red, y Home Assistant los alcanza por la red interna. Mosquitto usa la ACL de `mqtt.md` 1.4.
 - C7 (D-22, plan B) `compose.escenario2.yaml` pasa `docker compose … config` y se probó una vez con la Pi, con el firewall abierto solo para `192.168.137.0/24`.
 - C8 (RF-11 · C2) La copia de seguridad de Home Assistant OS, cifrada y sin inscripciones, queda en `kit/`, fuera de Git, y se restaura con los pasos de `homeassistant/README.md`.
 - C9 `homeassistant/README.md`, `infra/README.md`, `docs/guia-dia-de-clase.md`, `specs/arquitectura.md` y la bitácora al día.

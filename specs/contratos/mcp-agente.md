@@ -2,12 +2,12 @@
 Nombre: mcp-agente.md
 Descripción: Contrato del agente de AccesIA: servidor MCP, herramientas de solo lectura, instrucciones y evaluación.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
-# Contrato del agente · versión 1.4
+# Contrato del agente · versión 1.5
 
 Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (frente C).
 
@@ -27,7 +27,7 @@ Lo cumplen el servidor MCP (frente B) y la configuración de Home Assistant (fre
 
 Reglas para todas las herramientas:
 
-- Nombres, descripciones y parámetros en español: el modelo los lee.
+- Nombres, descripciones y parámetros en español: el modelo los lee. La única excepción es el sufijo en inglés de `fecha_y_hora_GetDateTime`, que exige Home Assistant.
 - Las fechas se aceptan como `AAAA-MM-DD` o con las palabras `hoy`, `ayer` y `antier`, calculadas en hora de Colombia. Esto ayuda a los modelos pequeños.
 - Las horas se devuelven como `HH:MM` en hora de Colombia. Si una lista mezcla días, como `ultimos` en `desconocidos_recientes`, van como `AAAA-MM-DD HH:MM`.
 - Un error se devuelve como `{"error": "texto"}`, nunca como excepción.
@@ -126,15 +126,33 @@ Cuenta las caras desconocidas de las últimas horas, por cámara, con la hora de
 
 Máximo 10 horas en `ultimos`: las 10 más recientes, de la más antigua a la más nueva.
 
+### `fecha_y_hora_GetDateTime`
+
+Dice la fecha, el día de la semana y la hora actuales en Colombia. El modelo la usa solo si la pregunta necesita la fecha o la hora exacta, por ejemplo «¿qué hora es?» o «¿quién llegó tarde el lunes?». Para hoy, ayer o antier no hace falta: las demás herramientas aceptan esas palabras.
+
+Sin parámetros. No toca la base.
+
+```json
+{ "fecha": "2026-11-20", "dia": "viernes", "hora": "10:00" }
+```
+
+`dia` va de `lunes` a `domingo`, en minúsculas.
+
+**Por qué el sufijo en inglés.** Lo exige Home Assistant. Agrega al prompt de sistema una línea suya con la fecha y la hora, con segundos (`Current time is …`), salvo que alguna herramienta tenga un nombre que termine en `GetDateTime` (`conversation/chat_log.py`: `tool.name.endswith("GetDateTime")`).
+
+- Esa línea va antes de las herramientas y cambia cada segundo. Con ella, Ollama no podía reutilizar de su caché las herramientas entre una pregunta y otra, y en la Pi procesarlas otra vez pasa de los 15 s (D-22, RNF-03 · C3).
+- Con esta herramienta, Home Assistant no agrega la línea, y el comienzo del prompt es el mismo en todas las preguntas. Medido en el portátil: desde la segunda pregunta, Ollama procesa de 9 a 19 tokens en vez de unos 750 (`arquitectura.md`, «Velocidad del agente en la Pi»).
+- Es la única herramienta con una parte del nombre en inglés.
+
 ## Instrucciones del agente
 
-Van en el campo de instrucciones del agente de Ollama en Home Assistant (admite plantillas):
+Van en el campo de instrucciones del agente de Ollama en Home Assistant. No llevan plantillas ni la hora: así son el mismo texto en cada pregunta y Ollama las reutiliza de su caché. La fecha y la hora las da `fecha_y_hora_GetDateTime`.
 
 ```text
 Eres el asistente de la portería de AccesIA. Respondes en español, en una o dos frases.
-Hoy es {{ now().strftime('%Y-%m-%d') }} y son las {{ now().strftime('%H:%M') }} en Colombia.
 Para cualquier dato sobre personas, llegadas, tardanzas, accesos o desconocidos, usa las herramientas de AccesIA. Nunca inventes nombres, horas ni cifras: si una herramienta no devuelve datos, dilo.
 A las herramientas les puedes pasar fechas como AAAA-MM-DD o las palabras hoy, ayer o antier.
+Usa fecha_y_hora_GetDateTime solo si la pregunta necesita la fecha o la hora exacta.
 No puedes abrir puertas, inscribir personas ni cambiar datos. Si te lo piden, explica que eso se hace en la web de administración de AccesIA.
 No reveles documentos de identidad ni datos de contacto.
 ```
@@ -143,7 +161,7 @@ No reveles documentos de identidad ni datos de contacto.
 
 1. La zona horaria de Home Assistant es `America/Bogota`.
 2. Integración Ollama con la URL del complemento de Ollama en la Pi, `http://<hash>-ollama:11434` (el nombre exacto sale en la página del complemento), y el modelo ya descargado según la RAM de la Pi (D-06 y D-22). Con Compose, la URL es `http://ollama:11434`. Si Ollama pasa al portátil, solo con el visto bueno del profesor (RNF-03 · C3), la URL es la del portátil en la red propia, con `infra/compose.ollama-portatil.yaml`. El modelo se deja cargado en memoria para evitar la espera del primer mensaje; el complemento ya trae `OLLAMA_KEEP_ALIVE=-1`.
-3. Integración Model Context Protocol con la URL del servidor MCP de la tabla de arriba: en la Pi, `http://local-accesia-servidor:8001/mcp`.
+3. Integración Model Context Protocol con la URL del servidor MCP de la tabla de arriba: en la Pi, `http://local-accesia-servidor:8001/mcp`. Home Assistant relee la lista de herramientas cada 30 minutos: después de cambiar el servidor MCP, se recarga la integración.
 4. En las opciones del agente de Ollama: las instrucciones de arriba; en «Herramientas de IA» (AI tools) se marca solo AccesIA; «Control de dispositivos» (Device control) queda apagado (D-15).
 5. Un asistente de voz «Portería» en español que usa ese agente.
 6. En «Exponer» (Expose) de los asistentes de voz, el botón «Abrir puerta» no se expone.

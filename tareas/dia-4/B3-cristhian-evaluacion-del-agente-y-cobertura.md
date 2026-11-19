@@ -4,7 +4,7 @@ Descripción: Tarea B3 del Día 4 del frente B: la evaluación final del agente 
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 4 · Frente B · B3 · Evaluación del agente y cobertura de las specs
@@ -39,9 +39,9 @@ Versión: 1.1
   - **Cómo se corre la evaluación:**
     - con `semilla agente` en el complemento del servidor, como lo deje B4, y con `--con-datos-reales` si la base ya tiene los datos del Hito;
     - cuántas veces se hace cada pregunta, porque el modelo no responde siempre igual (por ejemplo, 3), y qué cuenta como bien;
-    - cómo se mide el tiempo.
+    - cómo se mide el tiempo, y cómo se cuenta la primera pregunta después de arrancar Ollama, que procesa todo el prompt (`specs/arquitectura.md`, «Velocidad del agente en la Pi»).
   - **Qué se ajusta si no llega a 9 de 10 o si una respuesta pasa de 15 s:**
-    - Primero, lo que D-22 dice que se prueba en la Pi: las variantes Q4_0, descripciones más cortas de las herramientas, `qwen2.5:0.5b` si responde bien, y que el comienzo del prompt no cambie entre preguntas.
+    - Primero, lo que D-22 dice que se prueba en la Pi: las variantes Q4_0, descripciones más cortas de las herramientas y `qwen2.5:0.5b` si responde bien. Que el comienzo del prompt no cambie entre preguntas ya lo logra `mcp-agente.md` 1.5, con `fecha_y_hora_GetDateTime`.
     - Las instrucciones del agente y las descripciones de las herramientas están en `mcp-agente.md`, así que cambiarlas es un cambio de contrato que se propone en el PR.
     - Otra opción es un modelo más reciente de tamaño parecido, que actualiza D-06.
     - Ollama pasa al portátil solo con el visto bueno del profesor (RNF-03 · C3).

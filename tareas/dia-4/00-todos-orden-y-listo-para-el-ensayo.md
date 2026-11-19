@@ -4,7 +4,7 @@ Descripción: Día 4 para los tres integrantes, con D-22 (todo en la Raspberry P
 Fecha de creación: 2026-11-12
 Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 4 · Todos · Orden del día y listo para el ensayo
@@ -46,7 +46,8 @@ El Día 4 deja todo listo para el ensayo general del Día 5. Primero va el Hito 
 - **Ya en `main`:**
   - A1, B1, B2 y B3 del Día 3 (PR #14 a #17) y el firmware del C6 (PR #11);
   - B1 de hoy, la web servida por el servidor (PR #19);
-  - D-22 (PR #20), con `mqtt.md` 1.4 y `mcp-agente.md` 1.4.
+  - D-22 (PR #20), con `mqtt.md` 1.4 y `mcp-agente.md` 1.4;
+  - el contrato del agente 1.5 (PR #21): `fecha_y_hora_GetDateTime`, para que Ollama reutilice el comienzo del prompt entre preguntas.
 - **El Hito 1** todavía no empieza. Va primero, con `main` al día: el Compose de la carpeta principal ya está reconstruido con B2 del Día 3 y la web servida por el servidor.
 - **C1 y C2 del Día 3** siguen en curso. C2, ajustada a D-22, es la base del Hito 2 y de A2, B3 y C1 de hoy. Lo que no espera a la B4 (Mosquitto, Ollama y los archivos de Home Assistant) puede empezar ya.
 - **A2 del Día 3**, la cámara de la placa, sigue solo si llegó el módulo (P-03). Si no llegó, sigue esperando, y la cámara de la demo es el simulador (D-21).

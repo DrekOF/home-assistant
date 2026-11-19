@@ -1,9 +1,9 @@
 # Nombre: pyproject.toml
 # Descripción: Proyecto Python del servidor de AccesIA (frente B): dependencias, pruebas y empaquetado con uv.
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-12
+# Actualización: 2026-11-13
 # Autor: Equipo AccesIA
-# Versión: 1.4
+# Versión: 1.5
 
 [project]
 name = "accesia"
@@ -38,6 +38,9 @@ accesia = "accesia.comandos:principal"
 dev = [
     "httpx>=0.27",
     "jsonschema>=4.23",
+    # La misma versión de Home Assistant: convierte los esquemas de las herramientas del MCP como lo hace él
+    # (contrato agente · home assistant) y los arma para Ollama en scripts/cache_del_prompt.py.
+    "probatio==0.13.0",
     "pytest>=8.3",
     "pyyaml>=6.0",
     "testcontainers>=4.8",

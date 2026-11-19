@@ -4,7 +4,7 @@ Descripción: Tarea B4 del Día 4 del frente B: los complementos de Home Assista
 Fecha de creación: 2026-11-13
 Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 -->
 
 # Día 4 · Frente B · B4 · Complementos de la base y del servidor
@@ -12,7 +12,7 @@ Versión: 1.0
 - Responsable: Cristhian Eduardo Sánchez Mosquera (frente B)
 - Rama: `b/complementos`
 - Depende de:
-  - D-22 en `main` (PR #20), con `mqtt.md` 1.4 y `mcp-agente.md` 1.4;
+  - D-22 en `main` (PR #20), con `mqtt.md` 1.4 y `mcp-agente.md` 1.4, y el contrato del agente 1.5 (PR #21);
   - B1 de hoy, ya en `main` (PR #19): la web compilada viaja dentro del servidor;
   - nada de A ni de C. No necesita la Pi: se prueba en la CI, en el portátil y en el devcontainer (`specs/arquitectura.md`, «Cómo se prueban sin la Pi»).
   - Es el camino crítico del Hito 2, de la evaluación de B3, de C2 del Día 3 (Assist con el MCP) y del kit (C1).
@@ -20,7 +20,7 @@ Versión: 1.0
   - `CLAUDE.md` y `tareas/dia-4/00-todos-orden-y-listo-para-el-ensayo.md`;
   - de `specs/decisiones.md`: D-14, D-16 y D-22, con «Cómo se aplica D-22» y «Lo que cambia en las decisiones anteriores con D-22»;
   - de `specs/arquitectura.md`: «Complementos de Home Assistant OS (D-22)», con «Presupuesto de RAM» y «Cómo se prueban sin la Pi»;
-  - `specs/contratos/mqtt.md` 1.4 (los usuarios y la ACL) y, de `specs/contratos/mcp-agente.md` 1.4, «Configuración en Home Assistant»;
+  - `specs/contratos/mqtt.md` 1.4 (los usuarios y la ACL) y, de `specs/contratos/mcp-agente.md` 1.5, las herramientas y «Configuración en Home Assistant»;
   - de `specs/requisitos.md`: RF-11 · C2, RNF-04 y RNF-06 · C3;
   - `servidor/Dockerfile`, `infra/README.md` y, de `servidor/README.md`, La web, Servidor MCP del agente y Semilla del agente.
 
@@ -88,7 +88,7 @@ Además:
 - C1 (D-22) Los dos complementos arrancan con un `options.json` de prueba:
   - el servidor se conecta a la base y corre la migración;
   - `/api/v1/salud` responde y la web sale en la raíz;
-  - el MCP responde un `initialize` con el `Host` `local-accesia-servidor:8001` (`mcp-agente.md` 1.4).
+  - el MCP responde un `initialize` con el `Host` `local-accesia-servidor:8001` y lista las herramientas de `mcp-agente.md` 1.5.
 - C2 (D-11; RNF-04 · C1) `complementos.yml` en verde: construye los dos para arm64 y amd64 y arranca los de amd64.
 - C3 (RF-11 · C2) `empaquetar-complementos.ps1` arma `kit/complementos/` con el código del servidor, el SQL del contrato, `consentimiento.md`, la web compilada y los modelos de cara.
 - C4 `infra/mosquitto/acl` cumple `mqtt.md` 1.4, y la prueba `contrato MQTT · acl` está al día y en verde.

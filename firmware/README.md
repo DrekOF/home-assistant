@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Firmware de la placa XIAO ESP32-C6 de AccesIA (frente A): instalación, compilar, flashear, consola, prueba con la placa y pruebas.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Firmware de la placa · frente A
@@ -71,6 +71,41 @@ idf.py -C firmware -B firmware\build-c6 -p COM5 flash monitor
 
 - `Ctrl+]` sale del monitor.
 - Si no conecta, mantén presionado BOOT mientras conectas el cable y vuelve a intentar.
+- Sin compilar, con los binarios del kit: ver «Kit de flasheo».
+
+## Kit de flasheo
+
+`kit\firmware\`, que Git ignora, lleva los binarios listos para flashear sin compilar:
+
+| Carpeta | Placa | De dónde sale |
+| --- | --- | --- |
+| `c6` | Seeed Studio XIAO ESP32-C6, la de la demo (D-21) | Este firmware |
+| `s3-octal` | ESP32-S3 con PSRAM octal: ESP32-S3-EYE, Freenove ESP32-S3 WROOM CAM, XIAO ESP32S3 Sense u otra con un chip o módulo R8 | El firmware de referencia del PR #7 (D-17) |
+| `s3-quad` | ESP32-S3 con PSRAM quad: un chip o módulo R2 | El firmware de referencia del PR #7 |
+
+- Cada carpeta lleva el bootloader, la tabla de particiones, el programa, `flasher_args.json` y `origen.txt`, con el commit y las direcciones de fábrica.
+- Todos apuntan a la Pi, con la IP de `ACCESIA_IP_DE_LA_PI`. Los del S3 se compilan desde una copia del PR #7 con esa IP en lugar de `10.42.0.1`, sin cambiar el PR.
+
+Armar el kit, desde la raíz y en PowerShell:
+
+```powershell
+.\firmware\scripts\armar-kit.ps1                                  # compila la XIAO ESP32-C6 y arma kit\firmware
+git fetch origin a/esp-idf-deteccion
+git worktree add ..\AccesIA-s3 origin/a/esp-idf-deteccion         # una copia del PR #7, una vez
+.\firmware\scripts\armar-kit.ps1 -FuenteS3 ..\AccesIA-s3          # también los binarios octal y quad del S3
+```
+
+Flashear, con la placa conectada por USB:
+
+```powershell
+.\kit\firmware\flashear.ps1 -Detectar -Puerto COM5               # qué chip está conectado y si tiene PSRAM
+.\kit\firmware\flashear.ps1 -Placa c6 -Puerto COM5                # la XIAO ESP32-C6
+.\kit\firmware\flashear.ps1 -Placa s3-octal -Puerto COM6          # un ESP32-S3 con PSRAM octal
+```
+
+- Antes de flashear, dice qué placa va a flashear y cómo ponerla en modo de descarga.
+- Flashea cada archivo en su dirección, como `idf.py flash`, así que la configuración de la consola (NVS, de `0x9000` a `0xF000`) se conserva. `-Borrar` borra toda la flash antes.
+- Usa el esptool del PATH o el de ESP-IDF 5.4. Con `-WhatIf` muestra el comando sin flashear.
 
 ## Consola
 
@@ -80,17 +115,17 @@ Los comandos entran por el USB-C (USB Serial/JTAG) y por UART0 (GPIO16 y GPIO17)
 | --- | --- |
 | `estado` | Muestra la placa, el Wi-Fi, la IP y la señal, el servidor, MQTT, la puerta, el sensor con su última lectura y la antena |
 | `wifi <ssid> <clave>` | `wifi AccesIA clave123`; si el nombre tiene espacios, va entre comillas |
-| `servidor <url>` | `servidor http://192.168.137.1:8000` |
+| `servidor <url>` | `servidor http://192.168.137.250:8000` |
 | `codigo <codigo>` | `codigo entrada`; de 3 a 32 letras minúsculas, números o guiones, y no `servidor` |
 | `token <token>` | El token que da la web al crear la cámara |
-| `mqtt <url> <usuario> <clave>` | `mqtt mqtt://192.168.137.1:1883 camara clave123` |
+| `mqtt <url> <usuario> <clave>` | `mqtt mqtt://192.168.137.250:1883 camara clave123` |
 | `puerta <pin> <segundos> [bajo\|alto]` | `puerta 15 3 bajo`, lo de fábrica. El nivel es el que enciende; `-1` si no hay LED ni relé; de 1 a 60 s |
 | `sensor <dht22\|dht11>` | `sensor dht11` |
 | `antena <interna\|externa>` | `antena externa`, con una antena en el conector U.FL |
 | `reiniciar` | Reinicia la placa |
 | `ayuda` | Lista los comandos |
 
-- Valores de fábrica (`arquitectura.md`): Wi-Fi «AccesIA», servidor `http://192.168.137.1:8000`, MQTT `mqtt://192.168.137.1:1883` con el usuario `camara`, la puerta en el LED (GPIO15, 3 s, enciende en bajo), DHT22 y la antena interna.
+- Valores de fábrica (`arquitectura.md`): Wi-Fi «AccesIA»; servidor `http://192.168.137.250:8000` y MQTT `mqtt://192.168.137.250:1883`, los de la Pi (D-22), con el usuario `camara`; la puerta en el LED (GPIO15, 3 s, enciende en bajo), DHT22 y la antena interna.
 - `estado` no muestra las claves ni el token. Quedan en la placa sin cifrar.
 - `puerta` rechaza los pines que la placa ya usa: la flash (GPIO24 a GPIO30), el USB (12 y 13), UART0 (16 y 17), el sensor (2), la antena (3 y 14) y BOOT (9).
 - `codigo` borra antes el descubrimiento de sus dos sensores, porque con el código nuevo la ACL ya no la deja.
@@ -116,7 +151,7 @@ Los comandos entran por el USB-C (USB Serial/JTAG) y por UART0 (GPIO16 y GPIO17)
 
 ## Prueba con la placa
 
-Así se prueba la placa con el broker y Home Assistant de la demo (escenario 2, D-21). Para el portátil son los pasos 1 a 3; el 4 es en la Raspberry y el 5, en la placa.
+Así se prueba la placa con el broker del portátil y Home Assistant OS (escenario 2). Con D-22 es el plan B, y la forma de probar sin los complementos de la Pi. Como los valores de fábrica apuntan a la Pi, en el paso 5 `servidor` y `mqtt` llevan la IP del portátil. Para el portátil son los pasos 1 a 3; el 4 es en la Raspberry y el 5, en la placa.
 
 ### 1. Hotspot del portátil
 
@@ -173,7 +208,7 @@ En la Raspberry Pi 5 con Home Assistant OS:
    - broker `192.168.137.1` y puerto `1883`;
    - usuario `homeassistant` y la clave `MQTT_HA_CLAVE` de `infra/.env`;
    - el descubrimiento queda activo con el prefijo `homeassistant`, como viene.
-3. No instales el complemento Mosquitto de Home Assistant: el broker es el del portátil (D-21).
+3. En este escenario no se usa el complemento Mosquitto de Home Assistant: el broker es el del portátil.
 
 ### 5. La placa, por la consola
 
@@ -184,6 +219,7 @@ Flashea la placa (ver «Flashear») y escribe en el monitor:
 ```text
 wifi AccesIA <clave del hotspot>
 codigo entrada
+servidor http://192.168.137.1:8000
 mqtt mqtt://192.168.137.1:1883 camara <MQTT_CAMARA_CLAVE>
 sensor dht22
 antena interna
@@ -253,7 +289,7 @@ firmware/
 ├── dependencies.lock.esp32c6   versiones exactas de las dependencias del C6
 ├── main/                       arranque; idf_component.yml con las versiones
 ├── components/
-│   ├── accesia_config/         configuración en NVS
+│   ├── accesia_config/         configuración en NVS; valores_de_fabrica.hpp, con la IP de la Pi
 │   ├── accesia_consola/        consola por UART0 y por el USB nativo
 │   ├── accesia_red/            Wi-Fi, IP y señal
 │   ├── accesia_mqtt/           temas, descubrimiento, último deseo y estado general
@@ -264,7 +300,7 @@ firmware/
 │   ├── accesia_recorte/        lógica pura del recorte y la espera, para la cámara
 │   └── accesia_vision/         punto de extensión de la cámara: fuente de cuadros y detector
 ├── pruebas/                    pruebas de la lógica pura (CMake y doctest)
-└── scripts/                    compilar.ps1, probar-logica.ps1 y probar-logica.sh
+└── scripts/                    compilar.ps1, probar-logica.ps1 y .sh, armar-kit.ps1 y flashear.ps1
 ```
 
 `accesia_vision` solo tiene interfaces. Qué las implementa depende del módulo de cámara que llegue: lo cuenta `arquitectura.md`, en «Cuando llegue el módulo de cámara».

@@ -2,9 +2,9 @@
  * Nombre: consola.cpp
  * Descripción: Consola serial de la placa: los comandos de arquitectura.md, leídos por UART0 y por el USB nativo a la vez.
  * Fecha de creación: 2026-11-12
- * Actualización: 2026-11-12
+ * Actualización: 2026-11-18
  * Autor: Equipo AccesIA
- * Versión: 1.1
+ * Versión: 1.2
  *
  * La consola principal de ESP-IDF es UART0 y la secundaria, el USB Serial/JTAG, que solo envía texto. Por eso
  * los comandos los leen dos tareas propias, con el driver de UART y el de USB Serial/JTAG, y los pasan a
@@ -158,7 +158,7 @@ int cmd_wifi(int argc, char** argv)
 int cmd_servidor(int argc, char** argv)
 {
     if (argc != 2) {
-        return uso("servidor <url>   por ejemplo: servidor http://192.168.137.1:8000");
+        return uso("servidor <url>   por ejemplo: servidor http://" ACCESIA_IP_DE_LA_PI ":8000");
     }
     const std::string_view url = argv[1];
     if (!(url.starts_with("http://") || url.starts_with("https://")) || url.size() > 200) {
@@ -221,7 +221,8 @@ int cmd_token(int argc, char** argv)
 int cmd_mqtt(int argc, char** argv)
 {
     if (argc != 4) {
-        return uso("mqtt <url> <usuario> <clave>   por ejemplo: mqtt mqtt://192.168.137.1:1883 camara clave123");
+        return uso("mqtt <url> <usuario> <clave>   por ejemplo: mqtt mqtt://" ACCESIA_IP_DE_LA_PI
+                   ":1883 camara clave123");
     }
     const std::string_view url = argv[1];
     if (!(url.starts_with("mqtt://") || url.starts_with("mqtts://")) || url.size() > 200) {
@@ -471,11 +472,11 @@ esp_err_t consola_iniciar()
 
     consola_registrar("estado", "estado", "muestra la configuración y cómo está la placa", cmd_estado);
     consola_registrar("wifi", "wifi <ssid> <clave>", "wifi AccesIA clave123", cmd_wifi);
-    consola_registrar("servidor", "servidor <url>", "servidor http://192.168.137.1:8000", cmd_servidor);
+    consola_registrar("servidor", "servidor <url>", "servidor http://" ACCESIA_IP_DE_LA_PI ":8000", cmd_servidor);
     consola_registrar("codigo", "codigo <codigo>", "codigo entrada", cmd_codigo);
     consola_registrar("token", "token <token>", "el que da la web al crear la cámara", cmd_token);
-    consola_registrar("mqtt", "mqtt <url> <usuario> <clave>", "mqtt mqtt://192.168.137.1:1883 camara clave123",
-                      cmd_mqtt);
+    consola_registrar("mqtt", "mqtt <url> <usuario> <clave>",
+                      "mqtt mqtt://" ACCESIA_IP_DE_LA_PI ":1883 camara clave123", cmd_mqtt);
     consola_registrar("puerta", "puerta <pin> <segundos> [bajo|alto]", "puerta 15 3 bajo; -1 sin LED ni relé",
                       cmd_puerta);
     consola_registrar("reiniciar", "reiniciar", "reinicia la placa", cmd_reiniciar);

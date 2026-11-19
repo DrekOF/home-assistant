@@ -2,9 +2,9 @@
 Nombre: comandos.py
 Descripción: El comando simulador: modos webcam y carpeta, con la puerta por MQTT si se pide con --puerta, y modelo para descargar YuNet antes de clase.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 
     uv run simulador webcam --codigo entrada [--como-camara] [--camara 0] [--puerta]
     uv run simulador carpeta datos/prueba --codigo entrada [--como-camara] [--puerta]
@@ -25,7 +25,8 @@ from simulador.consola import preparar_salida
 from simulador.deteccion import PUNTAJE_MIN, DetectorYuNet
 from simulador.envio import ClienteCamara
 from simulador.modelo import YUNET_SHA256, ErrorModelo, asegurar_modelo
-from simulador.mqtt import BROKER, VARIABLE_CLAVE, Broker, PuertaMqtt, codigo_valido, leer_broker
+from simulador.mqtt import (BROKER, BROKER_DE_LA_PI, IP_DE_LA_PI, VARIABLE_CLAVE, Broker, PuertaMqtt, codigo_valido,
+                            leer_broker)
 from simulador.puerta import SEGUNDOS_MAX, SEGUNDOS_MIN, SEGUNDOS_POR_DEFECTO
 from simulador.recortador import CARA_MIN, RecortadorYuNet
 from simulador.ritmo import Ritmo
@@ -33,6 +34,7 @@ from simulador.rutas import resolver_carpeta
 from simulador.webcam import correr_webcam
 
 SERVIDOR = "http://localhost:8000"
+SERVIDOR_DE_LA_PI = f"http://{IP_DE_LA_PI}:8000"  # el de la demo (D-22)
 # Carga la clave desde infra/.env sin mostrarla y sin que quede en el historial (desde simulador/).
 CARGAR_CLAVE = (
     f"$env:{VARIABLE_CLAVE} = (Select-String -Path ..\\infra\\.env "
@@ -82,7 +84,7 @@ def construir_parser() -> argparse.ArgumentParser:
 
     comunes = argparse.ArgumentParser(add_help=False)
     comunes.add_argument("--codigo", required=True, help="código de la cámara en el servidor, por ejemplo entrada")
-    comunes.add_argument("--servidor", default=SERVIDOR, help=f"dirección del servidor (por defecto {SERVIDOR})")
+    comunes.add_argument("--servidor", default=SERVIDOR, help=f"dirección del servidor (por defecto {SERVIDOR}; en la Pi, {SERVIDOR_DE_LA_PI})")
     comunes.add_argument(
         "--como-camara",
         action="store_true",
@@ -111,7 +113,7 @@ def construir_parser() -> argparse.ArgumentParser:
         "--broker",
         type=_broker,
         default=None,
-        help=f"broker de la puerta (por defecto {BROKER}; en el hotspot, mqtt://192.168.137.1:1883)",
+        help=f"broker de la puerta (por defecto {BROKER}; en la Pi, {BROKER_DE_LA_PI})",
     )
     comunes.add_argument(
         "--puerta-segundos",

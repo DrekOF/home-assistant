@@ -2,9 +2,9 @@
 Nombre: mqtt.py
 Descripción: La parte MQTT de la cámara en el simulador (contratos/mqtt.md 1.2): disponibilidad con último deseo, la puerta con ABRIR y CERRAR, y EstadoCamara cada 60 s. Solo se crea con --puerta.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 
 Se conecta como la placa del PR #11: el código es el client id y el usuario es camara, que la ACL deja solo en los
 temas de su código. La clave sale de la variable MQTT_CAMARA_CLAVE, nunca de una opción.
@@ -35,6 +35,10 @@ USUARIO = "camara"  # mqtt.md, Broker: lo usan las cámaras y el simulador
 VARIABLE_CLAVE = "MQTT_CAMARA_CLAVE"  # el mismo nombre de infra/.env
 # 127.0.0.1 y no localhost: en Windows, localhost prueba primero ::1, y la ip de EstadoCamara saldría «::1».
 BROKER = "mqtt://127.0.0.1:1883"
+# La IP fija de la Raspberry Pi en el hotspot (D-22): con ella van los ejemplos de --servidor y --broker. Si en
+# clase es otra (P-04), se cambia solo aquí.
+IP_DE_LA_PI = "192.168.137.250"
+BROKER_DE_LA_PI = f"mqtt://{IP_DE_LA_PI}:1883"
 PUERTO = 1883
 KEEPALIVE_S = 30  # el de la placa
 # Reintentos a los 1, 2, 4, 8 y después 10 s, como los envíos sin respuesta (ritmo.py).
@@ -53,7 +57,7 @@ RECHAZOS_SIN_REINTENTO = frozenset({0x85, 0x86, 0x87})
 CODIGO = re.compile(r"[a-z0-9-]{3,32}")
 CODIGO_RESERVADO = "servidor"  # es el {codigo} de los temas del servidor (mqtt.md, Broker)
 
-FORMA_BROKER = "debe tener la forma mqtt://servidor:puerto, por ejemplo mqtt://192.168.137.1:1883"
+FORMA_BROKER = f"debe tener la forma mqtt://servidor:puerto, por ejemplo {BROKER_DE_LA_PI}"
 
 
 def codigo_valido(codigo: str) -> bool:

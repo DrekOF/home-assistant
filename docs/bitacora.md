@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.21
+Versión: 1.24
 -->
 
 # Bitácora
@@ -22,6 +22,153 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-18 · Día 4 · Tarea B4 · Complementos de la base y del servidor
+
+- Quién: el frente B. La corrió la sesión A. Por pedido del equipo, esta noche el plan fue en la descripción del PR, sin esperar su aprobación.
+- Qué:
+  - **`complementos/accesia_base`:**
+    - PostgreSQL 18 con pgvector, con `FROM pgvector/pgvector:pg18`, y los datos en `/data/postgres`;
+    - la clave va en las opciones (`clave_base`, tipo `password`);
+    - copia de seguridad en frío y sin puertos publicados.
+  - **`complementos/accesia_servidor`:** el servidor con la web compilada y los modelos de cara, sobre `python:3.13-slim`, como `servidor/Dockerfile`. Publica solo el 8000, y el MCP queda en el 8001, solo en la red interna. Su `run.sh`:
+    - lee las opciones y las deja legibles solo para root;
+    - espera la base y corre la migración;
+    - levanta Uvicorn con el usuario `accesia`, y `accesia mcp` con el usuario `agente` y un entorno limpio;
+    - sale si uno de los dos termina.
+
+    Las reglas de D-14 son opciones, y las claves son de tipo `password`. Acepta `semilla agente` por la entrada estándar (`hassio.app_stdin`). Las cámaras se crean en la web.
+  - Cada complemento lleva `config.yaml`, un `Dockerfile` con `FROM` explícito, `run.sh`, `DOCS.md`, `README.md` y `translations/es.yaml`.
+  - **`scripts/empaquetar-complementos.ps1`** arma `kit/complementos/`. La web y los modelos salen de las etapas `web` y `modelos` de `servidor/Dockerfile`, así que solo hace falta Docker.
+  - **`complementos/probar.sh`** los arranca como en Home Assistant OS y revisa la salud, la web, el MCP (el `initialize`, el `Host` y las seis herramientas), los usuarios y las opciones.
+  - **`.github/workflows/complementos.yml`** empaqueta, construye para amd64 y arm64 (con QEMU) y corre `probar.sh` en amd64.
+  - **La ACL:** `infra/mosquitto/acl` pasa a `mqtt.md` 1.4. `contrato MQTT · acl` suma dos pruebas: que `homeassistant` lee y escribe en todos los temas, y que la ACL del repositorio tiene las mismas reglas del contrato.
+  - Documentación: `complementos/README.md`, con la instalación paso a paso; `infra/README.md` 1.8, `scripts/README.md` 1.2, `CLAUDE.md` 1.12, `specs/arquitectura.md` 1.13 y `docs/guia-dia-de-clase.md` 1.5.
+- Cómo:
+  - Claude Code leyó la B4, que vino en el PR #18, y la documentación de complementos: configuración, opciones, tipos, traducciones y el `Dockerfile` sin `BUILD_FROM`. En el código del Supervisor comprobó que las opciones de un complemento «legacy» llegan como variables de entorno.
+  - Decisiones, también escritas en la descripción del PR:
+    - **Las opciones** tienen nombres en español. Las claves son de tipo `password`, sin valor por defecto, así que el complemento no arranca sin ellas. La base y el usuario `accesia` quedan fijos, y la clave de la base va en los dos complementos.
+    - **D-15 en el complemento:** el MCP corre con su propio usuario del sistema, sin las claves del dueño en su entorno, y las opciones solo las lee root. Es lo mismo que el Compose ya hacía con el servicio `mcp`.
+    - **Los comandos en la Pi:** las cámaras se crean en la web, que muestra el token una vez, para no dejar el token en el registro. La semilla entra por la entrada estándar, que solo acepta tres textos.
+    - **Las claves en las URL** van codificadas con `@uri` de jq.
+    - **`complementos.yml`** corre solo cuando cambia algo que va dentro de los complementos, porque arm64 con QEMU es lento. El empaquetado va antes de `setup-buildx`, porque el constructor que deja esa acción no carga las imágenes de las etapas.
+    - **Robustez:** cada `Dockerfile` le quita a `run.sh` un posible `\r`, por si se copió con fin de línea CRLF.
+  - Lo que encontró la prueba local:
+    - la web usa `<div id="raiz">`;
+    - `docker exec` necesita `-i` para recibir el script por la entrada estándar;
+    - Docker no deja leer el entorno de un proceso de otro usuario, ni siquiera a root, así que la revisión del MCP corre como `agente`. Así además prueba que ese usuario no puede abrir las opciones.
+- Pruebas:
+  - `uv run pytest` en `servidor/`: 561 en verde y 2 saltadas. `contrato MQTT · acl` tiene 10, con 2 nuevas.
+  - Empaquetado: 15 s con la caché de Docker. `accesia_servidor` pesa 38 MB.
+  - amd64 en el portátil: la base se construyó en 10 s y el servidor en 26 s, con la caché. `probar.sh` pasó entera, con la salud lista en 3 a 8 s.
+  - arm64 con emulación en el portátil (`docker build --platform linux/arm64`): la base en 28 s y el servidor en 37 s. Con esas imágenes, `probar.sh` también pasó entera, con la salud lista en 30 s desde el arranque.
+- Cambios de contrato o de specs: ningún contrato, porque la ACL ya era la de `mqtt.md` 1.4. En `arquitectura.md`: los usuarios del complemento del servidor, los comandos en la Pi y las opciones.
+- Pendiente:
+  - instalar los dos complementos en el devcontainer o en la Pi y conectar Home Assistant con el MCP en `http://local-accesia-servidor:8001/mcp`. Es el ensayo de la C2 del Día 3, con C;
+  - cuando esté en `main`, avisar a C: C1 arma el kit con `kit/complementos`, y la C2 del Día 3 conecta Assist con el MCP;
+  - en la carpeta principal, reiniciar Mosquitto para que lea la ACL nueva.
+
+## 2026-11-18 · Día 4 · Tarea A3 · La IP de la Pi y el kit de flasheo
+
+- Quién: el frente A. La corrió la sesión A. Por pedido del equipo, esta noche el plan fue en la descripción del PR, sin esperar su aprobación.
+- Qué:
+  - **Firmware:**
+    - `valores_de_fabrica.hpp` es nuevo y no usa ESP-IDF. Define `ACCESIA_IP_DE_LA_PI` (`192.168.137.250`, el ejemplo de D-22) y arma con ella las direcciones de fábrica del servidor y del broker;
+    - `config.hpp` lo incluye, y los ejemplos de la consola también usan la IP;
+    - así la IP queda en un solo lugar.
+  - **Simulador:** la IP está en `IP_DE_LA_PI`, en `mqtt.py`. Con ella van los ejemplos de `--servidor` y `--broker` en la ayuda, en el mensaje de error y en el README. Los valores por defecto siguen en `localhost`, para el Compose del portátil.
+  - **Kit de flasheo** en `kit/firmware/`, que Git ignora:
+    - `firmware/scripts/armar-kit.ps1` compila el binario del C6 y, desde una copia del PR #7, los binarios octal y quad del S3, todos con la IP de la Pi;
+    - `firmware/scripts/flashear.ps1` dice qué placa flashea y cómo ponerla en modo de descarga, y flashea cada archivo en su dirección.
+  - Documentación: `firmware/README.md` 1.3, `simulador/README.md` 1.3, `docs/guia-dia-de-clase.md` 1.4, `specs/arquitectura.md` 1.12 (Firmware) y `CLAUDE.md` 1.11.
+- Cómo:
+  - Claude Code leyó la A3, que está en el PR #18, el firmware, el PR #7 y la instalación de ESP-IDF 5.4.4, que trae los toolchains del C6 y del S3.
+  - Decisiones:
+    - **La cabecera pura.** `config.hpp` incluye cabeceras de ESP-IDF y las pruebas de la lógica pura no pueden usarlo. Por eso la IP y las direcciones van en una cabecera aparte, en `accesia_config`, y las pruebas suman esa carpeta.
+    - **Un archivo por dirección.** El kit flashea cada archivo en su dirección, la de `flasher_args.json`, y no una imagen unida desde 0x0. La imagen unida rellenaría la NVS (de 0x9000 a 0xF000) y borraría la configuración de la consola.
+    - **Los binarios del S3** salen del PR #7 (`380fea5`), compilado en una carpeta temporal con la IP de la Pi en lugar de `10.42.0.1`, en los valores de fábrica y en los ejemplos de la consola. El PR #7 no cambia.
+    - **esptool:** el del PATH o el del Python de ESP-IDF. No se bajó nada nuevo.
+  - Correcciones durante la tarea:
+    - el primer armado dejó `10.42.0.1` en la ayuda de la consola del S3, y ahora el script cambia la IP en todo el código copiado;
+    - con `-WhatIf`, el script de activación de ESP-IDF tampoco corría, y ahora se activa de verdad y vuelve a `-WhatIf`;
+    - el kit se volvió a armar después del commit, para que `origen.txt` diga el commit real.
+- Pruebas:
+  - lógica pura del firmware (`probar-logica.ps1`): 43 casos y 204 aserciones en verde, con los dos nuevos `D-22 · …`;
+  - simulador (`uv run pytest`): 187 en verde y 2 saltadas, las de las fotos del equipo, con `D-22 · IP de la Pi`;
+  - el kit compiló con ESP-IDF 5.4.4: el C6 (1 030 KB) y los del S3, octal (1 522 KB) y quad (1 518 KB). Todos llevan `http://192.168.137.250:8000` y `mqtt://192.168.137.250:1883`;
+  - `flashear.ps1 -WhatIf` con las tres placas muestra la placa, el modo de descarga y el comando de esptool. No se flasheó ninguna placa, porque no había una conectada.
+- Cambios de contrato o de specs: ningún contrato. En specs, `arquitectura.md` 1.12 (Firmware).
+- Pendiente:
+  - **P-04:** si en clase la Pi queda en otra IP, se cambia `ACCESIA_IP_DE_LA_PI` y se vuelve a armar el kit, o se ajusta en la placa con `servidor` y `mqtt`. En el simulador, `IP_DE_LA_PI`.
+  - **A2:** probar `flashear.ps1` con la placa.
+
+## 2026-11-13 · Día 4 · Tareas del Día 4, con D-22
+
+- Quién: el frente B, para todo el equipo.
+- Qué: las tareas del Día 4 en `tareas/dia-4/`, con la plantilla de `tareas/README.md` y ajustadas a D-22. Cada tarea dice de qué depende.
+  - `00-todos-orden-y-listo-para-el-ensayo.md`:
+    - con qué se trabaja con D-22 y qué necesita la placa o la Pi: si el hardware solo está en clase, esos turnos se mueven al día de clase y lo demás sigue sin esperar;
+    - lo que sigue del Día 3: el Hito 1 primero, C1 y C2, y A2 si llega el módulo;
+    - el Hito 2, en clase con D-22, cuando estén la B4 y la C2 del Día 3. Si no alcanzan, MQTT y Home Assistant se prueban con el escenario 2, y el agente queda para cuando la B4 esté lista;
+    - el reparto entre tres sesiones, los acuerdos y la lista de lo que debe quedar listo para el ensayo del Día 5 (L1 a L9).
+  - `A1-julian-calibracion-del-umbral.md`: `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` (RNF-07), sin crear llegadas ni alertas en la base compartida.
+    - Participan los tres integrantes y quien más quiera, cada uno con su consentimiento (Ley 1581).
+    - El dataset de impostores tiene una licencia que permite este uso, queda fuera de Git y se borra al terminar.
+  - `A2-julian-placa-con-home-assistant.md`: RF-14 · C2 a C6 con Home Assistant OS y el broker de la Pi, o el del escenario 2; la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
+  - `A3-julian-ip-de-la-pi.md`, nueva: los valores de fábrica del firmware y los ejemplos del simulador pasan a la IP de la Pi (D-22).
+  - `B1-cristhian-web-en-el-servidor.md`: la web dentro de la imagen y servida por el servidor (D-04). Ya está en `main` (PR #19).
+  - `B2-cristhian-modo-extraer.md`: las cámaras de respaldo (RF-10 · C4).
+  - `B3-cristhian-evaluacion-del-agente-y-cobertura.md`:
+    - la evaluación final de las 10 preguntas en la Pi, con el modelo fijado según su RAM (RF-08 · C3);
+    - una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1).
+  - `B4-cristhian-complementos-de-la-base-y-del-servidor.md`, nueva: los complementos de Home Assistant OS de la base y del servidor, su empaquetado, `complementos.yml` para arm64 y amd64, y la ACL de `mqtt.md` 1.4 con su prueba.
+  - `C1-jhon-kit-del-dia-de-clase.md`: el kit con D-22 (RF-11):
+    - las carpetas de los complementos, el modelo de Ollama, la copia cifrada de Home Assistant OS y el binario del C6;
+    - las imágenes de los planes B y C;
+    - `instalar` y `verificar`, en PowerShell y en `.sh`.
+  - `C2-jhon-playwright-y-arm64.md`: Playwright sobre toda la web en la CI (RF-09 · C3) y las imágenes arm64 del plan C con emulación (RNF-04 · C1).
+- Cómo:
+  - **Dónde.** Se le pidió a Claude Code escribir las tareas sin escribir código, después de fusionar B2 del Día 3. Trabajó en un worktree aparte (`AccesIA-tareas-dia-4`), sin tocar la carpeta principal.
+  - **Qué leyó:**
+    - el plan, D-21 y su tabla de cambios;
+    - los requisitos, la evaluación de `mcp-agente.md`, el modo extraer de `api-dispositivo.md` y la guía del día de clase;
+    - los pendientes de cada entrada de esta bitácora.
+  - **Lo que encontró al comparar el plan con el estado real:**
+    - **Las reglas ya están cubiertas.** Los 64 casos de `reglas.md` ya tienen una prueba con su marca. Por eso «pruebas de las reglas completas» pasa a ser una prueba de cobertura que falle si aparece un caso o un criterio sin prueba.
+    - **La web.** El servidor todavía no servía la web, aunque D-04 y `arquitectura.md` lo decían: quedó en B1, que ya está en `main`.
+    - **El binario del C6.** `firmware.yml` compila el binario pero no lo guarda como artefacto. A2 propone de dónde sale el binario del kit.
+    - **El kit en Windows.** El portátil es Windows, así que el kit necesita sus scripts también en PowerShell.
+  - **D-22 cambió el plan.** Con la primera versión ya en el PR, el profesor pidió que Ollama corriera dentro de la Raspberry, y el equipo decidió llevar todo a la Pi (D-22, PR #20).
+    - Este PR esperó a que D-22 estuviera en `main`.
+    - Mientras tanto, Claude Code dejó los ajustes en un commit local, revisados contra una copia con las specs de D-22.
+    - Con D-22 en `main`, trajo `main` y resolvió los choques de esta bitácora y de `decisiones.md`.
+    - Antes de fusionar entró el contrato del agente 1.5 (PR #21). Se trajo `main` otra vez, y B3, B4 y el 00 citan la 1.5: que el comienzo del prompt no cambie entre preguntas ya lo logra `fecha_y_hora_GetDateTime`.
+  - **Lo que pidió el equipo para el ajuste:**
+    - el hardware: lo que necesita la placa o la Pi se mueve al día de clase si solo están allá, y lo demás sigue;
+    - A1: el consentimiento de quienes participen, que no tienen que ser solo los tres integrantes, y un dataset de impostores con licencia para este uso, fuera de Git y borrado al terminar, anotado en la bitácora;
+    - RF-11 · C1 nombra también los scripts de PowerShell;
+    - B3: el modelo final se fija midiendo en la Pi, según su RAM;
+    - el Hito 2, como quedó en el 00;
+    - la B4, con lo que D-22 dejó para ella, y su propia tarea para los valores de fábrica (A3).
+- Decisiones al escribir, para revisarlas en el PR:
+  - **Calibración sin ensuciar la base.** A1 calibra sin pasar por la base compartida, porque cada `permitido` crea una llegada y tres desconocidos crean una alerta en Home Assistant.
+  - **B4 primero en B.** Es el camino crítico: el Hito 2, la evaluación de B3, C2 del Día 3 y el kit la necesitan.
+  - **A3 antes del binario del kit.** A2 compila el binario del kit con los valores de fábrica de A3.
+  - **arm64.** B4 prueba los complementos en arm64, en `complementos.yml` y con emulación en el portátil. C2 se queda con las imágenes del plan C.
+  - **`compose.ollama-portatil.yaml`.** Con D-22, Ollama pasa al portátil solo con el visto bueno del profesor. C1 propone si el archivo se hace ahora o solo si él lo aprueba.
+  - **`verificar` contra la Pi.** El 8001 y el 11434 no se publican en la Pi (D-16), así que C1 propone cómo revisa el MCP y Ollama sin publicarlos.
+  - **Lista para el Día 5.** La lista L1 a L9 dice qué debe quedar listo para el ensayo. Lo que falte pasa al Día 5, o al corte mínimo si la clase llega antes (P-01).
+- Pruebas: no hay código. Un script revisó las referencias de las tareas: archivos, criterios RF y RNF, decisiones, reglas, pendientes, secciones citadas (también las de D-22) y enlaces. Solo señaló `infra/.env`, que Git ignora y que se genera en el portátil.
+- Cambios de contrato o de specs:
+  - Ninguno en los contratos.
+  - `specs/plan.md` 1.8: una fila por tarea del Día 4, con A3 y B4.
+  - `specs/requisitos.md` 1.7: RF-11 · C1 nombra los scripts en PowerShell y en `.sh`.
+  - `specs/decisiones.md` 1.14 lo anota en su registro.
+  - `tareas/README.md` 1.4 suma el Día 4.
+- Pendiente:
+  - el Hito 1, primero; C1 y C2 del Día 3, y el Hito 2 en clase;
+  - P-03, el módulo de cámara, y P-04, la RAM y la IP de la Pi;
+  - las tareas del Día 5 (ensayo general e Hito 3), al cerrar el Día 4.
 
 ## 2026-11-13 · Día 2 · Hito 1
 

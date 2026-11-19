@@ -4,7 +4,7 @@ Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criteri
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.6
+Versión: 1.7
 -->
 
 # Requisitos
@@ -95,7 +95,7 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 
 ### RF-11 Kit del día de clase · frente C, con A y B
 
-- C1 Scripts `instalar` y `verificar`. Con D-22, `verificar` revisa la Pi desde el portátil: los complementos, MQTT, las entidades en Home Assistant, Ollama y la placa en línea. `instalar` queda para los planes B y C (el portátil y el escenario 1).
+- C1 Scripts `instalar` y `verificar`, en PowerShell para el portátil con Windows (`instalar.ps1` y `verificar.ps1`) y en `.sh` para el escenario 1 (`instalar.sh` y `verificar.sh`), como `generar-env` y `crear-claves-mqtt`. Con D-22, `verificar` revisa la Pi desde el portátil: los complementos, MQTT, las entidades en Home Assistant, Ollama y la placa en línea. `instalar` queda para los planes B y C (el portátil y el escenario 1).
 - C2 Las carpetas de los complementos `accesia_base` y `accesia_servidor`, con los modelos de cara; los archivos del modelo de Ollama, para copiarlos a la Pi sin internet; la copia de seguridad cifrada de Home Assistant OS, sin inscripciones; el binario del firmware de la XIAO ESP32-C6 y esptool (D-21 y D-22). Para el plan B, las imágenes de Docker del portátil; para el plan C, las imágenes arm64 en archivos `.tar`. Los binarios del ESP32-S3 (`octal` y `quad`), el de diagnóstico y el de respaldo quedan como referencia.
 - C3 Ensayo desde cero hasta la primera persona reconocida en menos de 45 minutos (meta propuesta).
 

@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Cómo se trabajan las tareas de AccesIA con Claude Code, orden y plantilla.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.4
 -->
 
 # Tareas
@@ -29,7 +29,8 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 - Día 1: primero la tarea 00, los tres juntos. Después A, B y C en paralelo, cada una en su rama.
 - Día 2: A, B1 y C empiezan en paralelo; B2 sale de `main` cuando B1 está fusionada. El orden y el guion del Hito 1 están en `dia-2/00-todos-orden-e-hito-1.md`.
 - Día 3: primero el Hito 1 del Día 2, apenas se fusione la C del Día 2. B1 empieza primero, porque B2 y B3 la necesitan; A1, C1 y la primera parte de C2 van en paralelo. Desde el Hito 1, Docker Compose corre solo desde la carpeta principal, en `main`. Las dependencias, el reparto entre tres sesiones y el guion del Hito 2 están en `dia-3/00-todos-orden-e-hito-2.md`.
-- Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A el Día 1; B1, B2, A y C el Día 2; B1, B2, B3, A1, C1, C2 y A2 el Día 3.
+- Día 4: primero el Hito 1. Con D-22, la demo pasa a la Raspberry Pi, y B4 (los complementos de la base y del servidor) va primero en la sesión B: el Hito 2, la evaluación de B3, C2 del Día 3 y el kit (C1) la necesitan. El Hito 2 se hace en clase con la B4 y C2 del Día 3; si no alcanzan, MQTT y Home Assistant se prueban con el escenario 2 y el agente espera a la B4. Lo que necesita la placa o la Pi pasa al día de clase si el hardware solo está allá. Lo que debe quedar listo para el ensayo del Día 5 está en `dia-4/00-todos-orden-y-listo-para-el-ensayo.md`.
+- Si una misma persona ejecuta varias tareas el mismo día, este orden evita bloqueos: B, C y A el Día 1; B1, B2, A y C el Día 2; B1, B2, B3, A1, C1, C2 y A2 el Día 3; B4, B2, B3, A1, A3, A2, C1 y C2 el Día 4.
 - Las tareas de cada día se escriben al cerrar el día anterior, a partir de `specs/plan.md` y de lo aprendido.
 
 ## Tareas del Día 1
@@ -63,6 +64,21 @@ Cada tarea es un archivo que se le pasa a Claude Code. Dice quién es el respons
 | [dia-3/B3-cristhian-mcp-y-semilla.md](dia-3/B3-cristhian-mcp-y-semilla.md) | Cristhian Eduardo Sánchez Mosquera | `b/mcp-agente` |
 | [dia-3/C1-jhon-accesos-asistencia-y-horarios.md](dia-3/C1-jhon-accesos-asistencia-y-horarios.md) | Jhon Jairo Perdomo Perdomo | `c/accesos-asistencia-horarios` |
 | [dia-3/C2-jhon-home-assistant-y-agente.md](dia-3/C2-jhon-home-assistant-y-agente.md) | Jhon Jairo Perdomo Perdomo | `c/home-assistant` |
+
+## Tareas del Día 4
+
+| Archivo | Responsable | Rama |
+| --- | --- | --- |
+| [dia-4/00-todos-orden-y-listo-para-el-ensayo.md](dia-4/00-todos-orden-y-listo-para-el-ensayo.md) | Todos | — |
+| [dia-4/A1-julian-calibracion-del-umbral.md](dia-4/A1-julian-calibracion-del-umbral.md) | Julián Andrés Silva Morales | `a/calibracion` |
+| [dia-4/A2-julian-placa-con-home-assistant.md](dia-4/A2-julian-placa-con-home-assistant.md) | Julián Andrés Silva Morales | `a/placa-home-assistant` |
+| [dia-4/A3-julian-ip-de-la-pi.md](dia-4/A3-julian-ip-de-la-pi.md) | Julián Andrés Silva Morales | `a/ip-de-la-pi` |
+| [dia-4/B1-cristhian-web-en-el-servidor.md](dia-4/B1-cristhian-web-en-el-servidor.md) | Cristhian Eduardo Sánchez Mosquera | `b/web-en-el-servidor` |
+| [dia-4/B2-cristhian-modo-extraer.md](dia-4/B2-cristhian-modo-extraer.md) | Cristhian Eduardo Sánchez Mosquera | `b/modo-extraer` |
+| [dia-4/B3-cristhian-evaluacion-del-agente-y-cobertura.md](dia-4/B3-cristhian-evaluacion-del-agente-y-cobertura.md) | Cristhian Eduardo Sánchez Mosquera | `b/evaluacion-agente` |
+| [dia-4/B4-cristhian-complementos-de-la-base-y-del-servidor.md](dia-4/B4-cristhian-complementos-de-la-base-y-del-servidor.md) | Cristhian Eduardo Sánchez Mosquera | `b/complementos` |
+| [dia-4/C1-jhon-kit-del-dia-de-clase.md](dia-4/C1-jhon-kit-del-dia-de-clase.md) | Jhon Jairo Perdomo Perdomo | `c/kit` |
+| [dia-4/C2-jhon-playwright-y-arm64.md](dia-4/C2-jhon-playwright-y-arm64.md) | Jhon Jairo Perdomo Perdomo | `c/playwright-y-arm64` |
 
 ## Plantilla de una tarea
 

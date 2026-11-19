@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.11
+Versión: 1.12
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -176,6 +176,9 @@ Firmware de la XIAO ESP32-C6, desde la raíz (necesita ESP-IDF 5.4.4 y PowerShel
 .\firmware\scripts\probar-logica.ps1                  pruebas de la lógica pura en ubuntu:24.04 (Docker Desktop)
 idf.py -C firmware -B firmware\build-c6 -p COM5 flash monitor
                                                       flashea y abre la consola (Ctrl+] sale)
+.\firmware\scripts\armar-kit.ps1 [-FuenteS3 ..\AccesIA-s3]
+                                                      arma kit\firmware: el binario del C6 y, con una copia del PR #7, los del S3
+.\kit\firmware\flashear.ps1 -Placa c6 -Puerto COM5    flashea con esptool y dice cómo poner la placa en modo de descarga
 ```
 
 Más detalle en `infra/README.md`, `servidor/README.md`, `simulador/README.md`, `firmware/README.md`, `scripts/README.md` y `web/README.md`.

@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.13
 -->
 
 # Arquitectura
@@ -273,7 +273,7 @@ Se guarda en NVS y no requiere recompilar. Los comandos entran por UART0 y por e
 | `reiniciar` | Reinicia la placa |
 | `ayuda` | Lista los comandos |
 
-Los valores de fábrica apuntan al portátil en el hotspot: servidor `http://192.168.137.1:8000` y MQTT `mqtt://192.168.137.1:1883` con el usuario `camara`. Con D-22 pasan a la IP fija de la Pi (por ejemplo, `http://192.168.137.250:8000` y `mqtt://192.168.137.250:1883`); mientras el firmware no cambie, se ajustan con los comandos `servidor` y `mqtt`. Los comandos `perfil`, `pin` y `cara_min` son del firmware del ESP32-S3 y vuelven con él.
+Los valores de fábrica apuntan a la Pi (D-22): servidor `http://192.168.137.250:8000` y MQTT `mqtt://192.168.137.250:1883`, con el usuario `camara`. La IP está en un solo lugar, `ACCESIA_IP_DE_LA_PI` en `valores_de_fabrica.hpp`. Si en clase es otra (P-04), se cambia ahí y se recompila, o en la placa con `servidor` y `mqtt`, sin recompilar. Los comandos `perfil`, `pin` y `cara_min` son del firmware del ESP32-S3 y vuelven con él.
 
 ### Cámara
 

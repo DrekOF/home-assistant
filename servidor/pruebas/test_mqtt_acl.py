@@ -2,14 +2,15 @@
 Nombre: test_mqtt_acl.py
 Descripción: Prueba «contrato MQTT · acl»: Mosquitto con el mosquitto.conf y la ACL del repositorio, comprobados con paho-mqtt. Usa un broker propio, sin los retenidos de las demás pruebas.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 import threading
 import uuid
 from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import paho.mqtt.client as mqtt
 import pytest
@@ -200,3 +201,29 @@ def test_la_placa_publica_solo_el_descubrimiento_de_sus_dos_sensores(
     marcar(clientes, escucha_descubrimiento, "homeassistant/prueba/marca")
     for tema in prohibidos:
         assert not escucha_descubrimiento.recibio(tema), f"La placa publicó en {tema}."
+
+
+def test_homeassistant_lee_y_escribe_en_todos_los_temas(clientes: Callable[..., Cliente]) -> None:
+    """mqtt.md 1.4 (D-22): Home Assistant espera que el usuario homeassistant lea y escriba sin restricciones."""
+    home_assistant = clientes(f"prueba-ha-{uuid.uuid4().hex[:8]}", "homeassistant")
+    assert not home_assistant.conectar().is_failure
+    home_assistant.suscribir("#")
+
+    for tema in ("accesia/entrada/evento", "accesia/servidor/resumen", "homeassistant/sensor/prueba/x/config",
+                 "otro/tema"):
+        carga = uuid.uuid4().hex
+        home_assistant.publicar(tema, carga)
+        assert home_assistant.esperar(tema, carga), f"homeassistant no pudo publicar y leer en {tema}."
+
+
+def _reglas(texto: str) -> list[str]:
+    return [linea.strip() for linea in texto.splitlines() if linea.strip() and not linea.lstrip().startswith("#")]
+
+
+def test_la_acl_del_repositorio_es_la_del_contrato() -> None:
+    """infra/mosquitto/acl tiene las mismas reglas que mqtt.md: es la que va en el portátil y en la Pi (D-22)."""
+    raiz = Path(__file__).resolve().parents[2]
+    seccion = (raiz / "specs" / "contratos" / "mqtt.md").read_text(encoding="utf-8").split("ACL de Mosquitto", 1)[1]
+    bloque = seccion.split("```text\n", 1)[1].split("```", 1)[0]
+
+    assert _reglas((raiz / "infra" / "mosquitto" / "acl").read_text(encoding="utf-8")) == _reglas(bloque)

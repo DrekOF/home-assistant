@@ -1,0 +1,13 @@
+# Nombre: es.yaml
+# Descripción: Nombres y descripciones en español de las opciones del complemento accesia_base.
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+
+configuration:
+  clave_base:
+    name: Clave de la base
+    description: >-
+      La clave del dueño de la base (POSTGRES_PASSWORD de infra/.env). Va también en el complemento
+      AccesIA · servidor. Solo cuenta la primera vez que arranca.

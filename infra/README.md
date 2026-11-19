@@ -4,7 +4,7 @@ Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # Infraestructura · frentes B y C
@@ -116,4 +116,6 @@ El healthcheck de `mosquitto` entra al broker con el usuario `servidor` y el cli
 
 ## ACL de MQTT
 
-La prueba `contrato MQTT · acl` levanta Mosquitto con `mosquitto/mosquitto.conf` y `mosquitto/acl` y comprueba la ACL con paho-mqtt. Se corre desde `servidor/` con `uv run pytest -k acl`.
+`mosquitto/acl` es la ACL de `mqtt.md` 1.4, la misma del portátil y de la Pi (D-22). `homeassistant` y `addons` leen y escriben en todos los temas, porque Home Assistant lo espera del Mosquitto oficial. Si el broker del Compose ya corría, reinícialo para que la lea: `docker compose -f infra/compose.yaml restart mosquitto`.
+
+La prueba `contrato MQTT · acl` levanta Mosquitto con `mosquitto/mosquitto.conf` y `mosquitto/acl` y comprueba la ACL con paho-mqtt. También revisa que `mosquitto/acl` tenga las mismas reglas que `mqtt.md`. Se corre desde `servidor/` con `uv run pytest -k acl`.

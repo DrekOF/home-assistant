@@ -1,0 +1,26 @@
+# Nombre: config.yaml
+# Descripción: Complemento accesia_base de Home Assistant OS: PostgreSQL 18 con pgvector para AccesIA (D-22).
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Sin «image», la Pi construye el complemento desde su Dockerfile. No publica ningún puerto: solo lo usa
+# accesia_servidor, por la red interna, en local-accesia-base:5432 (D-16, D-22).
+name: "AccesIA · base de datos"
+version: "1.0.0"
+slug: accesia_base
+description: "PostgreSQL 18 con pgvector para AccesIA. Solo lo usa el complemento AccesIA · servidor."
+arch:
+  - aarch64
+  - amd64
+startup: services
+boot: auto
+# En frío: Supervisor la detiene durante la copia de seguridad, y los archivos de PostgreSQL quedan consistentes.
+backup: cold
+timeout: 60
+watchdog: "tcp://[HOST]:[PORT:5432]"
+options:
+  clave_base: null
+schema:
+  clave_base: password

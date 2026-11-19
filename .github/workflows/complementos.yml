@@ -1,0 +1,83 @@
+# Nombre: complementos.yml
+# Descripción: CI de los complementos de Home Assistant OS (D-22, D-11): los empaqueta, los construye para amd64 y arm64 y arranca los de amd64 como en la Pi.
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Corre cuando cambia algo que va dentro de los complementos. arm64 se construye con QEMU, sin arrancar: es lento.
+name: Complementos
+
+on:
+  pull_request:
+    paths:
+      - complementos/**
+      - servidor/**
+      - web/**
+      - specs/contratos/base-de-datos.sql
+      - specs/consentimiento.md
+      - scripts/empaquetar-complementos.ps1
+      - infra/mosquitto/**
+      - .github/workflows/complementos.yml
+  push:
+    branches: [main]
+    paths:
+      - complementos/**
+      - servidor/**
+      - web/**
+      - specs/contratos/base-de-datos.sql
+      - specs/consentimiento.md
+      - scripts/empaquetar-complementos.ps1
+      - infra/mosquitto/**
+      - .github/workflows/complementos.yml
+
+permissions:
+  contents: read
+
+jobs:
+  amd64:
+    name: Complementos en amd64 (construir y arrancar)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Empaquetar
+        shell: pwsh
+        run: ./scripts/empaquetar-complementos.ps1
+
+      - name: Construir para amd64
+        run: |
+          for complemento in accesia_base accesia_servidor; do
+            inicio=$(date +%s)
+            docker build --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=ci \
+              -t "local/${complemento/_/-}" "kit/complementos/$complemento"
+            echo "- $complemento en amd64: $(( $(date +%s) - inicio )) s" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Arrancar como en Home Assistant OS
+        run: bash complementos/probar.sh
+
+  arm64:
+    name: Complementos en arm64 (construir con QEMU)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Antes de buildx: el constructor que deja setup-buildx no carga las imágenes de las etapas web y modelos.
+      - name: Empaquetar
+        shell: pwsh
+        run: ./scripts/empaquetar-complementos.ps1
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir para arm64
+        run: |
+          for complemento in accesia_base accesia_servidor; do
+            inicio=$(date +%s)
+            docker buildx build --platform linux/arm64 --build-arg BUILD_ARCH=aarch64 --build-arg BUILD_VERSION=ci \
+              "kit/complementos/$complemento"
+            echo "- $complemento en arm64 con QEMU: $(( $(date +%s) - inicio )) s" >> "$GITHUB_STEP_SUMMARY"
+          done

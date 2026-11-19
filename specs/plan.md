@@ -2,9 +2,9 @@
 Nombre: plan.md
 Descripción: Plan de AccesIA por días, frentes e hitos, con el corte mínimo.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Plan
@@ -47,9 +47,16 @@ Si un hito no se cumple, se resuelve antes de seguir. Cada frente usa el simulad
 | 3 | C1 | Pantallas Accesos, Asistencia (con el botón de registro manual) y Horarios (RF-13), y los datos de la persona en su ficha (RF-12) | `tareas/dia-3/C1-jhon-accesos-asistencia-y-horarios.md` |
 | 3 | C2 | Home Assistant OS con todo en la Pi (D-22): Mosquitto oficial con la ACL, el complemento de Ollama y su modelo, MQTT, panel, automatizaciones y Assist con Ollama y el MCP del complemento del servidor (con la B4 del Día 4); ensayo en el devcontainer; `compose.escenario2.yaml` como plan B; copia de seguridad de Home Assistant OS; primera medición de las 10 preguntas del agente | `tareas/dia-3/C2-jhon-home-assistant-y-agente.md` |
 | 3 | Todos | **Hito 2:** con el simulador, Home Assistant abre la puerta y Assist dice quién llegó tarde | `tareas/dia-3/00-todos-orden-e-hito-2.md` |
-| 4 | A | Calibración del umbral y prueba de la placa con Home Assistant; `firmware.yml` ya se adelantó el Día 2 (D-21). El diagnóstico y el respaldo del S3 quedan para cuando vuelva | — |
-| 4 | B | Modo extraer, pruebas de las reglas completas y evaluación del agente con 10 preguntas | — |
-| 4 | C | Imágenes arm64 probadas con emulación, kit en el portátil, Compose del portátil con solo Ollama (`infra/compose.ollama-portatil.yaml`), scripts `instalar.sh` y `verificar.sh`, y Playwright sobre toda la web | — |
+| 4 | Todos | Con D-22: lo que sigue del Día 3 (Hito 1, C1, C2 y A2); el Hito 2 en clase con la B4 y la C2 del Día 3 (si no alcanzan, MQTT y Home Assistant con el escenario 2 y el agente después de la B4); lo que necesita la placa o la Pi, que pasa al día de clase si el hardware solo está allá; dependencias y reparto entre tres sesiones, acuerdos y lo que debe quedar listo para el ensayo del Día 5 | `tareas/dia-4/00-todos-orden-y-listo-para-el-ensayo.md` |
+| 4 | A1 | Calibración de `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` (RNF-07) con quienes participen (los tres integrantes y quien más quiera, cada uno con su consentimiento) y un dataset público de impostores con licencia para este uso, que se borra al terminar, sin ensuciar la base | `tareas/dia-4/A1-julian-calibracion-del-umbral.md` |
+| 4 | A2 | La placa con Home Assistant OS y el broker de la Pi, o el escenario 2 (RF-14 · C2 a C6), la lista «Por verificar» del firmware, el tiempo de la puerta y el binario para el kit. `firmware.yml` ya se adelantó el Día 2 (D-21); el diagnóstico y el respaldo del S3 quedan para cuando vuelva | `tareas/dia-4/A2-julian-placa-con-home-assistant.md` |
+| 4 | A3 | Los valores de fábrica del firmware y los ejemplos del simulador, del portátil a la IP fija de la Pi (D-22) | `tareas/dia-4/A3-julian-ip-de-la-pi.md` |
+| 4 | B1 | La web compilada dentro de la imagen y servida por el servidor (D-04), para que el kit y el ensayo no necesiten Node | `tareas/dia-4/B1-cristhian-web-en-el-servidor.md` |
+| 4 | B2 | Modo extraer para las cámaras de respaldo (RF-10 · C4) | `tareas/dia-4/B2-cristhian-modo-extraer.md` |
+| 4 | B3 | Evaluación final del agente con 10 preguntas en la Pi, con el modelo fijado según su RAM (RF-08 · C3; D-22), y una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1), que reemplaza «pruebas de las reglas completas»: los 64 casos de las reglas ya tienen su prueba | `tareas/dia-4/B3-cristhian-evaluacion-del-agente-y-cobertura.md` |
+| 4 | B4 | Complementos de Home Assistant OS de la base y del servidor (D-22): las dos carpetas, `scripts/empaquetar-complementos.ps1`, `complementos.yml` para arm64 y amd64, y la ACL de `mqtt.md` 1.4 con su prueba | `tareas/dia-4/B4-cristhian-complementos-de-la-base-y-del-servidor.md` |
+| 4 | C1 | Kit del día de clase con D-22 (RF-11): las carpetas de los complementos, el modelo de Ollama, la copia cifrada de Home Assistant OS sin inscripciones, el binario del C6, las imágenes de los planes B y C con versiones fijas, `instalar` y `verificar` (en PowerShell y en `.sh`; `verificar` revisa la Pi desde el portátil) y la guía. `compose.ollama-portatil.yaml`, solo con el visto bueno del profesor | `tareas/dia-4/C1-jhon-kit-del-dia-de-clase.md` |
+| 4 | C2 | Playwright sobre toda la web en la CI (RF-09 · C3) e imágenes arm64 del plan C probadas con emulación (RNF-04 · C1); los complementos los prueba B4 en arm64 (D-22) | `tareas/dia-4/C2-jhon-playwright-y-arm64.md` |
 | 5 | Todos | Ensayo general del día de clase desde cero, con el kit y cronómetro | — |
 | 5 | Todos | **Hito 3:** kit probado y guion de la sustentación listo | — |
 

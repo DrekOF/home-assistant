@@ -2,9 +2,9 @@
 Nombre: bitacora.md
 Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el método con IA) y qué quedó pendiente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-13
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.20
+Versión: 1.21
 -->
 
 # Bitácora
@@ -22,6 +22,89 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-13 · Día 2 · Hito 1
+
+- Quién: Cristhian Eduardo Sánchez Mosquera, que se inscribió, y otro integrante del equipo, sin inscribir, para el desconocido. Lo coordinó la sesión de la tarea C del Día 2.
+- Dónde:
+  - Docker Compose en el portátil, desde la carpeta principal en `main` (`149161a`). Incluía el servidor en MQTT (B2 del Día 3) y la web servida en el puerto 8000 (B1 del Día 4).
+  - La cámara fue el simulador en modo webcam, con `--como-camara` y sin `--puerta`.
+- Qué pasó en cada paso (hora de Colombia):
+  1. **Compose.** Se bajó el de `AccesIA-b2` sin `-v` y se levantó desde la carpeta principal el 12/11 a las 19:21. Después se reconstruyó dos veces, con los PR #14 a #17 y #19. Al empezar, la salud daba `ok`, con `base` y `mqtt` en `ok`.
+  2. **Cámara.** `crear-camara entrada --nombre Entrada --tipo simulador`, el 12/11 a las 19:22. El token quedó fuera del repositorio y se cargó en la terminal del simulador sin mostrarlo.
+  3. **Persona y consentimiento.**
+     - Cristhian quedó con el documento de prueba `HITO1-01`, rol estudiante y el horario «Clase IA»: lunes a viernes, 07:00 más 10 min.
+     - Sin consentimiento, `POST /api/v1/inscripciones` respondió 422 `sin_consentimiento`.
+     - Después se registró el consentimiento: web, versión 1.0.
+  4. **Abrir la inscripción.** Se abrió en la pantalla Inscripción a las 01:06:25. Antes hubo otra, abierta a las 01:05:56 y cancelada desde la web 5 s después, sin muestras.
+  5. **Inscribir.**
+     - Dos rechazos, `sin_cara` y `borrosa` (calidad 58,4, con `NITIDEZ_MIN` en 60), y luego cinco `muestra_aceptada` seguidas.
+     - Quedó `completada` a las 01:06:44, 19 s después de abrirla, con `ultimo_motivo` `borrosa`.
+     - La web consultó el avance una vez por segundo: 21 consultas.
+     - Calidad de las aceptadas: 126,6; 86,4; 129,7; 297,4 y 68,3.
+  6. **Reconocer.**
+     - `permitido` a las 01:06:45, con 0,935. Las respuestas siguientes de ese minuto salieron con `repetido: true`, el mismo `evento_id` y sin evento nuevo.
+     - Se guardó un `permitido` por minuto: 01:06:45, 01:07:49, 01:08:55 y 01:11:54, con 0,935, 0,862, 0,528 y 0,615.
+     - Las similitudes de Cristhian fueron de 0,42 a 0,94, más el caso de 0,382 de las observaciones.
+  7. **Desconocido.**
+     - El otro integrante salió `desconocido · bajo_umbral` y sin persona cinco veces: 0,243, 0,174, 0,052, 0,040 y 0,143.
+     - La primera ronda dio un solo desconocido y se repitió. En las dos, el simulador envió pocas caras suyas, probablemente porque quedaban por debajo de 80 px de alto, el mínimo para enviar.
+  8. **Modo carpeta.** No se corrió: nadie tiene fotos en `datos/prueba/`.
+  9. **Base.**
+     - Antes de revocar: 5 muestras de Cristhian y su llegada.
+     - En total: 4 `permitido` y 11 `desconocido`.
+     - Ningún evento por los 10 `descartado` (`sin_cara`) ni por la inscripción.
+  10. **Revocar.**
+      - Desde la ficha, a las 01:12:07: la base quedó con 0 huellas.
+      - Las seis caras siguientes de Cristhian salieron `desconocido`, sin similitud porque ya no hay muestras.
+  11. **Bajar.** El compose no se bajó: desde el Día 3 corre en la carpeta principal para todas las sesiones, y con D-22 es el de desarrollo y el plan B.
+- Tiempo de respuesta: menos de 1 s por recorte. Con la espera de 1 s, las cinco muestras llegaron una por segundo (01:06:40 a 01:06:44). El servidor no registra la duración.
+- Lo que suma `main` desde el guion:
+  - **R5.**
+    - La llegada del 13 quedó `a_tiempo`, con origen `camara` y el `evento_id` del primer `permitido`.
+    - Los `permitido` siguientes no la cambiaron, y sigue después de revocar.
+  - **MQTT.**
+    - Cada evento salió en `accesia/entrada/evento`: el primero con `asistencia` en `a_tiempo`, las repeticiones con `repetido: true` y los desconocidos con `persona: null`.
+    - `accesia/resumen` terminó con 1 asistente a tiempo y 11 desconocidos.
+  - **R6.**
+    - Alerta a las 01:11:28 (3 desconocidos en 42 s) y otra a las 01:12:36 (6 desconocidos, 68 s después).
+    - Entre las dos no salió ninguna, como pide la regla.
+- Criterios:
+  - H1 · bien: la cámara se creó con `crear-camara` y el simulador se autenticó; sus 59 peticiones respondieron 200.
+  - H2 · bien: sin consentimiento, 422 `sin_consentimiento`; con consentimiento, la inscripción se abrió.
+  - H3 · bien: 5 muestras y `completada`; el avance y el último motivo se vieron en la pantalla Inscripción.
+  - H4 · bien: `permitido` con nombre y similitud mayor o igual que 0,363; las repeticiones antes de 60 s, con `repetido: true` y sin evento nuevo.
+  - H5 · bien, con la observación de abajo: el no inscrito salió `desconocido` y sin persona.
+  - H6 · bien: después de revocar, 0 huellas y `desconocido`.
+  - H7 · bien:
+    - `git status` sin cambios y ninguna imagen nueva en el repositorio;
+    - los registros de `servidor`, `mcp` y `mosquitto`, sin base64 ni JPEG.
+  - H8 · esta entrada.
+  - El C7 de la tarea A del Día 2 queda cumplido: el modo webcam recibió `muestra_aceptada`, `permitido` y `desconocido` contra el servidor real.
+- Observaciones:
+  - **El 0,382.**
+    - A las 01:09:40, 4 s después de un desconocido, salió un `permitido` repetido de Cristhian con 0,382, apenas sobre el umbral de 0,363.
+    - Como no se guardan imágenes, no se sabe de quién era la cara. Si era la del otro integrante, fue una aceptación falsa.
+    - Ese mensaje salió por MQTT con `repetido: true`, y con Home Assistant conectado habría abierto la puerta otra vez.
+  - **Ruido en Mosquitto.** El cliente `salud-broker` del servidor abre y cierra una conexión cada 15 s: 1 778 en unas 7 horas, que llenan el registro de Mosquitto.
+- Cómo:
+  - **Lo que hizo Claude Code**, en la sesión de la tarea C del Día 2:
+    - fusionó el PR #13 y pasó el compose a la carpeta principal;
+    - creó la cámara con la CLI, y la persona y el consentimiento con la API;
+    - dejó el token en un archivo fuera del repositorio y lo cargó en la terminal sin mostrarlo;
+    - abrió una pestaña de solo lectura de `accesia/#`, con el usuario `homeassistant`;
+    - después de cada ronda leyó la terminal del simulador, MQTT y la base, y comprobó H7.
+  - **Lo que hizo Cristhian**, todo lo que necesitaba su cara: abrir la inscripción en la web, mirar la webcam, traer al otro integrante y revocar desde la ficha.
+  - **Lo que se decidió:**
+    - repetir el paso 6, porque la primera ronda dio un solo desconocido;
+    - no bajar el compose, por el acuerdo del Día 3 y por D-22.
+- Pruebas: las del hito, H1 a H8. No se agregaron pruebas automáticas.
+- Cambios de contrato o de specs: ninguno. `infra/.env` sin cambios.
+- Pendiente:
+  - revisar `UMBRAL_SIMILITUD` con la cámara real (riesgo 3.2 de la revisión) al recalibrar el Día 4, junto con `NITIDEZ_MIN` (D-14). Al probar desconocidos, la persona inscrita debe quedar fuera del cuadro;
+  - el modo carpeta (paso 8), cuando alguien tenga fotos con permiso en `datos/prueba/`;
+  - la puerta: hoy no se abrió porque Home Assistant no está en este broker. Se prueba en el Hito 2;
+  - para B: espaciar o reutilizar la conexión de `salud-broker`.
 
 ## 2026-11-13 · Día 4 · Contrato del agente 1.5: fecha_y_hora_GetDateTime
 

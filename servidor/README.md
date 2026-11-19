@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT, MCP y la web compilada (frente B).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.9
+Versión: 1.10
 -->
 
 # Servidor · frente B
@@ -129,15 +129,20 @@ El servidor sirve la web de administración compilada en la raíz, en el mismo p
 | 1 | 401 `token_invalido` | Falta el token, no corresponde o la cámara no existe; no se dice cuál de las tres |
 | 2 | 403 `dispositivo_inactivo` | La cámara está desactivada |
 | 3 | 415 `tipo_no_soportado` | El `Content-Type` no es `image/jpeg` (se aceptan parámetros y mayúsculas) |
-| 4 | 413 `imagen_grande` | El cuerpo pasa de 100 KB, es decir de 102 400 bytes (contrato cámara 1.2); se corta sin leerlo entero |
-| 5 | 429 `demasiadas_peticiones` | Llegaron dos recortes de esa cámara con menos de 0,8 s; lleva `Retry-After: 1`. Cuenta desde el último recorte aceptado: un 429 no mueve el reloj |
-| 6 | 422 `imagen_invalida` | El cuerpo no es un JPEG que se pueda leer |
+| 4 | 422 `validacion` | `X-AccesIA-Imagen` no es `recorte` ni `cuadro` (contrato cámara 1.3) |
+| 5 | 413 `imagen_grande` | El cuerpo pasa de 100 KB, es decir de 102 400 bytes (contrato cámara 1.2); se corta sin leerlo entero |
+| 6 | 429 `demasiadas_peticiones` | Llegaron dos recortes de esa cámara con menos de 0,8 s; lleva `Retry-After: 1`. Cuenta desde el último recorte aceptado: un 429 no mueve el reloj |
+| 7 | 422 `imagen_invalida` | El cuerpo no es un JPEG que se pueda leer |
 
 - Desde el paso 2, toda petición guarda `ultimo_contacto`, aunque falle después.
 - La imagen solo vive en memoria: no se escribe en disco ni aparece en el registro (RNF-01).
 - Antes de decidir el modo, la inscripción de la cámara vence si ya pasó su hora (R9). Con una inscripción activa, la cámara inscribe (los seis pasos de R7); si no, reconoce (R1 a R4).
 - R1 compara con el umbral con una tolerancia de 1e-6, porque pgvector calcula en float32 (`specs/reglas.md`).
 - Una repetición de R4 devuelve el resultado, el motivo, la persona y el `evento_id` del evento original, con la similitud del recorte nuevo, y no guarda nada.
+- **El cuadro completo** (contrato cámara 1.3, por D-24 si P-05 elige el modelo de personas):
+  - con `X-AccesIA-Imagen: cuadro`, el servidor hace lo que haría la cámara: YuNet en el cuadro, la cara más grande, `CARA_MIN_PX` sin el 0,8 y la fórmula del recorte (`recortar_cara_mas_grande`). El recorte sigue el camino de siempre;
+  - sin cara, o con una cara más pequeña que `CARA_MIN_PX`, responde `sin_cara` o `cara_pequena`, como con un recorte;
+  - la línea INFO de ese recorte dice `cuadro`.
 - `accesia/vision.py` tiene `recortar_cara_mas_grande`: detecta con YuNet en un cuadro completo, elige la cara de mayor área y recorta con la fórmula del contrato, y con `CARA_MIN_PX` descarta las caras más pequeñas, como la cámara. La usa el modo extraer (RF-10 · C4) y la usaría una cámara que envíe cuadros completos.
 
 Mensajes (`mensaje`): no dependen del género y nunca nombran a quien se parece una cara (RNF-01 · C3).
@@ -447,6 +452,7 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `R7 · <caso>` y `R7 · orden` | Los 15 casos de la regla y que se responde el primer motivo que falla, en el orden de la regla |
 | `R9 · <caso>` | Segunda en la misma cámara, sin consentimiento, completa, vence, cancelar, otra cámara y vencida sin revisar |
 | `contrato cámara · <fila>` | Cada fila de las tablas de resultados y de errores de `api-dispositivo.md`, el orden de las comprobaciones y el último contacto |
+| `contrato cámara · cuadro` y `R7 · tolerancia de tamaño con un cuadro` | El cuadro completo (contrato cámara 1.3): el recorte de la cara más grande con la fórmula, `CARA_MIN_PX` sin el 0,8, sin cara, la inscripción, la cabecera `recorte` o ninguna, el tope de 100 KB, el orden de la cabecera y la línea INFO |
 | `contrato cámara · modo extraer` | Cada segundo, con 3 s de espera y 3 s después de un evento, como la cámara; el recorte sale del cuadro con la fórmula del contrato y va por `rostros.procesar`, con su `firmware` |
 | `RF-10 · C4` | Una cámara de respaldo, falsa y sin red: permitido, desconocido e inscripción; sin cara o con una cara pequeña, nada; las fallas de la URL (tiempo, conexión, 4xx, 5xx, 3xx, no JPEG, más del tope, otro esquema) sin tumbar el bucle, con espera creciente y un aviso por motivo; desactivada, borrada o de otro tipo deja de pedirse, y una URL nueva se usa sin reiniciar; las cámaras en paralelo y las nuevas sin reiniciar; el evento en MQTT, y nada publicado si la transacción no se confirma |
 | `contrato recorte · <caso>` | Los casos de `casos-recorte.json` con `caja_del_recorte` y `recortar_cara_mas_grande`, como en el firmware y el simulador |

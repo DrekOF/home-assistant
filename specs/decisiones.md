@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.16
+Versión: 1.17
 -->
 
 # Decisiones
@@ -187,3 +187,4 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-19 | D-23 · Contrato MQTT 1.5 | Plan B con el broker de la Pi: en el escenario 2, el servidor del portátil usa el Mosquitto oficial de la Pi con `infra/compose.broker-pi.yaml`, y Home Assistant y la placa no cambian. `mqtt.md` 1.5 cambia solo dónde está el broker en el plan B: ningún cliente cambia sus temas, sus mensajes, sus usuarios ni la ACL. `arquitectura.md` 1.14 lo suma a Compose, a la configuración (`IP_DE_LA_PI`), al firewall y a la tabla de escenarios. Lo propuso la C2 del Día 3 y lo aceptó el equipo. |
 | 2026-11-19 | D-24 | La cámara de la demo es una ESP32-CAM con el modelo en la placa. La XIAO ESP32-C6 y el DHT dejan de usarse, RF-14 queda fuera de alcance, y el respaldo es una ESP32-S3 con el firmware del PR #7. El modelo (caras con ESP-DL o personas con TensorFlow Lite Micro) queda pendiente de una prueba de factibilidad (P-05), y con él `api-dispositivo.md` 1.3. Cambian D-02, D-05, D-09 y D-21 (tabla de arriba). |
 | 2026-11-19 | Contrato MQTT 1.6 | `mqtt.md` 1.6: tema `accesia/{codigo}/presencia`, que publica la placa con el resultado de su modelo, y su descubrimiento como `binary_sensor`; la ACL la deja publicarlos solo con su código. El tema `ambiente` y sus dos sensores quedan sin uso, y el modelo del dispositivo que publica el servidor pasa a «ESP32-CAM». Solo agrega y cambia un texto que se muestra: por eso es 1.6. Por D-24. |
+| 2026-11-19 | Contrato cámara 1.3 y API 1.5 | `api-dispositivo.md` 1.3: la cámara puede enviar el cuadro completo (QVGA en JPEG) con la cabecera `X-AccesIA-Imagen: cuadro`. Con un cuadro, el servidor hace lo que haría la cámara (YuNet, la cara más grande, `CARA_MIN_PX` sin el 0,8 y la fórmula del recorte), y el recorte sigue el camino de siempre; las respuestas no cambian, y otro valor de la cabecera da 422 `validacion`. `openapi.yaml` 1.5 suma la cabecera, y R7 suma su caso. Solo agrega. Por D-24, si P-05 elige el modelo de personas. |

@@ -314,7 +314,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** La cámara envía el recorte de una cara (specs/contratos/api-dispositivo.md) */
+        /** La cámara envía el recorte de una cara, o el cuadro completo (specs/contratos/api-dispositivo.md) */
         post: operations["enviarRostro"];
         delete?: never;
         options?: never;
@@ -1551,13 +1551,15 @@ export interface operations {
             header?: {
                 "X-AccesIA-Firmware"?: string;
                 "X-AccesIA-Puntaje"?: number;
+                /** @description Qué trae el cuerpo: el recorte (por defecto) o el cuadro completo, del que el servidor recorta la cara más grande (api-dispositivo.md 1.3). Con otro valor, 422 validacion */
+                "X-AccesIA-Imagen"?: "recorte" | "cuadro";
             };
             path: {
                 codigo: components["parameters"]["CodigoCamara"];
             };
             cookie?: never;
         };
-        /** @description JPEG del recorte con 25 % de margen, máximo 100 KB */
+        /** @description JPEG del recorte con 25 % de margen, o del cuadro completo con X-AccesIA-Imagen cuadro; máximo 100 KB */
         requestBody: {
             content: {
                 "image/jpeg": string;

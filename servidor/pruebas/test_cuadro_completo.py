@@ -117,6 +117,18 @@ def test_un_cuadro_tambien_inscribe(
     assert cuerpo["persona"]["id"] == str(ana)
 
 
+@pytest.mark.marca("R7 · tolerancia de tamaño con un cuadro")
+def test_r7_con_un_cuadro_la_cara_de_70_px_es_pequena(sesion: TestClient, camaras, conexion: Connection) -> None:
+    # reglas.md: la misma cara de 70 px que como recorte da muestra_aceptada (70 ≥ 64), en un cuadro es pequeña.
+    camara = camaras()
+    ana = armar.inscrita(conexion, ANA, "1075000001")
+    sesion.post("/api/v1/inscripciones", json={"persona_id": str(ana), "dispositivo": "entrada"})
+
+    cuerpo = _respuesta(camara.enviar(CaraArmada(alto=70, nitidez=150), datos=QVGA, cabeceras=CUADRO))
+
+    assert (cuerpo["resultado"], cuerpo["motivo"]) == ("muestra_rechazada", "cara_pequena")
+
+
 @pytest.mark.marca("contrato cámara · 422")
 @pytest.mark.parametrize("valor", ["foto", "CUADRO", ""])
 def test_una_cabecera_de_imagen_que_no_es_recorte_ni_cuadro_da_422(camaras, valor: str) -> None:

@@ -2,9 +2,9 @@
 Nombre: reglas.md
 Descripción: Reglas de negocio R1 a R9 de AccesIA con sus casos de prueba.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Reglas de negocio
@@ -19,7 +19,7 @@ Las reglas viven en el servidor y se prueban primero (pruebas unitarias con pyte
 | R4 | La misma persona, cámara y resultado cuenta una vez dentro de la ventana | `VENTANA_REPETIDO_S` | 60 s |
 | R5 | La primera entrada permitida del día, o la llegada registrada a mano, es la llegada; tarde si pasa la hora de inicio del bloque de ese día más su tolerancia | bloques del horario de la persona (D-20) | 07:00 + 10 min, de lunes a viernes (ejemplo) |
 | R6 | Varios desconocidos seguidos generan una alerta | `ALERTA_DESCONOCIDOS`, `ALERTA_VENTANA_S` | 3 en 60 s |
-| R7 | Calidad mínima de una muestra para inscribir, y tamaño mínimo para reconocer | `CARA_MIN_PX`, `NITIDEZ_MIN`, `UMBRAL_SIMILITUD` | 80 px (el servidor descarta por debajo de 64 px), 60, 0,363 |
+| R7 | Calidad mínima de una muestra para inscribir, y tamaño mínimo para reconocer | `CARA_MIN_PX`, `NITIDEZ_MIN`, `UMBRAL_SIMILITUD` | 80 px (el servidor descarta por debajo de 64 px, o de 80 px con el cuadro completo), 60, 0,363 |
 | R8 | Todo en hora de Colombia | `ZONA_HORARIA` | America/Bogota |
 | R9 | Una inscripción pide 5 muestras, vence a los 120 s y hay una activa por cámara | `INSCRIPCION_MUESTRAS`, `INSCRIPCION_VENCE_S` | 5, 120 s |
 
@@ -136,12 +136,12 @@ Se revisa en este orden y se responde el primer motivo que falle:
 
 1. Hay al menos una cara con puntaje de YuNet ≥ 0,9; si no, `sin_cara`.
 2. Hay exactamente una; si no, `varias_caras`.
-3. La cara mide al menos 0,8 × `CARA_MIN_PX` de alto (64 px con el valor inicial); si no, `cara_pequena`. La cámara ya filtra con `CARA_MIN_PX` sobre la caja de ESP-DL; el margen cubre la diferencia con la caja de YuNet.
+3. La cara mide al menos 0,8 × `CARA_MIN_PX` de alto (64 px con el valor inicial); si no, `cara_pequena`. Con el cuadro completo (`api-dispositivo.md` 1.3), la mide el mismo YuNet del servidor, y el tope es `CARA_MIN_PX`, sin el 0,8. La cámara ya filtra con `CARA_MIN_PX` sobre la caja de ESP-DL; el margen cubre la diferencia con la caja de YuNet.
 4. La nitidez (varianza del laplaciano de la cara alineada de 112 × 112 en gris) es al menos `NITIDEZ_MIN`; si no, `borrosa`.
 5. No se parece (similitud ≥ `UMBRAL_SIMILITUD`) a otra persona ya inscrita: se busca la muestra más parecida entre las de otras personas (`WHERE persona_id <> :persona`); si llega al umbral, `parece_otra_persona`.
 6. Desde la segunda muestra, se parece (similitud ≥ `UMBRAL_SIMILITUD`) a la primera muestra aceptada de esta misma inscripción; si no, `distinta_de_la_primera`. Así una cara que pasa por delante durante la inscripción no queda guardada como de la persona.
 
-Al reconocer (sin inscripción activa) se usa la cara más grande (la de mayor área). Solo se descarta el recorte (`descartado`) si no hay cara (`sin_cara`) o si mide menos de 0,8 × `CARA_MIN_PX` de alto (`cara_pequena`).
+Al reconocer (sin inscripción activa) se usa la cara más grande (la de mayor área). Solo se descarta el recorte (`descartado`) si no hay cara (`sin_cara`) o si mide menos de 0,8 × `CARA_MIN_PX` de alto (`cara_pequena`). Con el cuadro completo (`api-dispositivo.md` 1.3), el tope es `CARA_MIN_PX`.
 
 `NITIDEZ_MIN` se recalibra en clase con los valores de `calidad` de las muestras de la cámara real (D-14).
 
@@ -152,6 +152,7 @@ Al reconocer (sin inscripción activa) se usa la cara más grande (la de mayor �
 | R7 · dos caras | Dos personas en el recorte | `muestra_rechazada`, `varias_caras` |
 | R7 · pequeña | Cara de 60 px (`CARA_MIN_PX` = 80) | `muestra_rechazada`, `cara_pequena` |
 | R7 · tolerancia de tamaño | Cara de 70 px (`CARA_MIN_PX` = 80), nitidez 150 | `muestra_aceptada` (70 ≥ 64) |
+| R7 · tolerancia de tamaño con un cuadro | La misma cara de 70 px, en un cuadro completo (`api-dispositivo.md` 1.3) | `muestra_rechazada`, `cara_pequena` (70 < 80) |
 | R7 · borrosa | Nitidez 30 | `muestra_rechazada`, `borrosa` |
 | R7 · otra persona | Al inscribir a Ana, la cara se parece a Bruno con 0,60 | `muestra_rechazada`, `parece_otra_persona` |
 | R7 · se parece a las dos | Al inscribir a Ana, la cara da 0,80 con una muestra de Ana y 0,50 con una de Bruno | `muestra_rechazada`, `parece_otra_persona` |

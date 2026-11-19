@@ -2,9 +2,9 @@
 Nombre: rostros.py
 Descripción: Recortes que envía la cámara (enviarRostro, api-dispositivo.md): token, tipo, tamaño, ritmo (429) e imagen, en ese orden; el modo de la cámara: inscribir si tiene una inscripción activa (R7 y R9), reconocer si no (R1 a R6); y lo que el recorte publica en MQTT después de confirmar.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 """
 
 import hashlib
@@ -29,7 +29,16 @@ from accesia.inscripciones import activa_de, procesar_muestra, vencer_inscripcio
 from accesia.mqtt import Pendiente, mensaje_evento
 from accesia.reconocimiento import reconocer
 from accesia.seguridad import hash_de_token
-from accesia.vision import Vision, decodificar_jpeg
+from accesia.config import configuracion
+from accesia.vision import (
+    FACTOR_TAMANO,
+    Cara,
+    Vision,
+    cara_mas_grande,
+    caras_validas,
+    decodificar_jpeg,
+    recortar_cara_mas_grande,
+)
 
 registro = logging.getLogger(__name__)
 
@@ -42,6 +51,10 @@ REINTENTAR_EN_S = "1"
 # Se compara contra esto cuando la cámara no existe, para que el 401 tarde lo mismo en los tres casos.
 _HASH_DE_RELLENO = hashlib.sha256(b"camara-que-no-existe").hexdigest()
 _CODIGO_VALIDO = re.compile(r"^[a-z0-9-]{3,32}$")
+# api-dispositivo.md 1.3: lo que trae el cuerpo, según la cabecera X-AccesIA-Imagen. Sin ella, un recorte.
+RECORTE = "recorte"
+CUADRO = "cuadro"
+IMAGENES = (RECORTE, CUADRO)
 
 
 class ControlDeRitmo:
@@ -143,15 +156,20 @@ def procesar(
     inicio: float,
     firmware: str | None = None,
     alertas: ControlDeAlertas | None = None,
+    tipo_de_imagen: str = RECORTE,
 ) -> tuple[RespuestaRostro | JSONResponse, Pendiente | None]:
     """Decodifica el recorte, decide el modo y aplica las reglas. La imagen solo vive en memoria (RF-04 · C4).
 
-    Devuelve la respuesta y lo que el recorte publica en MQTT, que la ruta publica después de confirmar.
+    Con el cuadro completo (api-dispositivo.md 1.3), primero hace lo que haría la cámara. Devuelve la respuesta y lo
+    que el recorte publica en MQTT, que la ruta publica después de confirmar.
     """
     imagen = decodificar_jpeg(datos)
     if imagen is None:
         return rechazo(camara, 422, "imagen_invalida", "El cuerpo no es un JPEG que se pueda leer."), None
-    caras = vision.detectar(imagen)
+    if tipo_de_imagen == CUADRO:
+        imagen, caras, factor_tamano = _lo_que_haria_la_camara(imagen, vision)
+    else:
+        caras, factor_tamano = vision.detectar(imagen), FACTOR_TAMANO
 
     def huella_de(cara):
         return vision.huella(imagen, cara)
@@ -161,12 +179,30 @@ def procesar(
     inscripcion = activa_de(conexion, camara.codigo)
     llegada = None
     if inscripcion is None:
-        respuesta, calidad, llegada = reconocer(conexion, camara.codigo, caras, huella_de, momento)
+        respuesta, calidad, llegada = reconocer(conexion, camara.codigo, caras, huella_de, momento, factor_tamano)
     else:
-        respuesta, calidad = procesar_muestra(conexion, inscripcion, camara.tipo, caras, huella_de, momento)
+        respuesta, calidad = procesar_muestra(
+            conexion, inscripcion, camara.tipo, caras, huella_de, momento, factor_tamano
+        )
     pendiente = _pendiente(conexion, camara.codigo, respuesta, llegada, momento, alertas)
-    _registrar(camara.codigo, respuesta, calidad, llegada, (time.perf_counter() - inicio) * 1000, firmware)
+    milisegundos = (time.perf_counter() - inicio) * 1000
+    _registrar(camara.codigo, respuesta, calidad, llegada, milisegundos, firmware, tipo_de_imagen)
     return respuesta, pendiente
+
+
+def _lo_que_haria_la_camara(cuadro, vision: Vision) -> tuple[object, list[Cara], float]:
+    """api-dispositivo.md 1.3: con el cuadro completo, lo que hace la cámara antes de enviar. La cara más grande, solo
+    si mide al menos CARA_MIN_PX, recortada con la fórmula del contrato (recortar_cara_mas_grande); el recorte sigue el
+    camino de siempre, con el 0,8 de R7.
+
+    Si no hay recorte, se responde por la cara más grande del cuadro, que no hay o es pequeña. Ahí el tope es
+    CARA_MIN_PX, sin el 0,8, porque la detectó el mismo YuNet: no hay diferencia de cajas que tolerar.
+    """
+    recorte = recortar_cara_mas_grande(cuadro, vision, configuracion().cara_min_px)
+    if recorte is not None:
+        return recorte, vision.detectar(recorte), FACTOR_TAMANO
+    cara = cara_mas_grande(caras_validas(vision.detectar(cuadro)))
+    return cuadro, [] if cara is None else [cara], 1.0
 
 
 def _pendiente(
@@ -199,9 +235,12 @@ def _registrar(
     llegada: Llegada | None,
     milisegundos: float,
     firmware: str | None,
+    tipo_de_imagen: str = RECORTE,
 ) -> None:
     """Una línea INFO por recorte, para depurar y medir. Sin imagen y sin decir a quién se parece un desconocido."""
     partes = [f"Cámara {codigo}", respuesta.modo, respuesta.resultado + (f" ({respuesta.motivo})" if respuesta.motivo else "")]
+    if tipo_de_imagen == CUADRO:
+        partes.append("cuadro")
     if respuesta.repetido:
         partes.append("repetido")
     if respuesta.similitud is not None:

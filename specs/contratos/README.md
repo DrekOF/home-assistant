@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.11
+Versión: 1.12
 -->
 
 # Contratos
@@ -13,8 +13,8 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 
 | Contrato | Archivo | Versión | Dueño | Lo usan |
 | --- | --- | --- | --- | --- |
-| Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
-| API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
+| Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.3 | B | A (firmware y simulador) |
+| API REST | [openapi.yaml](openapi.yaml) | 1.5 | B | C (web), A (simulador) |
 | MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.6 | B | A (placa y simulador), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.5 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
@@ -36,6 +36,17 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Firmware: el mensaje Presencia y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · presencia` y `contrato MQTT · descubrimiento de la placa`). El del C6 lo hacía con Ambiente (`contrato MQTT · ambiente`), sin uso desde D-24.
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## `api-dispositivo.md` 1.3 y `openapi.yaml` 1.5 (2026-11-19)
+
+Por D-24, solo si la prueba de factibilidad (P-05) elige el modelo de personas, que dice si hay alguien pero no dónde está la cara.
+
+- La cámara puede enviar el cuadro completo (QVGA en JPEG) en vez del recorte, con la cabecera `X-AccesIA-Imagen: cuadro`. Sin ella, o con `recorte`, todo sigue igual.
+- Con un cuadro, el servidor hace lo que haría la cámara: YuNet, la cara más grande, `CARA_MIN_PX` sin el 0,8 y la fórmula del recorte (`recortar_cara_mas_grande`). El recorte sigue el camino de siempre.
+- Las respuestas no cambian: sin cara o con una cara pequeña, `sin_cara` o `cara_pequena`.
+- Otro valor de la cabecera da 422 `validacion`.
+- `openapi.yaml` 1.5 suma la cabecera a `enviarRostro`.
+- Solo agrega: una cámara de antes sigue igual, por eso son 1.3 y 1.5.
 
 ## `mqtt.md` 1.6 (2026-11-19)
 

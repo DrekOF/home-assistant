@@ -2,12 +2,12 @@
 Nombre: api-dispositivo.md
 Descripción: Contrato entre la cámara (o el simulador) y el servidor de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
-# Contrato cámara → servidor · versión 1.2
+# Contrato cámara → servidor · versión 1.3
 
 Lo cumplen el firmware y el simulador (frente A) y el servidor (frente B). En `openapi.yaml` es la operación `enviarRostro`.
 
@@ -21,8 +21,9 @@ Lo cumplen el firmware y el simulador (frente A) y el servidor (frente B). En `o
 | `Content-Type` | `image/jpeg` | Sí |
 | `X-AccesIA-Firmware` | Versión, por ejemplo `tinyml-esp32s3_eye-1.0.0` o `simulador-1.0.0` | No |
 | `X-AccesIA-Puntaje` | Puntaje de la detección en la cámara, de 0 a 1 | No |
+| `X-AccesIA-Imagen` | `recorte` (por defecto) o `cuadro`: qué trae el cuerpo (desde 1.3; ver «El cuadro completo») | No |
 
-El cuerpo es el JPEG del recorte:
+El cuerpo es el JPEG del recorte o, con `X-AccesIA-Imagen: cuadro`, el del cuadro completo («El cuadro completo», abajo). El recorte:
 
 - La cara más grande del cuadro (la de mayor área), recortada con 25 % de margen según la fórmula de abajo.
 - La cara mide al menos `CARA_MIN_PX` de alto según el detector de la cámara; la cámara no envía caras más pequeñas.
@@ -30,6 +31,21 @@ El cuerpo es el JPEG del recorte:
 - Después de cada respuesta, la cámara espera al menos 1 s antes de enviar el siguiente recorte (3 s si la respuesta fue `permitido`, `denegado` o `desconocido`). La espera se cuenta desde que recibe la respuesta, no desde que envió.
 
 El servidor vuelve a detectar la cara con YuNet para alinearla antes de sacar la huella. Por eso el margen importa: sin él, YuNet puede no encontrar la cara. Las cajas de ESP-DL y de YuNet no miden igual, así que el servidor solo descarta por tamaño si la cara mide menos de 0,8 × `CARA_MIN_PX` (R7).
+
+### El cuadro completo (desde 1.3)
+
+Para una cámara cuyo modelo dice si hay alguien, pero no dónde está la cara: por ejemplo, el de personas con TensorFlow Lite Micro en la ESP32-CAM (D-24, P-05). Esa cámara envía el cuadro completo, con `X-AccesIA-Imagen: cuadro`:
+
+- El cuerpo es el cuadro QVGA (320 × 240) en JPEG de calidad 80, con el mismo tope de 100 KB.
+- El servidor hace lo que haría la cámara:
+  - detecta con YuNet en el cuadro;
+  - elige la cara más grande con puntaje de 0,9 o más;
+  - si mide al menos `CARA_MIN_PX` de alto, la recorta con la fórmula de abajo (`recortar_cara_mas_grande`). El recorte sigue el camino de siempre.
+- Si el cuadro no tiene cara, o la más grande mide menos de `CARA_MIN_PX`, responde `sin_cara` o `cara_pequena`, como con un recorte: `descartado` al reconocer y `muestra_rechazada` al inscribir.
+- Aquí el tope es `CARA_MIN_PX`, y no 0,8 × `CARA_MIN_PX`, porque la cara la detectó el mismo YuNet del servidor: no hay diferencia de cajas que tolerar (R7).
+- Con dos personas en el cuadro, el servidor recorta la de la cara más grande, como haría la cámara. Al inscribir, R7 revisa ese recorte.
+- Las respuestas, los errores y las esperas de la cámara no cambian. `X-AccesIA-Puntaje`, si va, es el del modelo de la cámara.
+- El servidor revisa la cabecera después del tipo (415) y antes del tamaño (413). Con otro valor, responde 422 `validacion`.
 
 ### Fórmula del recorte
 
@@ -151,6 +167,7 @@ Cuerpo: `{"detalle": "texto para personas", "codigo": "texto para programas"}`.
 | 413 | `imagen_grande` | El cuerpo pasa de 100 KB (102 400 bytes) |
 | 415 | `tipo_no_soportado` | `Content-Type` no es `image/jpeg` |
 | 422 | `imagen_invalida` | El JPEG no se puede leer |
+| 422 | `validacion` | `X-AccesIA-Imagen` no es `recorte` ni `cuadro` (desde 1.3) |
 | 429 | `demasiadas_peticiones` | Llegan dos recortes de esa cámara con menos de 0,8 s entre sí. Lleva la cabecera `Retry-After: 1` |
 
 ## Efectos en el servidor
@@ -174,7 +191,7 @@ Para una cámara de tipo `respaldo`, el servidor pide `GET {url_captura}` cada s
 
 ## Pruebas de contrato
 
-- Las pruebas del servidor cubren cada fila de las tablas de resultados y de errores, con su marca, por ejemplo `contrato cámara · 429`.
+- Las pruebas del servidor cubren cada fila de las tablas de resultados y de errores, con su marca, por ejemplo `contrato cámara · 429`, y el cuadro completo (`contrato cámara · cuadro`).
 - Las pruebas del firmware y del simulador recorren los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - El simulador tiene un modo que envía las fotos de `datos/prueba/` y compara cada respuesta con la esperada.
 - Prueba a mano desde PowerShell:
@@ -185,3 +202,5 @@ curl.exe -X POST http://localhost:8000/api/v1/dispositivos/entrada/rostros `
   -H "Content-Type: image/jpeg" `
   --data-binary "@datos/prueba/ana-1.jpg"
 ```
+
+Con el cuadro completo, se suma `-H "X-AccesIA-Imagen: cuadro"` y se envía la foto entera.

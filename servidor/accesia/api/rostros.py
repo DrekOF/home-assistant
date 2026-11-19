@@ -2,9 +2,9 @@
 Nombre: rostros.py
 Descripción: Ruta enviarRostro: la cámara (o el simulador) envía el recorte de una cara con su token (specs/contratos/api-dispositivo.md). No usa la sesión de la web. Lo que publica en MQTT sale después de confirmar.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import time
@@ -33,8 +33,8 @@ def _vision(request: Request) -> Vision:
 async def enviar_rostro(
     codigo: str, request: Request, conexion: Conexion, mqtt: ClienteMqttDeLaApp, tareas: BackgroundTasks
 ) -> RespuestaRostro | JSONResponse:
-    """Orden de las comprobaciones (decisión de B2): token (401), cámara inactiva (403), tipo (415), tamaño (413),
-    ritmo (429) e imagen (422). Después del token, los errores se responden sin deshacer el último contacto.
+    """Orden de las comprobaciones (decisión de B2): token (401), cámara inactiva (403), tipo (415), la cabecera
+    X-AccesIA-Imagen (422 validacion, api-dispositivo.md 1.3), tamaño (413), ritmo (429) e imagen (422). Después del token, los errores se responden sin deshacer el último contacto.
 
     El evento, la alerta y el resumen se publican en una tarea de fondo. La transacción se confirma al terminar esta
     función y la tarea corre apenas sale la respuesta: Home Assistant nunca ve un evento que se deshizo, y la puerta
@@ -49,6 +49,9 @@ async def enviar_rostro(
         return rostros.rechazo(camara, 403, "dispositivo_inactivo", "La cámara está desactivada.")
     if not rostros.es_jpeg(request.headers.get("content-type")):
         return rostros.rechazo(camara, 415, "tipo_no_soportado", "El recorte debe ir como image/jpeg.")
+    tipo_de_imagen = request.headers.get("x-accesia-imagen", rostros.RECORTE)
+    if tipo_de_imagen not in rostros.IMAGENES:
+        return rostros.rechazo(camara, 422, "validacion", "X-AccesIA-Imagen debe ser recorte o cuadro.")
     datos = await rostros.leer_cuerpo(request)
     if datos is None:
         return rostros.rechazo(camara, 413, "imagen_grande", "El recorte pasa de 100 KB (102 400 bytes).")
@@ -70,6 +73,7 @@ async def enviar_rostro(
         inicio,
         request.headers.get("x-accesia-firmware"),
         request.app.state.alertas,
+        tipo_de_imagen,
     )
     if pendiente is not None:
         tareas.add_task(mqtt.publicar_recorte, pendiente)

@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.27
+Versión: 1.28
 -->
 
 # Bitácora
@@ -22,6 +22,45 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-19 · D-24 · Contrato cámara 1.3: el cuadro completo (preparado, sin fusionar)
+
+- Quién: el frente B.
+- Qué:
+  - **`api-dispositivo.md` 1.3.** La cámara puede enviar el cuadro completo (QVGA en JPEG) en vez del recorte, con la cabecera `X-AccesIA-Imagen: cuadro`.
+    - Con un cuadro, el servidor hace lo que haría la cámara: YuNet, la cara más grande, `CARA_MIN_PX` sin el 0,8 y la fórmula del recorte (`recortar_cara_mas_grande`). El recorte sigue el camino de siempre.
+    - Las respuestas no cambian.
+  - **`openapi.yaml` 1.5**, con la cabecera nueva y los tipos de la web regenerados.
+  - **R7**, con su caso nuevo.
+  - **El servidor:** `rostros.procesar`, y el factor del tamaño mínimo en `reconocer` y `procesar_muestra`.
+  - Se fusiona solo si la prueba de factibilidad (P-05) elige el modelo de personas. Si elige el de caras, el PR se cierra.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-cuadro`, rama `b/cuadro-completo`, desde `main` con D-24). El PR #29 va como borrador, para que corra la CI sin fusionarse.
+  - **Docker Desktop sigue cerrado**, porque la demo corre en la Pi y el Compose del portátil, al arrancar, podría poner a dos clientes `servidor` en el mismo broker. Por eso las pruebas con base las corrió la CI.
+    - Primero se subieron solas. Fallaron las 8 que debían, y pasaron las otras 603.
+    - Las que no fallaron (sin cara, sin cabecera, el tope de 100 KB y dos casos de inscripción) son lo que el servidor ya cumplía.
+  - **Lo que se vio al leer el código:** el servidor ya aguantaba un cuadro, porque detecta en la imagen que le llega. Cambian tres cosas:
+    - el tope del tamaño, que con un cuadro es `CARA_MIN_PX` sin el 0,8;
+    - la inscripción con dos personas en el cuadro, que daría `varias_caras`;
+    - el contrato, que decía que el cuerpo es un recorte.
+  - **Sin base, en local:** se comprobó `_lo_que_haria_la_camara` con la visión armada: el caso «Dos caras» da el recorte de 120 × 150, y la cara de 70 px es pequeña con el factor 1 y no con el 0,8. También se regeneraron los tipos de la web (`npm run tipos`), y `npm run build` y `npm test` (103 pruebas) quedaron en verde.
+- Decisiones donde el pedido no decía el detalle (van en el PR, para revisarlas):
+  - **La cabecera:** `X-AccesIA-Imagen`, con `recorte` (por defecto) o `cuadro`, como las otras dos de la cámara. Otro valor da 422 `validacion`, y se revisa después del tipo (415) y antes del tamaño (413).
+  - **El tamaño:** el tope es `CARA_MIN_PX` sin el 0,8, porque la cara la mide el mismo YuNet.
+  - **Sin cara o con una cara pequeña:** `sin_cara` o `cara_pequena`, como con un recorte, también al inscribir.
+  - **Dos personas en el cuadro:** se recorta la de la cara más grande, como haría la cámara, y R7 revisa ese recorte.
+  - **El tope de 100 KB** sigue igual: un QVGA pesa de 10 a 20 KB.
+  - **El registro:** la línea INFO de ese recorte dice `cuadro`.
+- Pruebas:
+  - `test_cuadro_completo.py`, con las marcas `contrato cámara · cuadro`, `· 422`, `· 413` y `· orden`, y `R7 · tolerancia de tamaño con un cuadro`. Corren en la CI.
+  - La CI de las pruebas solas: 8 fallaron, las esperadas.
+- Cambios de contrato o de specs:
+  - `api-dispositivo.md` 1.3 y `openapi.yaml` 1.5, con su registro en `contratos/README.md` 1.12 y en `decisiones.md` 1.17;
+  - `reglas.md` 1.4, con R7 y su caso;
+  - `servidor/README.md` 1.10.
+- Pendiente:
+  - el resultado de P-05: con el modelo de personas, revisar y fusionar el PR #29; con el de caras, cerrarlo;
+  - con el de personas, el firmware de la ESP32-CAM envía el cuadro con la cabecera, y el simulador podría sumar una opción para enviarlo igual.
 
 ## 2026-11-19 · D-24 · La ESP32-CAM como cámara, con su modelo en la placa
 

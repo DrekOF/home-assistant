@@ -2,9 +2,9 @@
 Nombre: inscripciones.py
 Descripción: Inscripciones (R9, RF-03): vencer, abrir, ver, cancelar y la cancelación al revocar; y cada muestra que llega de la cámara, revisada con los seis pasos de R7.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 from collections.abc import Callable, Sequence
@@ -21,7 +21,7 @@ from accesia.db import VIOLACION_UNICA, violacion
 from accesia.errores import ErrorAccesIA
 from accesia.esquemas import Inscripcion, InscripcionCorta, InscripcionNueva, PersonaCorta, RespuestaRostro
 from accesia.reconocimiento import coincide, mas_parecida, texto_de_vector
-from accesia.vision import Cara, Huella, caras_validas, es_pequena
+from accesia.vision import FACTOR_TAMANO, Cara, Huella, caras_validas, es_pequena
 
 CONSULTA = """
 SELECT i.id, i.persona_id, p.nombre AS persona_nombre, i.dispositivo_codigo, i.estado, i.muestras, i.requeridas,
@@ -193,16 +193,21 @@ def _similitud_con_la_primera(conexion: Connection, inscripcion_id: UUID, vector
 
 
 def _motivo_de_rechazo(
-    conexion: Connection, inscripcion: Row, caras: Sequence[Cara], huella_de: Callable[[Cara], Huella]
+    conexion: Connection,
+    inscripcion: Row,
+    caras: Sequence[Cara],
+    huella_de: Callable[[Cara], Huella],
+    factor_tamano: float = FACTOR_TAMANO,
 ) -> tuple[str | None, Huella | None]:
-    """Los seis pasos de R7, en orden: el primer motivo que falla, o None si la muestra sirve."""
+    """Los seis pasos de R7, en orden: el primer motivo que falla, o None si la muestra sirve. factor_tamano es el
+    del paso 3: 0,8 con un recorte y 1 con el cuadro completo (api-dispositivo.md 1.3)."""
     conf = configuracion()
     validas = caras_validas(caras)
     if not validas:
         return "sin_cara", None
     if len(validas) > 1:
         return "varias_caras", None
-    if es_pequena(validas[0], conf.cara_min_px):
+    if es_pequena(validas[0], conf.cara_min_px, factor_tamano):
         return "cara_pequena", None
     huella = huella_de(validas[0])
     if huella.nitidez < conf.nitidez_min:
@@ -223,12 +228,13 @@ def procesar_muestra(
     caras: Sequence[Cara],
     huella_de: Callable[[Cara], Huella],
     momento: datetime,
+    factor_tamano: float = FACTOR_TAMANO,
 ) -> tuple[RespuestaRostro, float | None]:
     """RF-03 · C2 y C3: guarda la muestra si pasa R7 y suma una; al llegar a las requeridas, la inscripción se completa.
 
     Devuelve la respuesta (persona es siempre quien se inscribe) y la nitidez de la cara, si se midió.
     """
-    motivo, huella = _motivo_de_rechazo(conexion, inscripcion, caras, huella_de)
+    motivo, huella = _motivo_de_rechazo(conexion, inscripcion, caras, huella_de, factor_tamano)
     if motivo is not None:
         fila = conexion.execute(
             text(

@@ -2,9 +2,9 @@
 Nombre: vision.py
 Descripción: Visión del servidor con la imagen solo en memoria (RF-04 · C1 y C4): decodificar el JPEG, detectar caras con YuNet, recortar con la fórmula del contrato, y sacar la huella con SFace y la nitidez de R7.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 import logging
@@ -104,9 +104,10 @@ def cara_mas_grande(caras: Sequence[Cara]) -> Cara | None:
     return mayor
 
 
-def es_pequena(cara: Cara, cara_min_px: int) -> bool:
-    """R7, paso 3: mide menos de 0,8 × CARA_MIN_PX de alto."""
-    return cara.alto < FACTOR_TAMANO * cara_min_px
+def es_pequena(cara: Cara, cara_min_px: int, factor: float = FACTOR_TAMANO) -> bool:
+    """R7, paso 3: mide menos de 0,8 × CARA_MIN_PX de alto. Con el cuadro completo (api-dispositivo.md 1.3) el factor
+    es 1: la cara la detectó el mismo YuNet, así que no hay diferencia de cajas que tolerar."""
+    return cara.alto < factor * cara_min_px
 
 
 def caja_del_recorte(cara: Cara, ancho: int, alto: int) -> tuple[int, int, int, int]:

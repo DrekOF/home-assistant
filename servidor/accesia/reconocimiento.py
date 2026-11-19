@@ -2,9 +2,9 @@
 Nombre: reconocimiento.py
 Descripción: Reconocer una cara (RF-04 · C2 y C3): la búsqueda central con pgvector y las reglas R1 a R4, más R7 al reconocer. Guarda el evento de acceso (RF-05 · C1 y C2) y, si es la primera entrada permitida del día, la llegada (R5, RF-06 · C1).
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 """
 
 from collections.abc import Callable, Sequence
@@ -18,7 +18,7 @@ from accesia import mensajes
 from accesia.asistencia import Llegada, registrar_llegada
 from accesia.config import configuracion
 from accesia.esquemas import PersonaCorta, RespuestaRostro
-from accesia.vision import Cara, Huella, cara_mas_grande, caras_validas, es_pequena
+from accesia.vision import FACTOR_TAMANO, Cara, Huella, cara_mas_grande, caras_validas, es_pequena
 
 # R1: pgvector calcula la distancia en float32, así que una similitud de 0,363 puede salir 0,36299998.
 # La comparación con el umbral tolera esa diferencia (specs/reglas.md, R1).
@@ -136,8 +136,10 @@ def reconocer(
     caras: Sequence[Cara],
     huella_de: Callable[[Cara], Huella],
     momento: datetime,
+    factor_tamano: float = FACTOR_TAMANO,
 ) -> tuple[RespuestaRostro, float | None, Llegada | None]:
-    """Reconoce la cara más grande del recorte.
+    """Reconoce la cara más grande del recorte. factor_tamano es el de R7 para cara_pequena: 0,8 con un recorte y 1
+    con el cuadro completo (api-dispositivo.md 1.3).
 
     Devuelve la respuesta, la nitidez de la cara (o None) y la llegada si este evento la creó (o None), para que B2
     la publique en el campo asistencia del Evento (mqtt.md).
@@ -146,7 +148,7 @@ def reconocer(
     cara = cara_mas_grande(caras_validas(caras))
     if cara is None:
         return _respuesta(momento, "descartado", "sin_cara"), None, None
-    if es_pequena(cara, conf.cara_min_px):
+    if es_pequena(cara, conf.cara_min_px, factor_tamano):
         return _respuesta(momento, "descartado", "cara_pequena"), None, None
 
     huella = huella_de(cara)

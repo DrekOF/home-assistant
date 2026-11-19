@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Servidor de AccesIA: API, reconocimiento, reglas, MQTT, MCP y la web compilada (frente B).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Servidor · frente B
@@ -28,7 +28,7 @@ Python 3.13 con FastAPI: saca la huella de la cara (YuNet + SFace), aplica las r
 | `accesia/asistencia.py` | R5 y R8: califica una llegada con el bloque del día (función pura) y registra la primera del día. La usan la cámara, el registro manual y la semilla del agente |
 | `accesia/mensajes.py` y `registro.py` | Las frases del campo `mensaje`; los avisos INFO en el registro, con la hora de Colombia |
 | `accesia/api/` | Rutas: `salud`, `sesion`, `personas`, `consentimiento`, `horarios`, `camaras`, `rostros`, `inscripciones`, `huellas`, `accesos`, `asistencia` y `configuracion` |
-| `accesia/agente.py` | Las cinco herramientas del agente (`mcp-agente.md`): consultas sobre las tres vistas del agente, cada una en una transacción `READ ONLY` de 3 s, que devuelven lo del contrato o `{"error": …}` |
+| `accesia/agente.py` | Las seis herramientas del agente (`mcp-agente.md`): las cinco consultas sobre las tres vistas del agente, cada una en una transacción `READ ONLY` de 3 s, y la de fecha y hora, que no toca la base. Devuelven lo del contrato o `{"error": …}` |
 | `accesia/servidor_mcp.py` | El servidor MCP «AccesIA» con el SDK `mcp` 2.x (`MCPServer`): Streamable HTTP en `/mcp`, puerto 8001, sin sesiones y con el encabezado `Host` validado |
 | `accesia/semilla.py` | `semilla agente`: los datos de la evaluación del agente, la revisión de las preguntas 1 a 9 y cómo convive con datos reales |
 | `accesia/comandos.py` | El comando `accesia`: `crear-camara`, que también publica el descubrimiento de la cámara, `descargar-modelos`, `mcp` y `semilla agente` |
@@ -235,7 +235,7 @@ docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P
 
 ## Servidor MCP del agente
 
-`accesia mcp` arranca el servidor MCP «AccesIA» de `specs/contratos/mcp-agente.md` 1.3. En Compose lo corre el servicio `mcp`, con la misma imagen del servidor.
+`accesia mcp` arranca el servidor MCP «AccesIA» de `specs/contratos/mcp-agente.md` 1.5. En Compose lo corre el servicio `mcp`, con la misma imagen del servidor.
 
 - **SDK y transporte.**
   - Usa el SDK oficial `mcp` 2.x, donde FastMCP se llama `MCPServer`.
@@ -244,7 +244,7 @@ docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P
 - **Solo lectura, en tres capas (D-15).**
   - Solo arranca si `DATABASE_URL` usa el usuario `agente`, que solo lee las tres vistas del agente. Con otro usuario sale con un error.
   - Cada herramienta corre en su propia transacción `READ ONLY`, con `statement_timeout` de 3 s.
-  - Las cinco herramientas solo consultan, y se anuncian con `readOnlyHint`.
+  - Las cinco consultas solo leen, y `fecha_y_hora_GetDateTime` no toca la base. Las seis se anuncian con `readOnlyHint`.
 - **Encabezado `Host`.** El SDK lo valida contra DNS rebinding.
   - Acepta `mcp:8001`, `localhost:8001`, `127.0.0.1:8001` y los de `MCP_HOSTS_PERMITIDOS`, separados por comas (por defecto, `192.168.137.1:8001`, la IP del portátil en el hotspot).
   - Otro `Host` recibe 421, y un pedido con encabezado `Origin` (un navegador), 403.
@@ -258,6 +258,17 @@ docker compose -f infra/compose.yaml exec mosquitto mosquitto_sub -u servidor -P
     - una persona sin horario tiene `"horario": null`.
   - Las palabras `hoy`, `ayer` y `antier` se aceptan sin importar mayúsculas.
   - Las listas van por hora, y los ausentes y las coincidencias por nombre.
+- **`fecha_y_hora_GetDateTime` (`mcp-agente.md` 1.5).** Da la fecha, el día y la hora en Colombia. El sufijo en inglés hace que Home Assistant no agregue al prompt su línea de fecha y hora, que cambia cada segundo; así Ollama reutiliza de su caché las instrucciones y las herramientas entre preguntas (D-22).
+- **La caché del prompt, medida.** `scripts/cache_del_prompt.py` arma cada pedido a Ollama como lo arma Home Assistant y muestra el `prompt_eval_count` de cada pregunta, antes (1.4) y después (1.5). Necesita Ollama con el modelo ya descargado:
+
+  ```powershell
+  docker run -d --name ollama-cache -p 127.0.0.1:11434:11434 -e OLLAMA_NUM_PARALLEL=1 -e OLLAMA_KEEP_ALIVE=-1 -e OLLAMA_KV_CACHE_TYPE=q8_0 -e OLLAMA_FLASH_ATTENTION=1 -v ollama-cache:/root/.ollama ollama/ollama:0.40.16
+  docker exec ollama-cache ollama pull qwen2.5:1.5b
+  uv run python scripts/cache_del_prompt.py --modelo qwen2.5:1.5b
+  docker rm -f ollama-cache
+  ```
+
+  Usa las variables del complemento de Ollama de la Pi, con `OLLAMA_FLASH_ATTENTION=1`: con 0, Ollama 0.40.16 no carga el modelo. Se mide con Ollama recién arrancado, porque `llama-server` también guarda en RAM prompts de pedidos anteriores.
 
 ## Semilla del agente
 
@@ -357,11 +368,13 @@ Las reglas se prueban con la visión armada de `pruebas/vision_falsa.py` (caras 
 | `contrato BD · vector` | La búsqueda central de `modelo-datos.md` devuelve la muestra más parecida (R2) |
 | `contrato BD · horarios` | Horarios por bloques (D-20): cinco bloques en «Clase IA», un bloque por día, borrado en cascada, `restrict_violation` (23001) al borrar uno en uso y días de la vista del agente |
 | `RF-08 · C4` | El usuario `agente` lee sus tres vistas y no puede leer `persona`, `rostro` ni `horario_bloque`, ni cambiar las tablas. Cada herramienta corre en una transacción de solo lectura con 3 s de límite, y el servidor MCP no arranca con otro usuario |
-| `contrato agente · <herramienta>` | Las cinco herramientas con los datos de la semilla y el usuario `agente`: lo que devuelven, sus límites (10 personas, 31 días, 50 accesos, de 1 a 168 horas y 10 en `ultimos`) y sus errores como `{"error": …}` |
+| `contrato agente · <herramienta>` | Las seis herramientas con los datos de la semilla y el usuario `agente`: lo que devuelven, sus límites (10 personas, 31 días, 50 accesos, de 1 a 168 horas y 10 en `ultimos`) y sus errores como `{"error": …}` |
 | `contrato agente · preguntas` | Las preguntas 1 a 9 de la evaluación, cada una con su herramienta esperada |
 | `contrato agente · evaluación` | `semilla agente` crea la tabla de la evaluación con fechas relativas a hoy; con datos reales no escribe sin `--con-datos-reales` y nunca los toca; se repite y se borra sola |
 | `contrato agente · host` | El servidor MCP acepta el `Host` de `mcp:8001`, `localhost:8001`, `127.0.0.1:8001` y `MCP_HOSTS_PERMITIDOS`; otro `Host` recibe 421 y un pedido con `Origin`, 403 |
-| `RF-08 · C1` | Un cliente MCP real, por Streamable HTTP contra el servidor en uvicorn, lista las cinco herramientas (en español y de solo lectura) y las llama |
+| `RF-08 · C1` | Un cliente MCP real, por Streamable HTTP contra el servidor en uvicorn, lista las seis herramientas (en español y de solo lectura) y las llama |
+| `contrato agente · home assistant` | Los esquemas de las seis herramientas se convierten con `probatio`, como en Home Assistant (si uno fallara, Assist se quedaría sin todas), y una sola termina en `GetDateTime` |
+| `contrato agente · instrucciones` | Las instrucciones de `mcp-agente.md` no llevan plantillas y nombran `fecha_y_hora_GetDateTime`: son el mismo texto en cada pregunta |
 | `RNF-01 · C4` | Ninguna respuesta de las herramientas trae documentos, huellas ni similitudes |
 | `contrato API · salud` | `GET /api/v1/salud` cumple el esquema `Salud`, da la hora con `-05:00` y dice `mqtt: ok` solo con el broker conectado |
 | `contrato API · error` | Validación, ruta inexistente, método no permitido (405 con `Allow`) y error interno responden con el esquema `Error`, también con la web encendida, y un `POST` a una ruta de la web es 404 |

@@ -1,10 +1,10 @@
 """
 Nombre: agente.py
-Descripción: Las cinco herramientas de solo lectura del agente (contratos/mcp-agente.md): leen solo las tres vistas del agente, en una transacción READ ONLY de 3 s, y devuelven lo que dice el contrato o {"error": "texto"}.
+Descripción: Las seis herramientas de solo lectura del agente (contratos/mcp-agente.md): las cinco consultas leen solo las tres vistas del agente, en una transacción READ ONLY de 3 s, y la de fecha y hora no toca la base. Devuelven lo que dice el contrato o {"error": "texto"}.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 
 Las funciones de consulta reciben una conexión y no abren transacciones: las usan las herramientas del servidor MCP
 (con el usuario agente, D-15) y la revisión de la semilla. Nunca devuelven documentos, huellas ni similitudes: las
@@ -39,6 +39,7 @@ LIMITE_CONSULTA = "3s"
 TIEMPO_AGOTADO = "57014"  # SQLSTATE de query_canceled, el que da statement_timeout
 
 DIAS_ATRAS = {"hoy": 0, "ayer": 1, "antier": 2}
+DIAS_DE_LA_SEMANA = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 FECHA_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # Parte del nombre, sin importar tildes ni mayúsculas. La búsqueda escapa % y _ para que se busquen como texto.
@@ -248,6 +249,15 @@ def desconocidos_recientes(conexion: Connection, horas: int = HORAS_POR_DEFECTO)
     }
 
 
+# --- La fecha y la hora (mcp-agente.md 1.5) ---
+
+
+def fecha_y_hora() -> dict[str, Any]:
+    """La fecha, el día de la semana y la hora de ahora en Colombia (R8). No toca la base."""
+    ahora = tiempo.a_colombia(tiempo.ahora())
+    return {"fecha": _fecha(ahora), "dia": DIAS_DE_LA_SEMANA[ahora.weekday()], "hora": _hora(ahora)}
+
+
 # --- Las herramientas: una transacción de solo lectura por llamada ---
 
 
@@ -261,9 +271,10 @@ def transaccion_de_lectura(motor: Engine) -> Iterator[Connection]:
 
 
 class Herramientas:
-    """Las cinco herramientas del contrato sobre un motor de la base: en el servidor MCP, el del usuario agente.
+    """Las seis herramientas del contrato. Las cinco consultas usan un motor de la base: en el servidor MCP, el
+    del usuario agente, con una transacción de solo lectura por llamada. La de fecha y hora no toca la base.
 
-    Cada llamada corre en su propia transacción de solo lectura y nunca lanza: un error vuelve como {"error": …}.
+    Ninguna lanza: un error vuelve como {"error": …}.
     """
 
     def __init__(self, motor: Engine) -> None:
@@ -283,6 +294,13 @@ class Herramientas:
 
     def desconocidos_recientes(self, horas: int = HORAS_POR_DEFECTO) -> dict[str, Any]:
         return self._responder(desconocidos_recientes, horas=horas)
+
+    def fecha_y_hora(self) -> dict[str, Any]:
+        try:
+            return fecha_y_hora()
+        except Exception:  # noqa: BLE001 — el contrato pide {"error": …}, nunca una excepción
+            registro.exception("Error inesperado en la herramienta fecha_y_hora")
+            return {"error": "La herramienta falló. Intenta de nuevo en un momento."}
 
     def _responder(self, consulta: Callable[..., dict[str, Any]], **argumentos: Any) -> dict[str, Any]:
         try:

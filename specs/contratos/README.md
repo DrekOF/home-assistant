@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prueban.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # Contratos
@@ -16,7 +16,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
 | MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.4 | B | A (placa y simulador), C (Home Assistant) |
-| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.4 | B | C (Home Assistant) |
+| Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.5 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
 ## Cómo cambia un contrato
@@ -36,6 +36,15 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## `mcp-agente.md` 1.5 (2026-11-13)
+
+Una herramienta nueva, `fecha_y_hora_GetDateTime`, y las instrucciones sin la hora. Es por D-22: con Ollama en la Pi, cada pregunta tiene que reutilizar de la caché el comienzo del prompt. Los demás contratos no cambian.
+
+- `fecha_y_hora_GetDateTime` dice la fecha, el día y la hora en Colombia, sin parámetros y sin tocar la base. El sufijo en inglés lo exige Home Assistant: si alguna herramienta termina así, no agrega su línea de fecha y hora, que cambia cada segundo. Medido en el portátil: desde la segunda pregunta, Ollama procesa de 9 a 19 tokens en vez de unos 750.
+- Las instrucciones pierden la línea «Hoy es… y son las…» y suman cuándo usar la herramienta. Ya no llevan plantillas.
+- Solo agrega: las cinco herramientas, sus parámetros y sus respuestas no cambian, por eso es 1.5.
+- Lo comprueban las pruebas `contrato agente · fecha_y_hora_GetDateTime`, `contrato agente · home assistant` (los esquemas, convertidos con `probatio` como en Home Assistant) y `contrato agente · instrucciones`. La medición con `prompt_eval_count` de `servidor/scripts/cache_del_prompt.py` está en la bitácora.
 
 ## `mqtt.md` 1.4 y `mcp-agente.md` 1.4 (2026-11-12)
 

@@ -2,9 +2,9 @@
 Nombre: decisiones.md
 Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-13
 Autor: Equipo AccesIA
-Versión: 1.12
+Versión: 1.13
 -->
 
 # Decisiones
@@ -79,7 +79,7 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
   - que el comienzo del prompt no cambie entre preguntas, para que Ollama lo reutilice de su caché.
 
   Las descripciones y las instrucciones son de `mcp-agente.md`, así que cambiarlas es un cambio de contrato. Pasar Ollama al portátil solo vale con el visto bueno del profesor, porque él lo pidió dentro de la Pi.
-- **La hora en el prompt.** Home Assistant pone primero nuestras instrucciones y después su propia línea con la fecha y la hora, con segundos; las herramientas van detrás. Así, entre una pregunta y otra, Ollama solo puede reutilizar nuestras instrucciones, y solo si no llevan la hora. Se comprueba con `prompt_eval_count` en dos preguntas seguidas, en el ensayo con el devcontainer (C2 del Día 3). El detalle está en `arquitectura.md`.
+- **La hora en el prompt.** Home Assistant pone primero nuestras instrucciones y después su propia línea con la fecha y la hora, con segundos; las herramientas van detrás. Con esa línea, entre una pregunta y otra Ollama solo podía reutilizar nuestras instrucciones. `mcp-agente.md` 1.5 suma la herramienta `fecha_y_hora_GetDateTime`, cuyo sufijo hace que Home Assistant no agregue la línea, y quita la hora de las instrucciones. Medido en el portátil: desde la segunda pregunta, Ollama procesa de 9 a 19 tokens en vez de unos 750. En la Pi lo comprueba la C2 del Día 3. El detalle está en `arquitectura.md`.
 - **Instalación.** Construir los complementos necesita internet una vez: las imágenes base y los paquetes de Python. Si la Pi está disponible antes de la clase, se instala antes; si solo está en clase, se instala allá con el internet del celular. Los modelos van en el kit, para copiarlos sin internet: los de Ollama, a `/share/ollama`, y los de cara, dentro del complemento del servidor.
 - **Configuración (D-14).** En la Pi, las reglas y las claves van en las opciones de cada complemento: se cambian en la interfaz de Home Assistant y se reinicia el complemento. `infra/.env` sigue para el portátil.
 - **Datos.** Las copias de seguridad de Home Assistant incluyen los datos de `accesia_base`, es decir, las huellas. Van siempre cifradas y nunca al repositorio, y la del kit se toma sin inscripciones. Al terminar el semestre se desinstala `accesia_base` con sus datos y se borran las copias (`modelo-datos.md`).
@@ -146,3 +146,5 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-12 | D-22 | Todo en la Raspberry Pi 5, como complementos de Home Assistant OS: `accesia_base`, `accesia_servidor`, el Mosquitto oficial y Ollama (SirUli). La IP fija de la Pi, la web en la raíz del 8000 sin Ingress, el modelo según la RAM, Ollama al portátil solo con el visto bueno del profesor, la instalación con el internet del celular si la Pi solo está en clase y los modelos en el kit. El escenario 2 pasa a ser el plan B. Cambian D-04, D-05, D-06, D-09, D-11, D-14, D-16, D-19 y D-21 (tabla de arriba). |
 | 2026-11-12 | Contratos MQTT 1.4 y agente 1.4 | `mqtt.md` 1.4: el broker de la demo es el Mosquitto oficial de la Pi; `servidor` y `camara` van en sus `logins`; `homeassistant` y `addons` tienen acceso total, porque Home Assistant lo espera; una sola ACL para la Pi y el portátil, y dónde va en la Pi. `mcp-agente.md` 1.4: las URL del MCP y de Ollama en la Pi, y el `Host` que acepta el MCP ahí; las herramientas y las instrucciones no cambian. Ningún cliente cambia sus temas, sus mensajes ni sus llamadas, por eso son 1.4. Por D-22. |
 | 2026-11-12 | Specs por D-22 | `arquitectura.md` 1.10: la sección «Complementos de Home Assistant OS», con el presupuesto de RAM, la velocidad del agente y cómo se prueba sin la Pi; Compose queda para desarrollar y como plan B. `requisitos.md` 1.5: RF-11 (el kit), RNF-03 · C3 (si Assist va lento, primero se prueba en la Pi), RNF-04 · C2 y C3 (internet solo para instalar los complementos) y RNF-06 · C3. `modelo-datos.md` 1.3: la retención en la Pi. P-04: la RAM y la IP fija de la Pi. La C2 del Día 3 se ajusta a D-22. |
+| 2026-11-13 | Contrato agente 1.5 | `mcp-agente.md` 1.5: herramienta `fecha_y_hora_GetDateTime`, con la fecha, el día y la hora en Colombia, sin parámetros y sin tocar la base. El sufijo en inglés lo exige Home Assistant para no agregar al prompt su línea de fecha y hora, que cambia cada segundo. Las instrucciones quedan sin la hora y sin plantillas. Solo agrega. Medido en el portátil con `prompt_eval_count` y `prompt_eval_cached_count`: desde la segunda pregunta, Ollama procesa de 9 a 19 tokens en vez de unos 750. Por D-22. |
+| 2026-11-13 | D-22 · Ollama | Con los valores por defecto del complemento de SirUli (`OLLAMA_KV_CACHE_TYPE=q8_0` y `OLLAMA_FLASH_ATTENTION=0`), Ollama 0.40.16 no carga el modelo. Se cambia `OLLAMA_FLASH_ATTENTION` a 1 en sus opciones; con CPU funciona. Y el complemento publica el 11434 por defecto: se desactiva en su sección Red (D-16). Los dos van en la C2 del Día 3. |

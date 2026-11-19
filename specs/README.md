@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Índice de las specs de AccesIA y orden de lectura.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Specs de AccesIA
@@ -41,12 +41,13 @@ Las pruebas citan estos códigos en su nombre o en su marca (ver `CLAUDE.md`).
 ## Pendientes abiertos
 
 - P-01 Fecha exacta de la clase.
-- P-03 Módulo de cámara que llega la próxima clase: si es una cámara SPI para el C6 o una placa con cámara aparte (`arquitectura.md`, «Cuando llegue el módulo de cámara»).
+- P-05 El modelo de visión de la ESP32-CAM: caras con ESP-DL o personas con TensorFlow Lite Micro. Lo decide la prueba de factibilidad de la sesión del firmware (D-24). Con el de personas hace falta `api-dispositivo.md` 1.3, para enviar el cuadro completo.
 - P-04 La RAM de la Raspberry Pi 5, que decide el modelo de Ollama, y su IP fija en el hotspot (D-22). Se ven en la próxima clase.
 
 Resueltos:
 
 - P-02 Hardware: el 12/11/2026 entregaron una Seeed Studio XIAO ESP32-C6 y una Raspberry Pi 5 con Home Assistant OS (D-21).
+- P-03 Módulo de cámara: el 19/11/2026 el profesor decidió usar una ESP32-CAM, con todo en esa placa, incluido el modelo de visión (D-24).
 
 ## Cómo cambia una spec
 

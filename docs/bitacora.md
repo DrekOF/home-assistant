@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.26
+Versión: 1.27
 -->
 
 # Bitácora
@@ -22,6 +22,55 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-19 · D-24 · La ESP32-CAM como cámara, con su modelo en la placa
+
+- Quién: el frente B, para todo el equipo.
+- Qué:
+  - **D-24.** En la clase, el profesor decidió usar una ESP32-CAM, con todo en esa placa: el modelo de visión, que pone el equipo, la puerta y MQTT.
+    - La placa detecta y envía; el reconocimiento sigue en el servidor.
+    - La XIAO ESP32-C6 y su sensor DHT dejan de usarse, y RF-14 queda fuera de alcance.
+    - Si la ESP32-CAM se queda corta, el respaldo es una ESP32-S3 con el firmware del PR #7.
+  - **El modelo de la placa queda pendiente (P-05).** Puede ser caras con ESP-DL o personas con TensorFlow Lite Micro; lo decide la prueba de factibilidad de la sesión del firmware. Con el de personas hará falta `api-dispositivo.md` 1.3, para enviar el cuadro completo.
+  - **`mqtt.md` 1.6:**
+    - el tema `accesia/{codigo}/presencia`, con el resultado del modelo (`presente` y `puntaje`);
+    - su descubrimiento como `binary_sensor`, que publica la placa;
+    - la ACL que la deja publicarlos solo con su código;
+    - el tema `ambiente` y sus dos sensores, sin uso;
+    - el modelo del dispositivo que publica el servidor, «ESP32-CAM».
+  - **El repositorio:**
+    - `infra/mosquitto/acl` 1.3;
+    - `descubrimiento.MODELO` en el servidor;
+    - RF-14 fuera de alcance y RF-01 con D-24 (`requisitos.md` 1.8);
+    - P-03 resuelto y P-05 nuevo (`specs/README.md` 1.4);
+    - notas en `arquitectura.md` 1.15;
+    - el hardware en `CLAUDE.md` 1.14.
+- Cómo:
+  - **Dónde.** Claude Code trabajó en un worktree aparte (`AccesIA-b-d24`, rama `b/d-24-esp32-cam`, desde `main`). Hoy es la clase, así que el plan fue a la descripción del PR sin esperar aprobación, con la orden de parar solo si algo se salía de las specs. No hizo falta parar.
+  - **D-24 y no D-23.** El equipo pidió «D-23», pero ese número ya lo usaba el PR #27 (el plan B con el broker de la Pi), con `mqtt.md` 1.5. Esta decisión quedó como D-24, con `mqtt.md` 1.6.
+  - **El modelo del dispositivo.** Al leer el contrato se vio que el servidor publica cada cámara en Home Assistant con el modelo «XIAO ESP32-C6». Con D-24 eso sería falso, así que cambió en el contrato y en el servidor, con sus pruebas.
+  - **Docker Desktop estaba cerrado,** y no se abrió. La demo corre en la Pi, y el Compose del portátil, al arrancar solo, podría poner a dos clientes `servidor` a pelear por el broker de la Pi.
+    - Las pruebas de la ACL y del descubrimiento necesitan contenedores, así que las corrió la CI.
+    - Primero se subieron solas: la CI falló en las 8 que debía (las dos de la presencia en la ACL y las del modelo del dispositivo), y en ninguna otra.
+    - Después se subieron el contrato, la ACL y el servidor.
+    - La prueba que compara la ACL del repositorio con la del contrato no usa Docker y se corrió en local.
+- Decisiones donde el pedido no decía el detalle (van en el PR, para revisarlas):
+  - **El mensaje Presencia:** `{"presente": true, "puntaje": 0.93}`.
+    - `puntaje` usa la misma escala de la cabecera `X-AccesIA-Puntaje`, y es `null` cuando no ve a nadie.
+    - Sin hora, como Ambiente, porque la placa no la tiene.
+  - **Cuándo sale:** cuando cambia el resultado y cada vez que se conecta al broker, retenido y con QoS 1, para que Home Assistant tenga el último estado aunque se reinicie. Para no parpadear, el firmware decide cuándo vuelve a `false` y lo anota en su README.
+  - **El descubrimiento:** `binary_sensor` con `device_class` `occupancy` y el puntaje como atributo, en el nodo `{codigo}`, como los sensores del C6, para que la ACL siga usando `%c`.
+  - **El ambiente:** el tema y sus reglas de la ACL quedan, marcados sin uso, por si hace falta volver al C6.
+- Pruebas:
+  - La CI de las pruebas solas: 8 fallaron, las esperadas, y 590 pasaron.
+  - `test_la_acl_del_repositorio_es_la_del_contrato`, en local: bien.
+- Cambios de contrato o de specs:
+  - `mqtt.md` 1.6, con su registro en `contratos/README.md` 1.11 y en `decisiones.md` 1.16;
+  - `requisitos.md` 1.8, `specs/README.md` 1.4, `arquitectura.md` 1.15 y `CLAUDE.md` 1.14.
+- Pendiente:
+  - P-05, el modelo de la placa, y con él, si es el de personas, `api-dispositivo.md` 1.3 y el endpoint del servidor que acepta el cuadro completo;
+  - para la sesión del firmware: los pines y el firmware de la ESP32-CAM, su README, el paso de la placa en la guía del día de clase, y lo del C6 en las tareas del Día 4 (A2);
+  - borrar a mano, en el broker, los config retenidos que publicó el C6 (Temperatura y Humedad).
 
 ## 2026-11-19 · D-23 · El plan B con el broker de la Pi
 

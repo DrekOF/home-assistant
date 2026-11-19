@@ -2,9 +2,9 @@
 Nombre: test_descubrimiento.py
 Descripción: Pruebas del descubrimiento de Home Assistant con Mosquitto en un contenedor: los config de mqtt.md, cuándo se publican (RF-07 · C1, también desde crear-camara) y la limpieza de los de cámaras que ya no existen, sin tocar los de la placa.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import json
@@ -33,7 +33,7 @@ def dispositivo(codigo: str, nombre: str) -> dict:
         "identifiers": [f"accesia_{codigo}"],
         "name": f"AccesIA {nombre}",
         "manufacturer": "Equipo AccesIA",
-        "model": "XIAO ESP32-C6",
+        "model": "ESP32-CAM",  # mqtt.md 1.6 (D-24)
         "sw_version": __version__,
     }
 
@@ -207,7 +207,7 @@ def test_al_conectarse_publica_el_de_todas_las_camaras(conexion: Connection, con
 
     for codigo in ("entrada", "salida"):
         config = escucha.esperar(f"homeassistant/sensor/accesia_{codigo}/ultima_persona/config").json()
-        assert config["device"]["model"] == "XIAO ESP32-C6"
+        assert config["device"]["model"] == "ESP32-CAM"
 
 
 @pytest.mark.marca("RF-07 · C1")
@@ -244,7 +244,7 @@ def test_al_crear_o_editar_una_camara_por_la_api_publica_la_suya(sesion: TestCli
 
     assert respuesta.status_code == 201, respuesta.text
     for tema, config in configs_de_la_camara("porteria", "Portería").items():
-        assert escucha.esperar(tema).json() == config  # model «XIAO ESP32-C6» también para un simulador
+        assert escucha.esperar(tema).json() == config  # model «ESP32-CAM» también para un simulador
     marcar(mqtt_servidor, escucha)
     assert configs_recibidos(escucha) == set(configs_de_la_camara("porteria", "Portería"))  # solo los suyos
 

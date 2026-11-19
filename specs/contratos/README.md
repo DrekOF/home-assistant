@@ -4,7 +4,7 @@ Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prue
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.10
+Versión: 1.11
 -->
 
 # Contratos
@@ -15,7 +15,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
-| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.5 | B | A (placa y simulador), C (Home Assistant) |
+| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.6 | B | A (placa y simulador), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.5 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
@@ -34,8 +34,20 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Servidor: cada respuesta y error de `api-dispositivo.md`, cada tema MQTT, cada herramienta del agente, el esquema migrado igual a `base-de-datos.sql` y las respuestas de la API validadas contra `openapi.yaml`.
 - Web: los tipos se generan desde `openapi.yaml`; si el contrato cambia y la web no, TypeScript no compila.
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
-- Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
+- Firmware: el mensaje Presencia y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · presencia` y `contrato MQTT · descubrimiento de la placa`). El del C6 lo hacía con Ambiente (`contrato MQTT · ambiente`), sin uso desde D-24.
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## `mqtt.md` 1.6 (2026-11-19)
+
+Por D-24: la cámara de la demo es una ESP32-CAM, con el modelo de visión en la placa, y la XIAO ESP32-C6 y su sensor DHT dejan de usarse.
+
+- Tema `accesia/{codigo}/presencia`, con el mensaje Presencia: el resultado del modelo de la placa (`presente` y `puntaje`). Sale cuando cambia y al conectarse, retenido y con QoS 1.
+- La placa publica su descubrimiento como `binary_sensor` (`occupancy`), en `homeassistant/binary_sensor/{codigo}/presencia/config`, para que se vea aunque el servidor esté apagado.
+- La ACL deja a la placa publicar la presencia y su descubrimiento, solo con su código.
+- El tema `ambiente` y los sensores Temperatura y Humedad quedan sin uso.
+- El modelo del dispositivo que publica el servidor pasa de «XIAO ESP32-C6» a «ESP32-CAM».
+- Solo agrega y cambia un texto que se muestra: ningún cliente cambia sus temas, sus mensajes ni sus llamadas, por eso es 1.6.
+- `api-dispositivo.md` no cambia todavía. Si la prueba de factibilidad (P-05) elige el modelo de personas, que no sabe dónde está la cara, hará falta la 1.3, para enviar el cuadro completo.
 
 ## `mqtt.md` 1.5 (2026-11-19)
 

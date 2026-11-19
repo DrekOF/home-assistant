@@ -4,12 +4,12 @@ Descripción: Contrato MQTT de AccesIA: temas, mensajes, descubrimiento de Home 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.5
+Versión: 1.6
 -->
 
-# Contrato MQTT · versión 1.5
+# Contrato MQTT · versión 1.6
 
-Lo cumplen el servidor (frente B), la placa y el simulador (frente A) y Home Assistant (frente C). En este contrato, «cámara» es el dispositivo de un punto de acceso, con su `{codigo}`: la placa (una XIAO ESP32-C6 en la demo, D-21) o el simulador.
+Lo cumplen el servidor (frente B), la placa y el simulador (frente A) y Home Assistant (frente C). En este contrato, «cámara» es el dispositivo de un punto de acceso, con su `{codigo}`: la placa (una ESP32-CAM en la demo, D-24; antes, una XIAO ESP32-C6, D-21) o el simulador.
 
 ## Broker
 
@@ -50,8 +50,12 @@ pattern write accesia/%c/puerta/estado
 pattern write accesia/%c/estado
 pattern write accesia/%c/disponible
 
-# La placa publica sus lecturas de ambiente y el descubrimiento de sus dos sensores (D-21).
+# La placa publica el resultado de su modelo y el descubrimiento de su sensor de presencia (D-24).
 # %c tiene que ocupar un nivel entero del tema: por eso el nodo del descubrimiento es el código.
+pattern write accesia/%c/presencia
+pattern write homeassistant/binary_sensor/%c/presencia/config
+
+# Sin uso desde D-24: las lecturas de ambiente y el descubrimiento de los dos sensores de la XIAO ESP32-C6 (D-21).
 pattern write accesia/%c/ambiente
 pattern write homeassistant/sensor/%c/temperatura/config
 pattern write homeassistant/sensor/%c/humedad/config
@@ -73,17 +77,19 @@ La línea `deny` impide que un cliente con el usuario `camara` y el client id `s
 | `accesia/resumen` | servidor | Home Assistant | JSON Resumen | 1 | Sí |
 | `accesia/{codigo}/disponible` | cámara (último deseo) | Home Assistant, servidor | `online` / `offline` | 1 | Sí |
 | `accesia/{codigo}/estado` | cámara | Home Assistant, servidor | JSON EstadoCamara, cada 60 s | 0 | Sí |
-| `accesia/{codigo}/ambiente` | placa | Home Assistant | JSON Ambiente, cada 30 s | 0 | Sí |
+| `accesia/{codigo}/presencia` | placa | Home Assistant | JSON Presencia, al cambiar y al conectarse | 1 | Sí |
+| `accesia/{codigo}/ambiente` | placa (sin uso desde D-24) | Home Assistant | JSON Ambiente, cada 30 s | 0 | Sí |
 | `accesia/{codigo}/puerta/set` | Home Assistant | cámara | `ABRIR` o `CERRAR` | 1 | No |
 | `accesia/{codigo}/puerta/estado` | cámara | Home Assistant | `abierta` / `cerrada` | 1 | Sí |
 | `homeassistant/status` | Home Assistant | servidor | `online` / `offline` | — | — |
-| `homeassistant/{componente}/{nodo}/{objeto}/config` | servidor; la placa, solo el de sus dos sensores de ambiente | Home Assistant | JSON de descubrimiento | 1 | Sí |
+| `homeassistant/{componente}/{nodo}/{objeto}/config` | servidor; la placa, solo el de su sensor de presencia (D-24) y, con el C6, el de sus dos sensores de ambiente | Home Assistant | JSON de descubrimiento | 1 | Sí |
 
 - Los eventos no son retenidos para que una automatización no se repita cuando Home Assistant se reinicia.
 - Una repetición de R4 de un `permitido` se publica en `accesia/{codigo}/evento` con `repetido: true`, para que la automatización abra la puerta otra vez. Una repetición de un `denegado` no se publica.
 - Al recibir `ABRIR`, la cámara mantiene la puerta abierta los segundos configurados (3 por defecto), publica `abierta` y luego `cerrada`. `CERRAR` la cierra antes.
-- Cada 30 s la placa lee su sensor y publica `ambiente`. Si una lectura falla, no publica; a la tercera falla seguida publica `null` en los dos campos, y Home Assistant los muestra como desconocidos. Con la primera lectura buena vuelve a publicar los valores.
-- El servidor publica el descubrimiento al arrancar, cuando Home Assistant publica `online` en `homeassistant/status` y cuando se crea o cambia una cámara. La placa publica el de sus dos sensores de ambiente cada vez que se conecta al broker (ver «Entidades que publica la placa»).
+- La placa publica `presencia` cada vez que cambia el resultado de su modelo y cada vez que se conecta al broker, retenido, para que Home Assistant tenga el último estado aunque se reinicie. Para no parpadear, el firmware decide cuándo vuelve a `false` y lo anota en `firmware/README.md`.
+- Con el C6 (sin uso desde D-24), cada 30 s la placa lee su sensor y publica `ambiente`. Si una lectura falla, no publica; a la tercera falla seguida publica `null` en los dos campos, y Home Assistant los muestra como desconocidos. Con la primera lectura buena vuelve a publicar los valores.
+- El servidor publica el descubrimiento al arrancar, cuando Home Assistant publica `online` en `homeassistant/status` y cuando se crea o cambia una cámara. La placa publica el de su sensor de presencia (con el C6, el de sus dos sensores de ambiente) cada vez que se conecta al broker (ver «Entidades que publica la placa»).
 - Cada vez que se conecta al broker, el servidor borra con un mensaje vacío retenido los config que publicó (nodo `accesia_{codigo}`) para cámaras que ya no existen en la base, para que Home Assistant no muestre sus dispositivos. Nunca toca los de la placa (nodo `{codigo}`): esos se borran a mano, como se muestra en «Pruebas».
 - El servidor publica el resumen al arrancar, después de cada evento guardado, después de cada llegada registrada a mano (RF-06 · C5) y cada 5 minutos (así cambia de día a medianoche).
 
@@ -130,7 +136,13 @@ Resumen:
 }
 ```
 
-Ambiente (D-21): la temperatura en °C y la humedad relativa en %, con un decimal. La placa no tiene hora, por eso no la envía.
+Presencia (D-24): el resultado del modelo de la placa. `presente` dice si el modelo ve a alguien: una cara o una persona, según el modelo que se elija (P-05). `puntaje` es el del modelo, de 0 a 1, como la cabecera `X-AccesIA-Puntaje` de `api-dispositivo.md`, y `null` cuando no ve a nadie. La placa no tiene hora, por eso no la envía.
+
+```json
+{ "presente": true, "puntaje": 0.93 }
+```
+
+Ambiente (D-21, sin uso desde D-24): la temperatura en °C y la humedad relativa en %, con un decimal. La placa no tiene hora, por eso no la envía.
 
 ```json
 { "temperatura": 24.6, "humedad": 58.0 }
@@ -142,9 +154,9 @@ Tras 3 lecturas fallidas seguidas:
 { "temperatura": null, "humedad": null }
 ```
 
-EstadoCamara (la cámara puede no tener hora, por eso no la envía). `firmware` es el mismo texto de la cabecera `X-AccesIA-Firmware` de `api-dispositivo.md`. El simulador no envía `perfil`, `rssi`, `psram_kb` ni `libre_kb`. La XIAO ESP32-C6 no envía `psram_kb`, porque no tiene PSRAM, y suma dos campos opcionales: `sensor` (`dht22` o `dht11`) y `antena` (`interna` o `externa`).
+EstadoCamara (la cámara puede no tener hora, por eso no la envía). `firmware` es el mismo texto de la cabecera `X-AccesIA-Firmware` de `api-dispositivo.md`. El simulador no envía `perfil`, `rssi`, `psram_kb` ni `libre_kb`. La XIAO ESP32-C6 (sin uso desde D-24) no envía `psram_kb`, porque no tiene PSRAM, y suma dos campos opcionales: `sensor` (`dht22` o `dht11`) y `antena` (`interna` o `externa`).
 
-De la XIAO ESP32-C6:
+De la XIAO ESP32-C6 (sin uso desde D-24):
 
 ```json
 { "perfil": "xiao_esp32c6", "firmware": "tinyml-xiao_esp32c6-1.0.0", "ip": "192.168.137.23", "rssi": -52, "libre_kb": 210, "sensor": "dht22", "antena": "interna", "segundos_encendida": 5321 }
@@ -196,7 +208,7 @@ Ejemplo completo, «Última persona» de la cámara `entrada`, en `homeassistant
     "identifiers": ["accesia_entrada"],
     "name": "AccesIA Entrada",
     "manufacturer": "Equipo AccesIA",
-    "model": "XIAO ESP32-C6",
+    "model": "ESP32-CAM",
     "sw_version": "1.0.0"
   },
   "origin": { "name": "AccesIA servidor", "sw_version": "1.0.0" }
@@ -212,21 +224,41 @@ Otros campos que cambian por entidad:
 - Cámara en línea y Servidor en línea: `"payload_on": "online"`, `"payload_off": "offline"`, `"device_class": "connectivity"`.
 - Sensores del resumen: `"value_template": "{{ value_json.asistentes }}"` (o `tarde`, `desconocidos_hoy`), `"unit_of_measurement": "personas"`, `"state_class": "measurement"`.
 
-### Entidades que publica la placa (D-21)
+### Entidades que publica la placa (D-21 y D-24)
 
-La placa publica el descubrimiento de sus dos sensores de ambiente, para que se vean en Home Assistant aunque el servidor esté apagado. Quedan en el mismo dispositivo de la cámara, porque Home Assistant agrupa por `device.identifiers`.
+La placa publica el descubrimiento de su sensor de presencia (D-24), para que se vea en Home Assistant aunque el servidor esté apagado. Los dos sensores de ambiente de la XIAO ESP32-C6 (D-21) quedan sin uso. Quedan en el mismo dispositivo de la cámara, porque Home Assistant agrupa por `device.identifiers`.
 
 | Entidad | Componente | `default_entity_id` | Estado desde | Disponibilidad |
 | --- | --- | --- | --- | --- |
-| Temperatura | `sensor` (`temperature`, °C) | `sensor.accesia_{codigo}_temperatura` | `accesia/{codigo}/ambiente` → `temperatura` | cámara |
-| Humedad | `sensor` (`humidity`, %) | `sensor.accesia_{codigo}_humedad` | `accesia/{codigo}/ambiente` → `humedad` | cámara |
+| Presencia | `binary_sensor` (`occupancy`) | `binary_sensor.accesia_{codigo}_presencia` | `accesia/{codigo}/presencia` → `presente` | cámara |
+| Temperatura (sin uso desde D-24) | `sensor` (`temperature`, °C) | `sensor.accesia_{codigo}_temperatura` | `accesia/{codigo}/ambiente` → `temperatura` | cámara |
+| Humedad (sin uso desde D-24) | `sensor` (`humidity`, %) | `sensor.accesia_{codigo}_humedad` | `accesia/{codigo}/ambiente` → `humedad` | cámara |
 
-- Temas: `homeassistant/sensor/{codigo}/temperatura/config` y `homeassistant/sensor/{codigo}/humedad/config`. El nodo es el código tal cual, y no `accesia_{codigo}` como en los temas del servidor, porque la ACL usa `%c` y Mosquitto exige que ocupe un nivel entero del tema.
+- Temas: `homeassistant/binary_sensor/{codigo}/presencia/config` y, con el C6, `homeassistant/sensor/{codigo}/temperatura/config` y `homeassistant/sensor/{codigo}/humedad/config`. El nodo es el código tal cual, y no `accesia_{codigo}` como en los temas del servidor, porque la ACL usa `%c` y Mosquitto exige que ocupe un nivel entero del tema.
 - `device` lleva solo `identifiers` (`accesia_{codigo}`). El nombre, el fabricante y el modelo del dispositivo los pone el servidor, y la placa no los pisa.
 - `unique_id` y `default_entity_id` llevan el código con los guiones pasados a guion bajo, como las demás entidades.
-- La placa publica los dos config, retenidos, cada vez que se conecta al broker. Antes de cambiar de código (comando `codigo`), borra los suyos con un mensaje vacío retenido, porque con el código nuevo la ACL ya no la deja. La API no borra cámaras: si una placa se retira, sus dos config se borran a mano, como se muestra en «Pruebas». Los config del servidor de una cámara que ya no está en la base los borra el servidor al conectarse.
+- La placa publica sus config, retenidos, cada vez que se conecta al broker. Antes de cambiar de código (comando `codigo`), borra los suyos con un mensaje vacío retenido, porque con el código nuevo la ACL ya no la deja. La API no borra cámaras: si una placa se retira, sus config se borran a mano, como se muestra en «Pruebas». Los config del servidor de una cámara que ya no está en la base los borra el servidor al conectarse.
 
-Ejemplo completo, «Temperatura» de la cámara `entrada`, en `homeassistant/sensor/entrada/temperatura/config`:
+Ejemplo completo, «Presencia» de la cámara `entrada`, en `homeassistant/binary_sensor/entrada/presencia/config`:
+
+```json
+{
+  "name": "Presencia",
+  "unique_id": "accesia_entrada_presencia",
+  "default_entity_id": "binary_sensor.accesia_entrada_presencia",
+  "state_topic": "accesia/entrada/presencia",
+  "value_template": "{{ 'ON' if value_json.presente else 'OFF' }}",
+  "json_attributes_topic": "accesia/entrada/presencia",
+  "device_class": "occupancy",
+  "availability_topic": "accesia/entrada/disponible",
+  "device": { "identifiers": ["accesia_entrada"] },
+  "origin": { "name": "AccesIA firmware", "sw_version": "1.0.0" }
+}
+```
+
+Con `json_attributes_topic`, el puntaje se ve como atributo de la entidad.
+
+Ejemplo de la XIAO ESP32-C6 (sin uso desde D-24), «Temperatura» de la cámara `entrada`, en `homeassistant/sensor/entrada/temperatura/config`:
 
 ```json
 {
@@ -295,8 +327,8 @@ Home Assistant no deja editar desde la interfaz las automatizaciones de ese arch
 ## Pruebas
 
 - El servidor prueba que publica cada mensaje con su tema, QoS y retención (marca `contrato MQTT · <tema>`), que un `permitido` repetido se publica con `repetido: true` y un `denegado` repetido no (`contrato MQTT · repetido`), y que borra los config de cámaras que ya no existen sin tocar los de la placa (`contrato MQTT · limpieza del descubrimiento`).
-- El firmware prueba, sin placa, que arma el mensaje Ambiente y los dos config de su descubrimiento como en este contrato (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
-- La prueba `contrato MQTT · acl` del servidor comprueba que la placa puede publicar en sus tres temas nuevos y no en los de otro código. Desde la B4 del Día 4, `infra/mosquitto/acl` es la ACL de este contrato, y la prueba también revisa que tenga sus mismas reglas: `homeassistant` y `addons` leen y escriben en todos los temas.
+- El firmware prueba, sin placa, que arma el mensaje Presencia y el config de su descubrimiento como en este contrato (marcas `contrato MQTT · presencia` y `contrato MQTT · descubrimiento de la placa`). El del C6 lo hacía con Ambiente (`contrato MQTT · ambiente`).
+- La prueba `contrato MQTT · acl` del servidor comprueba que la placa puede publicar en sus temas (la presencia y su descubrimiento, y los de ambiente del C6) y no en los de otro código. Desde la B4 del Día 4, `infra/mosquitto/acl` es la ACL de este contrato, y la prueba también revisa que tenga sus mismas reglas: `homeassistant` y `addons` leen y escriben en todos los temas.
 - Para mirar el tráfico:
 
 ```powershell

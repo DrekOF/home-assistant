@@ -1,9 +1,9 @@
 # Nombre: acl
-# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.4). Es la misma en el portátil y en la Pi, donde va en /share/mosquitto/accesscontrollist (D-22).
+# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.6). Es la misma en el portátil y en la Pi, donde va en /share/mosquitto/accesscontrollist (D-22).
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-18
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.2
+# Versión: 1.3
 #
 # La comprueba la prueba «contrato MQTT · acl» (servidor/pruebas/test_mqtt_acl.py).
 
@@ -29,8 +29,12 @@ pattern write accesia/%c/puerta/estado
 pattern write accesia/%c/estado
 pattern write accesia/%c/disponible
 
-# La placa publica sus lecturas de ambiente y el descubrimiento de sus dos sensores (D-21).
+# La placa publica el resultado de su modelo y el descubrimiento de su sensor de presencia (D-24).
 # %c tiene que ocupar un nivel entero del tema: por eso el nodo del descubrimiento es el código.
+pattern write accesia/%c/presencia
+pattern write homeassistant/binary_sensor/%c/presencia/config
+
+# Sin uso desde D-24: las lecturas de ambiente y el descubrimiento de los dos sensores de la XIAO ESP32-C6 (D-21).
 pattern write accesia/%c/ambiente
 pattern write homeassistant/sensor/%c/temperatura/config
 pattern write homeassistant/sensor/%c/humedad/config

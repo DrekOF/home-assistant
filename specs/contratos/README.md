@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Índice de los contratos de AccesIA, cómo cambian y cómo se prueban.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-13
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.9
+Versión: 1.10
 -->
 
 # Contratos
@@ -15,7 +15,7 @@ Son el acuerdo entre frentes: con ellos cada uno trabaja por su lado sin pisar a
 | --- | --- | --- | --- | --- |
 | Cámara → servidor | [api-dispositivo.md](api-dispositivo.md) y sus casos del recorte, [casos-recorte.json](casos-recorte.json) | 1.2 | B | A (firmware y simulador) |
 | API REST | [openapi.yaml](openapi.yaml) | 1.4 | B | C (web), A (simulador) |
-| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.4 | B | A (placa y simulador), C (Home Assistant) |
+| MQTT y Home Assistant | [mqtt.md](mqtt.md) | 1.5 | B | A (placa y simulador), C (Home Assistant) |
 | Agente (MCP) | [mcp-agente.md](mcp-agente.md) | 1.5 | B | C (Home Assistant) |
 | Base de datos | [base-de-datos.sql](base-de-datos.sql) | 1.2 | B | B (servidor y MCP) |
 
@@ -36,6 +36,14 @@ Cada contrato tiene pruebas con la marca `contrato <nombre> · <caso>`:
 - Firmware y simulador: los casos de `casos-recorte.json` (marca `contrato recorte · <caso>`).
 - Firmware: el mensaje Ambiente y el descubrimiento de la placa, sin placa (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
 - Simulador: un modo que envía las fotos de `datos/prueba/` y compara las respuestas.
+
+## `mqtt.md` 1.5 (2026-11-19)
+
+Por D-23: en el plan B (escenario 2), el broker sigue siendo el Mosquitto oficial de la Pi, y el servidor del portátil se conecta a él con el usuario `servidor`. Home Assistant y la placa no cambian.
+
+- Solo cambia dónde está el broker en el plan B. Los temas, los mensajes, los usuarios y la ACL no cambian, por eso es 1.5.
+- El servidor del portátil lo hace con `infra/compose.broker-pi.yaml`, que le cambia `MQTT_URL` y no arranca el Mosquitto del Compose.
+- Si la Pi no tiene Mosquitto, el broker vuelve al portátil, como en la 1.4.
 
 ## `mcp-agente.md` 1.5 (2026-11-13)
 

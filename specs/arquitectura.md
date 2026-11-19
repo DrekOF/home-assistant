@@ -2,9 +2,9 @@
 Nombre: arquitectura.md
 Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, firmware y despliegue.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.13
+Versión: 1.14
 -->
 
 # Arquitectura
@@ -194,7 +194,7 @@ Desde D-22, Compose es para desarrollar en el portátil y para el plan B; en la 
 - La imagen del servidor se construye con la raíz del repositorio como contexto, para copiar `specs/contratos/base-de-datos.sql` y el texto de `specs/consentimiento.md`, y para compilar la web (`web/`) sin el simulacro. El servidor sirve la web en la raíz del mismo puerto 8000 (D-04), y `/api` no cambia. Un `.dockerignore` en la raíz deja fuera `datos/`, `kit/`, `node_modules/` y lo que la web compila o genera en el PC, como `web/dist/`.
 - El servidor corre con un solo proceso de Uvicorn: la hora de la última alerta de R6, el control del 429 y la conexión MQTT viven en memoria, y con varios procesos cada uno contaría por su lado.
 - Las versiones exactas de las imágenes se fijan el Día 4, antes de armar el kit.
-- Escenario 2 (Home Assistant OS en la Raspberry y el resto en el portátil), plan B desde D-22: `infra/compose.escenario2.yaml` quita `homeassistant` y publica `mcp` (8001) en la red del portátil, para que la Raspberry lo alcance. Ollama sigue en la Pi, salvo el caso de abajo. Solo se usa en el hotspot del portátil o en otra red propia, y es una excepción a D-16 y D-19. Lo crea la C2 del Día 3.
+- Escenario 2 (Home Assistant OS, Mosquitto y Ollama en la Raspberry, y la base, el servidor y el MCP en el portátil), plan B desde D-22: `infra/compose.escenario2.yaml` publica `mcp` (8001) en la red del portátil, para que la Raspberry lo alcance; lo crea la C2 del Día 3. `infra/compose.broker-pi.yaml` conecta el servidor al Mosquitto de la Pi, en `IP_DE_LA_PI`, y no arranca el del Compose (D-23). Ollama sigue en la Pi, salvo el caso de abajo. Solo se usa en el hotspot del portátil o en otra red propia, y es una excepción a D-16 y D-19. Si la Pi no tiene Mosquitto, se usa sin `compose.broker-pi.yaml`, con el broker del portátil.
 - Ollama en el portátil (RNF-03 · C3), solo con el visto bueno del profesor (D-22): `infra/compose.ollama-portatil.yaml` levanta solo `ollama` en el portátil y publica el 11434 en la red propia; Home Assistant sigue en la Raspberry. Lo crea la tarea del kit del Día 4. Es otra excepción a D-19.
 - El servicio `mcp` no recibe `infra/.env`: Compose le arma `DATABASE_URL` con el usuario `agente` y `AGENTE_DB_PASSWORD`, y le pasa `ZONA_HORARIA` y `MCP_HOSTS_PERMITIDOS`. Así nunca tiene la clave del dueño de la base (D-15).
 
@@ -228,6 +228,7 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 | `ZONA_HORARIA` | `America/Bogota` | R8 |
 | `OLLAMA_MODELO` | `qwen2.5:3b` | Modelo que se descarga para el agente en Compose (D-06). En la Pi, el modelo depende de su RAM (D-22) |
 | `MCP_HOSTS_PERMITIDOS` | `192.168.137.1:8001` | Encabezados `Host` que acepta el servidor MCP además de `mcp:8001`, separados por comas. En el escenario 2 (plan B de D-22), la IP del portátil en el hotspot. Si falta, Compose usa `192.168.137.1:8001`. En la Pi, el complemento la pone en `local-accesia-servidor:8001` |
+| `IP_DE_LA_PI` | `192.168.137.250` | La IP de la Pi en el hotspot, solo para `compose.broker-pi.yaml` (plan B, D-23): el servidor del portátil usa el Mosquitto de esa IP. Si falta, Compose usa `192.168.137.250` |
 
 ## Firmware
 
@@ -326,14 +327,14 @@ Sus binarios auxiliares, `diagnostico` (chip, flash, PSRAM y sensor de cualquier
 
 - Red de la demo: el hotspot de Windows del portátil, en 2,4 GHz, porque el C6 no usa 5 GHz (D-21). El portátil queda en una IP que no cambia, que suele ser `192.168.137.1`.
 - La Pi tiene una IP fija en esa red, que se le pone en la configuración de red de Home Assistant OS: por ejemplo `192.168.137.250`, a confirmar en clase (D-22). La placa y el simulador apuntan a `http://<IP de la Pi>:8000` y a `mqtt://<IP de la Pi>:1883`.
-- En la demo, los puertos que se usan son los de la Pi: el 8000 (API y web) y el 1883 (MQTT). El firewall del portátil solo cuenta en el plan B (escenario 2): ahí deja entrar desde `192.168.137.0/24` el 1883 y el 8001 (`mcp`), el 8000 cuando la placa envíe recortes, y el 11434 solo si Ollama va al portátil.
+- En la demo, los puertos que se usan son los de la Pi: el 8000 (API y web) y el 1883 (MQTT). El firewall del portátil solo cuenta en el plan B (escenario 2): ahí deja entrar desde `192.168.137.0/24` el 8001 (`mcp`), el 8000 cuando la placa envíe recortes, el 1883 solo si el broker vuelve al portátil (D-23) y el 11434 solo si Ollama va al portátil.
 - Escenario 1 (plan C): la Raspberry crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg` en NetworkManager) y queda en `10.42.0.1`.
 - Plan B de red: la red del salón o el hotspot de un celular; la placa se reconfigura por consola serial.
 
 | Escenario | Qué trae la Raspberry | Dónde corre cada cosa | Papel |
 | --- | --- | --- | --- |
 | Demo (D-22) | Home Assistant OS | Todo en la Raspberry, como complementos de Home Assistant OS | La demo |
-| 2 | Home Assistant OS | Home Assistant y Ollama en la Raspberry; la base, el servidor y Mosquitto en un portátil con `compose.escenario2.yaml` (D-21) | Plan B |
+| 2 | Home Assistant OS | Home Assistant, Mosquitto y Ollama en la Raspberry; la base, el servidor y el MCP en un portátil con `compose.escenario2.yaml` y `compose.broker-pi.yaml` (D-23) | Plan B |
 | 1 | Raspberry Pi OS | Todo en la Raspberry con `infra/compose.yaml` | Plan C |
 | 3 | Nada | Raspberry Pi OS en una memoria USB y se sigue como en el escenario 1. Pi 5: arranca desde USB sin configurar nada; Pi 4: solo si su bootloader ya lo permite | Plan C |
 

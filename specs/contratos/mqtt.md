@@ -2,12 +2,12 @@
 Nombre: mqtt.md
 Descripción: Contrato MQTT de AccesIA: temas, mensajes, descubrimiento de Home Assistant y automatizaciones.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
-# Contrato MQTT · versión 1.4
+# Contrato MQTT · versión 1.5
 
 Lo cumplen el servidor (frente B), la placa y el simulador (frente A) y Home Assistant (frente C). En este contrato, «cámara» es el dispositivo de un punto de acceso, con su `{codigo}`: la placa (una XIAO ESP32-C6 en la demo, D-21) o el simulador.
 
@@ -15,7 +15,8 @@ Lo cumplen el servidor (frente B), la placa y el simulador (frente A) y Home Ass
 
 - Mosquitto 2 en el puerto 1883, sin acceso anónimo.
 - En la demo (D-22) es el complemento oficial de Mosquitto de Home Assistant OS, en la Pi. La placa y el simulador lo usan en la IP fija de la Pi, y Home Assistant se conecta solo, con su usuario `homeassistant`.
-- En el portátil, para desarrollar y en el plan B (escenario 2), es el Mosquitto de Compose, en la IP del hotspot de Windows (suele ser `192.168.137.1`). Home Assistant OS se conecta a él con el usuario `homeassistant` y su clave de `infra/.env`.
+- En el plan B (escenario 2, D-23) sigue siendo el de la Pi. El servidor del portátil se conecta a él con el usuario `servidor`, y Home Assistant y la placa no cambian.
+- En el portátil, para desarrollar, es el Mosquitto de Compose, en la IP del hotspot de Windows (suele ser `192.168.137.1`). Home Assistant OS se conecta a él, con el usuario `homeassistant` y su clave de `infra/.env`, solo si la Pi no tiene Mosquitto (D-23).
 - Usuarios:
   - `servidor` y `camara` (la usan las cámaras y el simulador), con claves en `infra/.env`. En la Pi van en los `logins` del complemento, con las mismas claves;
   - `homeassistant`, que es Home Assistant. En la Pi lo registra Home Assistant OS; en el portátil, su clave está en `infra/.env`;
@@ -295,7 +296,7 @@ Home Assistant no deja editar desde la interfaz las automatizaciones de ese arch
 
 - El servidor prueba que publica cada mensaje con su tema, QoS y retención (marca `contrato MQTT · <tema>`), que un `permitido` repetido se publica con `repetido: true` y un `denegado` repetido no (`contrato MQTT · repetido`), y que borra los config de cámaras que ya no existen sin tocar los de la placa (`contrato MQTT · limpieza del descubrimiento`).
 - El firmware prueba, sin placa, que arma el mensaje Ambiente y los dos config de su descubrimiento como en este contrato (marcas `contrato MQTT · ambiente` y `contrato MQTT · descubrimiento de la placa`).
-- La prueba `contrato MQTT · acl` del servidor comprueba que la placa puede publicar en sus tres temas nuevos y no en los de otro código. Con la versión 1.4, `infra/mosquitto/acl` y esta prueba se ponen al día aparte, con los complementos (B4 del Día 4): `homeassistant` y `addons` leen y escriben en todos los temas.
+- La prueba `contrato MQTT · acl` del servidor comprueba que la placa puede publicar en sus tres temas nuevos y no en los de otro código. Desde la B4 del Día 4, `infra/mosquitto/acl` es la ACL de este contrato, y la prueba también revisa que tenga sus mismas reglas: `homeassistant` y `addons` leen y escriben en todos los temas.
 - Para mirar el tráfico:
 
 ```powershell

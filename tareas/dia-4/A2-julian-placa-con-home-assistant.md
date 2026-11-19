@@ -1,10 +1,10 @@
 <!--
 Nombre: A2-julian-placa-con-home-assistant.md
-Descripción: Tarea A2 del Día 4 del frente A: la XIAO ESP32-C6 con Home Assistant OS y el broker de la Pi (D-22), o el del portátil en el escenario 2 (RF-14 · C2 a C6), la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
+Descripción: Tarea A2 del Día 4 del frente A: la XIAO ESP32-C6 con Home Assistant OS y el broker de la Pi (D-22), también en el escenario 2 (D-23) (RF-14 · C2 a C6), la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-13
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Día 4 · Frente A · A2 · La placa con Home Assistant
@@ -13,7 +13,7 @@ Versión: 1.1
 - Rama: `a/placa-home-assistant`
 - Depende de:
   - la placa y la Pi. Si solo están en clase, A2 se hace en clase (00);
-  - C2 del Día 3 y B4 en `main`: Home Assistant OS en la Pi con el Mosquitto oficial y su ACL, y el servidor como complemento (D-22). Si para la clase no alcanzan, se usa el escenario 2: el broker y el servidor del Compose del portátil;
+  - C2 del Día 3 y B4 en `main`: Home Assistant OS en la Pi con el Mosquitto oficial y su ACL, y el servidor como complemento (D-22). Si para la clase no alcanzan, se usa el escenario 2: el servidor del Compose del portátil, con el broker de la Pi (D-23);
   - el Hito 2, que es la primera vez que se ven juntas la placa y Home Assistant;
   - para el binario del kit, A3 en `main`, con la IP de la Pi en los valores de fábrica.
 - Lee primero:
@@ -27,7 +27,7 @@ Versión: 1.1
 
 ## Objetivo
 
-La placa, con el firmware de `main`, funciona con Home Assistant OS y el broker de la Pi (D-22), o el del portátil si se usa el escenario 2:
+La placa, con el firmware de `main`, funciona con Home Assistant OS y el broker de la Pi (D-22), que en el escenario 2 sigue siendo el mismo (D-23):
 
 - la puerta;
 - su estado y su disponibilidad;

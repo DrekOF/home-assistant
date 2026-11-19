@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.26
+Versión: 1.27
 -->
 
 # Bitácora
@@ -23,49 +23,102 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Pendiente:
 ```
 
+## 2026-11-19 · D-23 · El plan B con el broker de la Pi
+
+- Quién: el frente B, dueño de los contratos, a pedido del equipo, que aceptó el cambio la noche antes de la clase. La corrió la sesión de la C2 del Día 3.
+- Qué:
+  - **D-23** en `specs/decisiones.md`, con lo que cambia en D-21, D-22 y D-16 · D-19:
+    - en el escenario 2, Home Assistant OS, el Mosquitto oficial y Ollama siguen en la Pi, y la base, el servidor y el MCP corren en el portátil;
+    - el servidor del portátil se conecta al Mosquitto de la Pi con su usuario `servidor`, y Home Assistant y la placa no se tocan;
+    - si la Pi no tiene Mosquitto, el broker vuelve al portátil.
+  - **`contratos/mqtt.md` 1.5:** cambia solo dónde está el broker en el plan B. Los temas, los mensajes, los usuarios y la ACL no cambian.
+  - **`infra/compose.broker-pi.yaml`:**
+    - le cambia al servidor el `MQTT_URL` por `mqtt://servidor:…@${IP_DE_LA_PI}:1883`, por defecto `192.168.137.250`;
+    - lo deja esperando solo a la base;
+    - no arranca el Mosquitto del Compose, que queda en el perfil `broker-portatil`.
+
+    Se usa con `compose.yaml` y con `compose.escenario2.yaml`, de la C2.
+  - **Lo demás:**
+    - `arquitectura.md` 1.14 (Compose, `IP_DE_LA_PI`, firewall y escenarios);
+    - `contratos/README.md` 1.10;
+    - `infra/.env.example` 1.2;
+    - la A2 del Día 4 1.2.
+- Cómo:
+  - **De dónde sale:** al escribir la guía de la clase, la C2 encontró que lo pedido, el Compose del portátil conectado al broker de la Pi, no estaba en las specs: `mqtt.md` 1.4 ponía el broker del plan B en el portátil. Se detuvo y lo propuso. El equipo lo aceptó el 2026-11-19, y pidió anotarlo en `decisiones.md` y `mqtt.md` y sumar su archivo de Compose.
+  - **La rama:** va en `b/plan-b-broker-pi`, porque `contratos/README.md` pide el prefijo `b/` para los cambios de contrato. La C2 (PR #23) la trae para su guía.
+  - **Lo que se decidió:**
+    - el caso sin Mosquitto en la Pi sigue como antes, con el broker del portátil, porque sin internet tampoco se puede instalar el complemento oficial;
+    - `IP_DE_LA_PI` sigue el patrón de `MCP_HOSTS_PERMITIDOS`: un valor por defecto en Compose y su línea en `.env.example`;
+    - el servidor espera solo a la base (`depends_on: !override`), y el Mosquitto del Compose no arranca porque queda en un perfil.
+  - **El método con IA:** Claude Code escribió la decisión, el contrato y el archivo de Compose, y los probó en el portátil. El equipo revisa el PR.
+- Pruebas, en el portátil y sin la Pi:
+  - **`config`:** `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml config`:
+    - los servicios son `postgres`, `servidor` y `mcp`;
+    - el `MQTT_URL` apunta a `192.168.137.250:1883`;
+    - el servidor espera solo a `postgres`;
+    - `mcp` publica el 8001.
+  - **Con todo arriba:** los tres archivos, en un proyecto de prueba con su propia base, y un Mosquitto aparte con la ACL y las claves del repositorio, que hacía de broker de la Pi (`IP_DE_LA_PI=host.docker.internal`):
+    - los tres servicios quedaron sanos, y el Mosquitto del Compose no se creó;
+    - la salud respondió `"mqtt":"ok"`, y el registro dijo `MQTT: conectado a host.docker.internal:1883 como servidor.`;
+    - en ese broker quedaron retenidos `accesia/servidor/disponible` (`online`) y el resumen;
+    - el `initialize` del MCP en el 8001 respondió 200 con el `Host` `192.168.137.1:8001`, y 421 con otro.
+  - **Al terminar:** se borraron el proyecto de prueba, su volumen y el broker. El Compose de la carpeta principal volvió a quedar sano, con sus datos.
+- Cambios de contrato o de specs: D-23, `mqtt.md` 1.5, `contratos/README.md` 1.10, `arquitectura.md` 1.14 y la A2 del Día 4 1.2.
+- Pendiente:
+  - probarlo una vez con la Pi en clase (C2, paso 5);
+  - si la Pi queda en otra IP, anotarla en `arquitectura.md` (P-04) y ponerla en `IP_DE_LA_PI`.
+
 ## 2026-11-18 · Día 3 · Tarea C2 · Home Assistant OS sin esperar a la B4
 
-- Quién: el frente C. La corrió la sesión de la tarea C del Día 2, la noche antes de la clase. El equipo pidió seguir sin esperar la aprobación del plan, que quedó en la descripción del PR.
-- Qué (la parte de la C2 que no espera a la B4, más el kit de Ollama y la guía):
+- Quién: el frente C. La corrió la sesión de la tarea C del Día 2, la noche antes de la clase, del 18 al 19 de noviembre. El equipo pidió seguir sin esperar la aprobación del plan, que quedó en la descripción del PR.
+- Qué (la parte de la C2 que no espera a la B4, más el kit y la guía):
   - **`homeassistant/config/`:**
     - `automatizaciones_accesia.yaml`, con el contenido exacto de `contratos/mqtt.md` (comprobado con `diff`);
     - `configuration.yaml`, el de fábrica, con las dos líneas del contrato y el panel;
     - `porteria.yaml`, el panel «Portería» de RF-07 · C4 con las entidades de `mqtt.md`.
-  - **Mosquitto:** `homeassistant/mosquitto/acl.conf`, y cómo se copia la ACL al complemento oficial de Mosquitto, con sus `logins`.
+  - **Mosquitto:** `homeassistant/mosquitto/acl.conf`, y cómo se copia `infra/mosquitto/acl` al complemento oficial de Mosquitto, con sus `logins`.
   - **Ollama:** el complemento de SirUli con `OLLAMA_FLASH_ATTENTION=1`, el 11434 desactivado y los modelos en `/share/ollama`.
   - **La prueba de las automatizaciones:** `homeassistant/scripts/probar-automatizaciones.ps1` y `homeassistant/pruebas/`, que las prueban sin el servidor con el Evento y la Alerta del contrato.
-  - **El plan B:** `infra/compose.escenario2.yaml`, que publica `mcp` en el 8001.
-  - **`kit/ollama/`,** fuera de Git y de 2,8 GB: `qwen2.5:1.5b` y `qwen2.5:3b`, con la estructura de `OLLAMA_MODELS`.
+  - **El plan B:** `infra/compose.escenario2.yaml`, que publica `mcp` en el 8001. Con la D-23 se usa junto con `compose.broker-pi.yaml`, y el servidor del portátil usa el broker de la Pi.
+  - **El kit de la clase,** en `kit\` de la carpeta principal y fuera de Git:
+    - `kit\ollama`, de 2,8 GB: `qwen2.5:1.5b` y `qwen2.5:3b`, con la estructura de `OLLAMA_MODELS`;
+    - `kit\firmware`, de la A3;
+    - `kit\complementos`, vuelto a armar desde `main`.
+  - **La base del Compose del portátil,** limpia para la clase: solo el administrador, la cámara `entrada` y el horario «Clase IA» con sus cinco bloques. Se borraron la persona del Hito 1, con sus cuatro eventos, su consentimiento, sus inscripciones y su llegada, y después los 11 desconocidos del hito.
   - **La documentación:**
-    - `docs/guia-dia-de-clase.md` 2.0, con los nueve pasos de la clase y lo que se debe ver en cada uno;
-    - `homeassistant/README.md` 2.0, `infra/README.md` 1.8 (el plan B) y `CLAUDE.md` 1.11 (dos comandos).
+    - `docs/guia-dia-de-clase.md` 2.1, con los nueve pasos de la clase y lo que se debe ver en cada uno, unida con lo que sumaron la A3, la B4 y la B2 del Día 4;
+    - `homeassistant/README.md` 2.1, `infra/README.md` 1.10 (el plan B) y `CLAUDE.md` 1.14 (dos comandos).
 - Cómo:
   - **Lo que se leyó:** Claude Code leyó la C2 1.2, D-22 con «Cómo se aplica», `arquitectura.md` (complementos, red y cámara), `mqtt.md` 1.4 y `mcp-agente.md`.
   - **El complemento de Ollama:** leyó su `config.yaml` en GitHub.
     - Encontró `OLLAMA_MODELS: /share/ollama`, `HOME: /data`, el 11434 publicado por defecto, `backup_exclude: ollama/**` y los valores de fábrica que dice `arquitectura.md`.
     - Por eso el kit lleva `blobs/` y `manifests/` en su raíz y no lleva la llave de Ollama.
-  - **El kit:** el 1.5b se copió del volumen `ollama-cache` de la sesión 1, y el 3b se bajó con `ollama pull` (1,9 GB en 35 s). Los dos se probaron con la imagen del complemento (`ollama/ollama:0.40.16`) y sus opciones: responden, con flash attention y la caché `q8_0`.
+  - **El kit de Ollama:** el 1.5b se copió del volumen `ollama-cache` de la sesión 1, y el 3b se bajó con `ollama pull` (1,9 GB en 35 s). Los dos se probaron con la imagen del complemento (`ollama/ollama:0.40.16`) y sus opciones: responden, con flash attention y la caché `q8_0`.
+  - **El resto del kit:**
+    - `kit\firmware\c6\origen.txt` dice el commit 9d161cb, el último que cambió `firmware/` en `main`, y su `flashear.ps1` es igual al del repositorio;
+    - `kit\complementos` se había armado a las 22:09, antes de fusionar el PR #25 (22:24), y le faltaba el modo extraer: `servidor\accesia` no tenía `extraer.py`, y `main.py` y `vision.py` eran otros. Se volvió a armar con `.\scripts\empaquetar-complementos.ps1` y quedó igual a `servidor/accesia` de `main`.
   - **Las comprobaciones:**
     - los YAML se leyeron con PyYAML;
     - el script se probó contra el broker del portátil, con un contenedor que respondía como Home Assistant;
     - `compose.escenario2.yaml` pasó `docker compose … config`.
+  - **`main` en la rama:** al traer la A3, la B4 y la B2 del Día 4, la guía tuvo conflictos, y se unieron las dos versiones. La placa se flashea con `kit\firmware\flashear.ps1`, y los complementos se instalan desde `kit\complementos`. Un ESP32-S3 usa los binarios octal o quad del kit, y un ESP32-CAM o un celular, el modo extraer.
   - **Lo que se decidió:**
     - `configuration.yaml` no lleva la zona horaria ni el idioma: se ponen en la interfaz, para que sigan editables;
     - el panel va en YAML como panel aparte (`accesia-porteria`), con la vista de secciones y tarjetas de mosaico;
-    - en la Pi se copia la ACL del contrato 1.4 mientras la B4 no ponga al día `infra/mosquitto/acl`;
-    - el plan B va como dicen las specs, con el broker en el portátil.
-  - **Dónde se detuvo:** la guía pedía el compose del portátil conectado al broker de la Pi, y eso no está en las specs: `mqtt.md` 1.4 pone el broker del plan B en el portátil. Quedó como propuesta pendiente de decisión, en la guía y en el PR.
+    - la ACL de la Pi es una copia de `infra/mosquitto/acl`, que la B4 puso al día con `mqtt.md` 1.4;
+    - el plan B sigue la D-23. Si la Pi no tiene Mosquitto, se vuelve al plan B de antes, con el broker del portátil.
+  - **Dónde se detuvo:** la guía pedía el Compose del portátil conectado al broker de la Pi, y eso no estaba en las specs: `mqtt.md` 1.4 ponía el broker del plan B en el portátil. Lo propuso como pendiente de decisión. El 2026-11-19 el equipo lo aceptó, y quedó como D-23 en su propia rama `b/` (PR #27), que esta rama trae.
 - Pruebas:
   - los dos modelos del kit, con las opciones del complemento: «Martes» (1.5b) y «El día después del lunes es el martes» (3b), con `flash_attn = enabled`;
   - `probar-automatizaciones.ps1` contra el broker del portátil: publica, recibe el ABRIR y borra la clave de la sesión. El script se analiza sin errores en Windows PowerShell;
   - `probar-automatizaciones.ps1` con el broker inalcanzable. La primera versión se cortaba con «Bad file descriptor», porque Windows PowerShell 5.1 convierte en excepción el stderr de Docker. Se corrigió y ahora, en 44 s, dice qué revisar; cada envío tiene además un límite de 15 s;
   - los YAML de `homeassistant/config/` se leen, y las 10 entidades del panel son las de `mqtt.md`;
-  - `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml config`: `mcp` publica el 8001 y lo demás no cambia.
-- Cambios de contrato o de specs: ninguno. `infra/mosquitto/acl` sigue para la B4.
+  - el plan B de la D-23, con todo arriba en el portátil y un Mosquitto aparte que hacía de broker de la Pi: el servidor se conecta a él, la salud da `"mqtt":"ok"`, el MCP responde en el 8001 y el Mosquitto del Compose no arranca (detalle en la entrada de la D-23);
+  - la base del portátil, contada tabla por tabla después de limpiarla: un administrador, una cámara, un horario con cinco bloques y nada más.
+- Cambios de contrato o de specs: ninguno en esta rama. La D-23, `mqtt.md` 1.5 y `arquitectura.md` 1.14 van en el PR #27, que esta rama trae.
 - Pendiente:
   - en clase, con la Pi: los pasos de la guía, las automatizaciones contra Home Assistant de verdad y el plan B una vez (C2, pasos 1, 3 y 5);
-  - con la B4: las integraciones Ollama y MCP, el agente, la medición de las 10 preguntas y la copia de seguridad (C2, pasos 2, 4 y 6);
-  - la decisión sobre el broker del plan B;
+  - con los complementos de la B4 instalados en la Pi: las integraciones Ollama y MCP, el agente, la medición de las 10 preguntas y la copia de seguridad (C2, pasos 2, 4 y 6);
   - la IP de la Pi en `arquitectura.md` (P-04), cuando se confirme en clase.
 
 ## 2026-11-18 · Día 4 · Tarea B2 · El modo extraer y el ruido de salud-broker

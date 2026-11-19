@@ -1,0 +1,25 @@
+# Nombre: compose.broker-pi.yaml
+# Descripción: Plan B con el broker de la Pi (D-23): el servidor del portátil se conecta al Mosquitto oficial de la Pi con el usuario servidor, y el Mosquitto del Compose no arranca. Home Assistant y la placa no cambian. Se usa con compose.yaml y compose.escenario2.yaml.
+# Fecha de creación: 2026-11-19
+# Actualización: 2026-11-19
+# Autor: Equipo AccesIA
+# Versión: 1.0
+# Uso, desde la raíz del repositorio y con las imágenes ya construidas:
+#   docker compose -f infra/compose.yaml down
+#   docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml -f infra/compose.broker-pi.yaml up -d
+# Para volver al Compose de siempre, con su Mosquitto: docker compose -f infra/compose.yaml up -d
+# La IP de la Pi sale de IP_DE_LA_PI en infra/.env, o de la terminal ($env:IP_DE_LA_PI = "192.168.137.x"); si falta,
+# es la de D-22. Si la Pi no tiene Mosquitto, este archivo no se usa: el broker vuelve al portátil (D-23).
+
+services:
+  mosquitto:
+    # No arranca: el broker es el de la Pi.
+    profiles: ["broker-portatil"]
+
+  servidor:
+    environment:
+      MQTT_URL: mqtt://servidor:${MQTT_SERVIDOR_CLAVE}@${IP_DE_LA_PI:-192.168.137.250}:1883
+    # Sin el Mosquitto del Compose, el servidor solo espera a la base.
+    depends_on: !override
+      postgres:
+        condition: service_healthy

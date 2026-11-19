@@ -4,7 +4,7 @@ Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criteri
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.8
+Versión: 1.9
 -->
 
 # Requisitos
@@ -15,13 +15,13 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 ### RF-01 Detección en la cámara (TinyML) · frente A
 
-Con D-24, la cámara de la demo es una ESP32-CAM, con el modelo en la placa; cuál modelo lo decide P-05. Mientras su firmware no esté listo, RF-01 lo cumplen el simulador (C6) y, como referencia, el firmware del ESP32-S3 del PR #7.
+Con D-24, la cámara de la demo es una ESP32-CAM AI-Thinker, con el modelo en la placa: caras con ESP-DL 1.1 (P-05). El simulador (C6) cumple el mismo contrato, y el firmware del ESP32-S3 del PR #7 es el respaldo.
 
-- C1 Detecta caras dentro del ESP32-S3 con `espressif/human_face_detect` (MSR + MNP, int8).
+- C1 Detecta caras dentro de la placa: en la ESP32-CAM, con ESP-DL 1.1 (`HumanFaceDetectMSR01` + `MNP01`); en el respaldo ESP32-S3, con `espressif/human_face_detect` (MSR + MNP, int8).
 - C2 Envía solo el recorte en JPEG, con la fórmula del recorte de `contratos/api-dispositivo.md`, y espera al menos 1 s desde cada respuesta antes de enviar otro.
 - C3 No envía nada si no hay cara o si la cara mide menos de `CARA_MIN_PX` de alto.
 - C4 Se configura por consola serial sin recompilar (`arquitectura.md`).
-- C5 Compila los dos binarios, `octal` y `quad`, con todos sus perfiles de placa (D-17).
+- C5 Compila el binario de la ESP32-CAM (target `esp32`). El respaldo ESP32-S3 compila sus dos binarios, `octal` y `quad`, con todos sus perfiles de placa (D-17).
 - C6 El simulador cumple el mismo contrato y pasa las mismas pruebas de contrato, incluidos los casos de `contratos/casos-recorte.json`.
 
 ### RF-02 Personas y consentimiento · frentes B y C

@@ -1,15 +1,16 @@
 ﻿# Nombre: armar-kit.ps1
-# Descripción: Arma kit\firmware (fuera de Git) con los binarios para flashear sin compilar: la XIAO ESP32-C6 de este firmware y, con una copia del PR #7, los binarios octal y quad del ESP32-S3, todos con la IP de la Pi (D-22). Copia también flashear.ps1.
+# Descripción: Arma kit\firmware (fuera de Git) con los binarios para flashear sin compilar: la ESP32-CAM de la demo (D-24) y, con una copia del PR #7, los binarios octal y quad del ESP32-S3 de respaldo, todos con la IP de la Pi (D-22). Copia también flashear.ps1.
 # Fecha de creación: 2026-11-18
-# Actualización: 2026-11-18
+# Actualización: 2026-11-19
 # Autor: Equipo AccesIA
-# Versión: 1.0
+# Versión: 1.1
 #
 # Uso, desde la raíz del repositorio, en PowerShell (no en Git Bash: idf.py no funciona en MSYS):
-#   .\firmware\scripts\armar-kit.ps1                            compila la XIAO ESP32-C6 y arma kit\firmware\c6
+#   .\firmware\scripts\armar-kit.ps1                            compila la ESP32-CAM y arma kit\firmware\esp32cam
 #   .\firmware\scripts\armar-kit.ps1 -FuenteS3 ..\AccesIA-s3    también kit\firmware\s3-octal y s3-quad
 #   .\firmware\scripts\armar-kit.ps1 -FuenteS3 ..\AccesIA-s3 -SoloS3
 #
+# El binario de la XIAO ESP32-C6 ya no va en el kit (D-24): si quedó uno de antes, se borra.
 # -FuenteS3 es una copia del PR #7 (rama a/esp-idf-deteccion), por ejemplo un worktree:
 #   git fetch origin a/esp-idf-deteccion
 #   git worktree add ..\AccesIA-s3 origin/a/esp-idf-deteccion
@@ -55,11 +56,13 @@ function Copiar-Binarios([string]$Compilacion, [string]$Destino, [string[]]$Orig
 
 function Commit-De([string]$Carpeta) {
     $commit = (& git -C $Carpeta rev-parse --short HEAD) -join ''
+    $rama = (& git -C $Carpeta rev-parse --abbrev-ref HEAD) -join ''
     $cambios = (& git -C $Carpeta status --porcelain -- firmware) -join ''
+    $texto = if ($rama -and $rama -ne 'HEAD') { "rama $rama, commit $commit" } else { "commit $commit" }
     if ($cambios) {
-        return "$commit, con cambios sin commit"
+        return "$texto, con cambios sin commit"
     }
-    return $commit
+    return $texto
 }
 
 try {
@@ -71,17 +74,23 @@ try {
     New-Item -ItemType Directory -Force $kit | Out-Null
 
     if (-not $SoloS3) {
-        & (Join-Path $PSScriptRoot 'compilar.ps1')
+        & (Join-Path $PSScriptRoot 'compilar.ps1') -Placa esp32cam
         if ($LASTEXITCODE -ne 0) {
-            throw 'Falló la compilación de la XIAO ESP32-C6.'
+            throw 'Falló la compilación de la ESP32-CAM.'
         }
         $version = (& idf.py --version 2>$null) -join ' '
-        Copiar-Binarios (Join-Path $firmware 'build-c6') (Join-Path $kit 'c6') @(
-            'Placa: Seeed Studio XIAO ESP32-C6 (chip esp32c6)',
-            "Firmware: este repositorio, commit $(Commit-De $raiz)",
+        Copiar-Binarios (Join-Path $firmware 'build-esp32cam') (Join-Path $kit 'esp32cam') @(
+            'Placa: ESP32-CAM AI-Thinker (chip esp32), la cámara y el punto de acceso de la demo (D-24)',
+            "Firmware: este repositorio, $(Commit-De $raiz)",
+            'Modelo: ESP-DL 1.1, HumanFaceDetectMSR01 + MNP01 (P-05)',
             "Servidor de fábrica: http://${ip}:8000",
             "MQTT de fábrica: mqtt://${ip}:1883, usuario camara",
             "Compilado: $fecha, con $version")
+        $c6 = Join-Path $kit 'c6'
+        if (Test-Path $c6) {
+            Remove-Item $c6 -Recurse -Force
+            Write-Host 'Se borró kit\firmware\c6: la XIAO ESP32-C6 ya no va en el kit (D-24).'
+        }
     }
 
     if ($FuenteS3) {
@@ -122,8 +131,8 @@ try {
         $version = (& idf.py --version 2>$null) -join ' '
         foreach ($binario in @('octal', 'quad')) {
             Copiar-Binarios (Join-Path $temporal "firmware\build-$binario") (Join-Path $kit "s3-$binario") @(
-                "Placa: ESP32-S3 con PSRAM $binario (chip esp32s3), binario $binario de D-17",
-                "Firmware: el de referencia del PR #7, commit $commitS3, con la IP de la Pi en lugar de 10.42.0.1",
+                "Respaldo: ESP32-S3 con PSRAM $binario (chip esp32s3), binario $binario de D-17",
+                "Firmware: el de referencia del PR #7, $commitS3, con la IP de la Pi en lugar de 10.42.0.1",
                 "Servidor de fábrica: http://${ip}:8000",
                 "MQTT de fábrica: mqtt://${ip}:1883, usuario camara",
                 "Compilado: $fecha, con $version")
@@ -145,16 +154,46 @@ try {
     }
     $leeme += @(
         '',
-        'Flashear, en PowerShell y con la placa conectada por USB:',
+        '## ESP32-CAM en su base con USB-C',
+        '',
+        '1. Conecta la base por USB-C. Windows la muestra como «USB Serial Port» (por ejemplo, COM5).',
+        '2. En PowerShell, desde esta carpeta, flashea y abre la consola:',
+        '',
+        '   ```powershell',
+        '   .\flashear.ps1 -Placa esp32cam -Puerto COM5 -Monitor',
+        '   ```',
+        '',
+        '   esptool la pone sola en modo de descarga y la reinicia al terminar. La configuración de la consola se conserva.',
+        '3. La consola es miniterm con DTR y RTS en 0. La base tapa el botón RST: Ctrl+T y Ctrl+R dos veces reinician la',
+        '   placa. Ctrl+] sale.',
+        '4. La primera vez, configúrala en la consola y reiníciala:',
+        '',
+        '   ```text',
+        '   wifi AccesIA <clave del hotspot>',
+        '   codigo entrada',
+        '   token <el token de la cámara, el que dio la web al crearla>',
+        "   mqtt mqtt://${ip}:1883 camara <MQTT_CAMARA_CLAVE>",
+        '   reiniciar',
+        '   estado',
+        '   ```',
+        '',
+        '   Si la Pi quedó en otra IP, también `servidor http://<IP>:8000` y esa IP en `mqtt`. El simulador no puede usar',
+        '   el mismo código a la vez.',
+        '',
+        'Solo la consola, sin flashear: `.\flashear.ps1 -Monitor -Puerto COM5`.',
+        '',
+        'Con un adaptador USB-TTL en vez de la base: 5V y GND, U0R al TX y U0T al RX del adaptador, y GPIO0 a GND.',
+        'Presiona RST, flashea, quita el puente de GPIO0 y presiona RST otra vez.',
+        '',
+        '## Las demás placas',
         '',
         '```powershell',
         '.\flashear.ps1 -Detectar -Puerto COM5          # qué chip está conectado y si tiene PSRAM',
-        '.\flashear.ps1 -Placa c6 -Puerto COM5           # la XIAO ESP32-C6',
         '.\flashear.ps1 -Placa s3-octal -Puerto COM6     # un ESP32-S3 con PSRAM octal',
         '```',
         '',
-        'El script dice cómo poner la placa en modo de descarga, flashea cada archivo en su dirección (la configuración',
-        'de la consola se conserva) y muestra los comandos de la consola que faltan. Más detalle en firmware\README.md.')
+        'El script dice cómo poner cada placa en modo de descarga y flashea cada archivo en su dirección. Más detalle en',
+        'firmware\README.md.')
     $leeme | Set-Content -Path (Join-Path $kit 'LEEME.md') -Encoding UTF8
 
     Write-Host ''

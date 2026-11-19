@@ -4,7 +4,7 @@ Descripción: Decisiones de AccesIA con su motivo, y registro de cambios.
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.16
+Versión: 1.17
 -->
 
 # Decisiones
@@ -111,18 +111,18 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 
 ### Cómo se aplica D-24
 
-- **El modelo de la placa (P-05).** Lo decide la prueba de factibilidad de la sesión del firmware:
-  - caras con ESP-DL: la placa recorta como dice `api-dispositivo.md` 1.2, y ese contrato no cambia;
-  - personas con TensorFlow Lite Micro: el modelo dice si hay alguien, pero no dónde está la cara, así que la placa envía el cuadro completo. Hace falta `api-dispositivo.md` 1.3: con un cuadro, el servidor detecta con YuNet, recorta con `recortar_cara_mas_grande` y aplica `CARA_MIN_PX`, como en el modo extraer (B2 del Día 4).
+- **El modelo de la placa (P-05).** Lo decidió la prueba de factibilidad de la sesión del firmware, el 2026-11-19: caras con ESP-DL 1.1 (`HumanFaceDetectMSR01` + `MNP01`). Las dos opciones eran:
+  - caras con ESP-DL: la placa recorta como dice `api-dispositivo.md` 1.2, y ese contrato no cambia. Es la elegida;
+  - personas con TensorFlow Lite Micro: el modelo dice si hay alguien, pero no dónde está la cara, así que la placa envía el cuadro completo. Hacía falta `api-dispositivo.md` 1.3: con un cuadro, el servidor detecta con YuNet, recorta con `recortar_cara_mas_grande` y aplica `CARA_MIN_PX`, como en el modo extraer (B2 del Día 4).
 - **La presencia** (`mqtt.md` 1.6). La placa publica el resultado de su modelo en `accesia/{codigo}/presencia`, y su descubrimiento como `binary_sensor`. Con cualquiera de los dos modelos, `presente` dice si el modelo ve a alguien.
 - **El C6 y el DHT.**
   - RF-14 queda fuera de alcance.
   - El tema `ambiente` y los sensores Temperatura y Humedad quedan sin uso.
   - Los config retenidos que publicó el C6 se borran a mano, como dice `mqtt.md` en «Pruebas».
 - **El dispositivo en Home Assistant.** El servidor lo publica con el modelo «ESP32-CAM».
-- **La puerta** sigue con los mismos temas (`accesia/{codigo}/puerta/set` y `…/estado`), ahora en la ESP32-CAM. Sus pines los fija la sesión del firmware en `arquitectura.md`; hasta entonces, no se asumen.
+- **La puerta** sigue con los mismos temas (`accesia/{codigo}/puerta/set` y `…/estado`), ahora en el LED rojo de la ESP32-CAM (GPIO33). Sus pines están en `arquitectura.md`, «Placa de la demo: ESP32-CAM AI-Thinker».
 - **El respaldo.** Si la ESP32-CAM se queda corta, se usa una ESP32-S3 con el firmware del PR #7, que cumple `api-dispositivo.md` 1.2 sin cambios. El modelo que publica el servidor para el dispositivo pasa entonces a ser el de esa placa.
-- **Mientras tanto.** Hasta que el firmware de la ESP32-CAM esté listo, la cámara sigue siendo el simulador. La misma ESP32-CAM, con un firmware que entregue una foto por HTTP, también sirve como cámara de respaldo con el modo extraer (RF-10 · C4), sin modelo en la placa.
+- **El simulador.** Cumple el mismo contrato: es la cámara mientras la ESP32-CAM no esté probada en la demo, y el plan si falla. Otra ESP32-CAM, con un firmware que entregue una foto por HTTP, también sirve como cámara de respaldo con el modo extraer (RF-10 · C4), sin modelo en la placa.
 
 ### Lo que cambia en las decisiones anteriores con D-24
 
@@ -187,3 +187,4 @@ La decisión central es D-02: la cámara detecta y el servidor reconoce, porque 
 | 2026-11-19 | D-23 · Contrato MQTT 1.5 | Plan B con el broker de la Pi: en el escenario 2, el servidor del portátil usa el Mosquitto oficial de la Pi con `infra/compose.broker-pi.yaml`, y Home Assistant y la placa no cambian. `mqtt.md` 1.5 cambia solo dónde está el broker en el plan B: ningún cliente cambia sus temas, sus mensajes, sus usuarios ni la ACL. `arquitectura.md` 1.14 lo suma a Compose, a la configuración (`IP_DE_LA_PI`), al firewall y a la tabla de escenarios. Lo propuso la C2 del Día 3 y lo aceptó el equipo. |
 | 2026-11-19 | D-24 | La cámara de la demo es una ESP32-CAM con el modelo en la placa. La XIAO ESP32-C6 y el DHT dejan de usarse, RF-14 queda fuera de alcance, y el respaldo es una ESP32-S3 con el firmware del PR #7. El modelo (caras con ESP-DL o personas con TensorFlow Lite Micro) queda pendiente de una prueba de factibilidad (P-05), y con él `api-dispositivo.md` 1.3. Cambian D-02, D-05, D-09 y D-21 (tabla de arriba). |
 | 2026-11-19 | Contrato MQTT 1.6 | `mqtt.md` 1.6: tema `accesia/{codigo}/presencia`, que publica la placa con el resultado de su modelo, y su descubrimiento como `binary_sensor`; la ACL la deja publicarlos solo con su código. El tema `ambiente` y sus dos sensores quedan sin uso, y el modelo del dispositivo que publica el servidor pasa a «ESP32-CAM». Solo agrega y cambia un texto que se muestra: por eso es 1.6. Por D-24. |
+| 2026-11-19 | P-05 | Resuelto con la prueba de factibilidad de la sesión del firmware: caras con ESP-DL 1.1 (`HumanFaceDetectMSR01` + `MNP01`) en la ESP32-CAM, con ESP-IDF 5.4.4. ESP-DL 3 corre en el ESP32 desde la 3.1.5, pero `human_face_detect` solo trae modelos del S3 y del P4, y ESP-DL 2.0 exige ESP-IDF 5.0. Medido en la placa: de 230 a 440 ms por cuadro con una cara. `api-dispositivo.md` 1.2 no cambia y la 1.3 (PR #29) no hace falta. Los pines de la ESP32-CAM quedan en `arquitectura.md` 1.16 y RF-01 en `requisitos.md` 1.9 (PR #30). |

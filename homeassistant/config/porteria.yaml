@@ -1,0 +1,65 @@
+# Nombre: porteria.yaml
+# Descripción: Panel «Portería» de Home Assistant (RF-07 · C4): último acceso, los números del día, la puerta, la cámara en línea y la temperatura y la humedad de la placa. Usa las entidades de contratos/mqtt.md para la cámara entrada.
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+# Lo carga el bloque «lovelace:» de configuration.yaml. Después de cambiarlo basta con recargar el panel en el navegador.
+
+title: Portería
+views:
+  - title: Portería
+    path: porteria
+    icon: mdi:door
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Último acceso
+            icon: mdi:account-badge
+          - type: tile
+            entity: sensor.accesia_entrada_ultima_persona
+            name: Última persona
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.accesia_entrada_ultimo_resultado
+            name: Último resultado
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: heading
+            heading: Hoy
+            icon: mdi:calendar-today
+          - type: tile
+            entity: sensor.accesia_asistentes_hoy
+            name: Asistentes
+          - type: tile
+            entity: sensor.accesia_tarde_hoy
+            name: Llegadas tarde
+          - type: tile
+            entity: sensor.accesia_desconocidos_hoy
+            name: Desconocidos
+      - type: grid
+        cards:
+          - type: heading
+            heading: Entrada
+            icon: mdi:door
+          - type: tile
+            entity: binary_sensor.accesia_entrada_puerta
+            name: Puerta
+          - type: tile
+            entity: binary_sensor.accesia_entrada_en_linea
+            name: Cámara en línea
+          - type: tile
+            entity: sensor.accesia_entrada_temperatura
+            name: Temperatura
+          - type: tile
+            entity: sensor.accesia_entrada_humedad
+            name: Humedad
+          - type: tile
+            entity: binary_sensor.accesia_servidor_en_linea
+            name: Servidor en línea

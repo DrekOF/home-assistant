@@ -2,9 +2,9 @@
 Nombre: CLAUDE.md
 Descripción: Reglas e instrucciones para Claude Code en el repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-13
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.10
+Versión: 1.11
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -116,6 +116,10 @@ docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borr
 curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
 start http://localhost:8000                           abre la web de administración, que sirve el servidor (sin Node)
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
+docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build
+                                                      plan B (escenario 2): además publica mcp en el 8001 para la Pi
+.\homeassistant\scripts\probar-automatizaciones.ps1 [-Broker 192.168.137.1]
+                                                      prueba las automatizaciones de Home Assistant sin el servidor
 ```
 
 Desde `servidor/` (necesita uv y Docker Desktop abierto):

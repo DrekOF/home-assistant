@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.21
+Versión: 1.22
 -->
 
 # Bitácora
@@ -22,6 +22,50 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
 - Cambios de contrato o de specs: cuáles y por qué (o «ninguno»).
 - Pendiente:
 ```
+
+## 2026-11-18 · Día 3 · Tarea C2 · Home Assistant OS sin esperar a la B4
+
+- Quién: el frente C. La corrió la sesión de la tarea C del Día 2, la noche antes de la clase. El equipo pidió seguir sin esperar la aprobación del plan, que quedó en la descripción del PR.
+- Qué (la parte de la C2 que no espera a la B4, más el kit de Ollama y la guía):
+  - **`homeassistant/config/`:**
+    - `automatizaciones_accesia.yaml`, con el contenido exacto de `contratos/mqtt.md` (comprobado con `diff`);
+    - `configuration.yaml`, el de fábrica, con las dos líneas del contrato y el panel;
+    - `porteria.yaml`, el panel «Portería» de RF-07 · C4 con las entidades de `mqtt.md`.
+  - **Mosquitto:** `homeassistant/mosquitto/acl.conf`, y cómo se copia la ACL al complemento oficial de Mosquitto, con sus `logins`.
+  - **Ollama:** el complemento de SirUli con `OLLAMA_FLASH_ATTENTION=1`, el 11434 desactivado y los modelos en `/share/ollama`.
+  - **La prueba de las automatizaciones:** `homeassistant/scripts/probar-automatizaciones.ps1` y `homeassistant/pruebas/`, que las prueban sin el servidor con el Evento y la Alerta del contrato.
+  - **El plan B:** `infra/compose.escenario2.yaml`, que publica `mcp` en el 8001.
+  - **`kit/ollama/`,** fuera de Git y de 2,8 GB: `qwen2.5:1.5b` y `qwen2.5:3b`, con la estructura de `OLLAMA_MODELS`.
+  - **La documentación:**
+    - `docs/guia-dia-de-clase.md` 2.0, con los nueve pasos de la clase y lo que se debe ver en cada uno;
+    - `homeassistant/README.md` 2.0, `infra/README.md` 1.8 (el plan B) y `CLAUDE.md` 1.11 (dos comandos).
+- Cómo:
+  - **Lo que se leyó:** Claude Code leyó la C2 1.2, D-22 con «Cómo se aplica», `arquitectura.md` (complementos, red y cámara), `mqtt.md` 1.4 y `mcp-agente.md`.
+  - **El complemento de Ollama:** leyó su `config.yaml` en GitHub.
+    - Encontró `OLLAMA_MODELS: /share/ollama`, `HOME: /data`, el 11434 publicado por defecto, `backup_exclude: ollama/**` y los valores de fábrica que dice `arquitectura.md`.
+    - Por eso el kit lleva `blobs/` y `manifests/` en su raíz y no lleva la llave de Ollama.
+  - **El kit:** el 1.5b se copió del volumen `ollama-cache` de la sesión 1, y el 3b se bajó con `ollama pull` (1,9 GB en 35 s). Los dos se probaron con la imagen del complemento (`ollama/ollama:0.40.16`) y sus opciones: responden, con flash attention y la caché `q8_0`.
+  - **Las comprobaciones:**
+    - los YAML se leyeron con PyYAML;
+    - el script se probó contra el broker del portátil, con un contenedor que respondía como Home Assistant;
+    - `compose.escenario2.yaml` pasó `docker compose … config`.
+  - **Lo que se decidió:**
+    - `configuration.yaml` no lleva la zona horaria ni el idioma: se ponen en la interfaz, para que sigan editables;
+    - el panel va en YAML como panel aparte (`accesia-porteria`), con la vista de secciones y tarjetas de mosaico;
+    - en la Pi se copia la ACL del contrato 1.4 mientras la B4 no ponga al día `infra/mosquitto/acl`;
+    - el plan B va como dicen las specs, con el broker en el portátil.
+  - **Dónde se detuvo:** la guía pedía el compose del portátil conectado al broker de la Pi, y eso no está en las specs: `mqtt.md` 1.4 pone el broker del plan B en el portátil. Quedó como propuesta pendiente de decisión, en la guía y en el PR.
+- Pruebas:
+  - los dos modelos del kit, con las opciones del complemento: «Martes» (1.5b) y «El día después del lunes es el martes» (3b), con `flash_attn = enabled`;
+  - `probar-automatizaciones.ps1` contra el broker del portátil: publica, recibe el ABRIR y borra la clave de la sesión. El script se analiza sin errores en Windows PowerShell;
+  - los YAML de `homeassistant/config/` se leen, y las 10 entidades del panel son las de `mqtt.md`;
+  - `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml config`: `mcp` publica el 8001 y lo demás no cambia.
+- Cambios de contrato o de specs: ninguno. `infra/mosquitto/acl` sigue para la B4.
+- Pendiente:
+  - en clase, con la Pi: los pasos de la guía, las automatizaciones contra Home Assistant de verdad y el plan B una vez (C2, pasos 1, 3 y 5);
+  - con la B4: las integraciones Ollama y MCP, el agente, la medición de las 10 preguntas y la copia de seguridad (C2, pasos 2, 4 y 6);
+  - la decisión sobre el broker del plan B;
+  - la IP de la Pi en `arquitectura.md` (P-04), cuando se confirme en clase.
 
 ## 2026-11-13 · Día 2 · Hito 1
 
@@ -86,7 +130,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
     - A las 01:09:40, 4 s después de un desconocido, salió un `permitido` repetido de Cristhian con 0,382, apenas sobre el umbral de 0,363.
     - Como no se guardan imágenes, no se sabe de quién era la cara. Si era la del otro integrante, fue una aceptación falsa.
     - Ese mensaje salió por MQTT con `repetido: true`, y con Home Assistant conectado habría abierto la puerta otra vez.
-  - **Ruido en Mosquitto.** El cliente `salud-broker` del servidor abre y cierra una conexión cada 15 s: 1 778 en unas 7 horas, que llenan el registro de Mosquitto.
+  - **Ruido en Mosquitto.** El healthcheck de `mosquitto` en Compose (`-i salud-broker`, con el usuario `servidor`) abre y cierra una conexión en cada chequeo, cada 10 s más lo que dura: 1 778 en unas 7 horas, que llenan el registro de Mosquitto. En la Pi no pasa, porque el broker es el complemento. Corregido el 2026-11-18: la primera versión de esta nota se lo atribuía al servidor.
 - Cómo:
   - **Lo que hizo Claude Code**, en la sesión de la tarea C del Día 2:
     - fusionó el PR #13 y pasó el compose a la carpeta principal;
@@ -104,7 +148,7 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - revisar `UMBRAL_SIMILITUD` con la cámara real (riesgo 3.2 de la revisión) al recalibrar el Día 4, junto con `NITIDEZ_MIN` (D-14). Al probar desconocidos, la persona inscrita debe quedar fuera del cuadro;
   - el modo carpeta (paso 8), cuando alguien tenga fotos con permiso en `datos/prueba/`;
   - la puerta: hoy no se abrió porque Home Assistant no está en este broker. Se prueba en el Hito 2;
-  - para B: espaciar o reutilizar la conexión de `salud-broker`.
+  - para la infraestructura: espaciar el healthcheck de `mosquitto` en Compose (`salud-broker`) o bajar el registro de sus conexiones.
 
 ## 2026-11-13 · Día 4 · Contrato del agente 1.5: fecha_y_hora_GetDateTime
 

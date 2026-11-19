@@ -1,0 +1,39 @@
+# Nombre: automatizaciones_accesia.yaml
+# Descripción: Automatizaciones de AccesIA en Home Assistant: abrir la puerta con un acceso permitido y avisar desconocidos. Es el contenido exacto de specs/contratos/mqtt.md («Automatizaciones de Home Assistant»); si el contrato cambia, se copia de nuevo.
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+# Lo incluye configuration.yaml con «automation accesia:». Home Assistant no edita este archivo desde la interfaz.
+
+- id: accesia_abrir_puerta
+  alias: "AccesIA · Abrir la puerta con acceso permitido"
+  mode: queued
+  triggers:
+    - trigger: mqtt
+      topic: "accesia/+/evento"
+  conditions:
+    - condition: template
+      value_template: "{{ trigger.payload_json.resultado == 'permitido' }}"
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: "accesia/{{ trigger.payload_json.dispositivo }}/puerta/set"
+        payload: "ABRIR"
+        qos: 1
+
+- id: accesia_avisar_desconocidos
+  alias: "AccesIA · Avisar desconocidos"
+  mode: single
+  triggers:
+    - trigger: mqtt
+      topic: "accesia/+/alerta"
+  actions:
+    - action: persistent_notification.create
+      data:
+        title: "Desconocidos en {{ trigger.payload_json.dispositivo }}"
+        message: >-
+          {{ trigger.payload_json.desconocidos }} caras desconocidas en
+          {{ trigger.payload_json.ventana_s }} s, a las
+          {{ as_timestamp(trigger.payload_json.hora) | timestamp_custom('%H:%M') }}.
+    # Con la app de Home Assistant en un celular se agrega: action: notify.mobile_app_<nombre>

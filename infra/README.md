@@ -2,17 +2,17 @@
 Nombre: README.md
 Descripción: Docker Compose, variables de entorno, Mosquitto y scripts del kit de AccesIA (frentes B y C).
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Infraestructura · frentes B y C
 
 | Qué | Archivo |
 | --- | --- |
-| Servicios (`specs/arquitectura.md`) | `compose.yaml`: `postgres`, `mosquitto`, `servidor` y `mcp` (el servidor MCP del agente, tarea B3 del Día 3); `ollama` llega con la tarea C2 |
-| Escenario 2: Home Assistant OS en la Raspberry y el resto en el portátil, el de la demo (D-21) | `compose.escenario2.yaml` (Día 3, tarea C2) |
+| Servicios (`specs/arquitectura.md`) | `compose.yaml`: `postgres`, `mosquitto`, `servidor` y `mcp` (el servidor MCP del agente, tarea B3 del Día 3). Ollama no va en Compose desde D-22: corre en la Pi, y en el portátil solo con `compose.ollama-portatil.yaml` (Día 4) y el visto bueno del profesor |
+| Escenario 2, el plan B desde D-22: Home Assistant OS y Ollama en la Raspberry, y la base, el servidor y Mosquitto en el portátil | `compose.escenario2.yaml`, que se usa con `compose.yaml` y publica `mcp` (ver «Plan B: escenario 2») |
 | Variables (Git ignora `.env`) | `.env.example`; `scripts/generar-env` crea `.env` con claves nuevas |
 | Broker MQTT | `mosquitto/mosquitto.conf`, `mosquitto/acl` y `mosquitto/claves/` (ignorada) |
 | Scripts | `scripts/`: `generar-env` y `crear-claves-mqtt`, en `.ps1` (Windows) y `.sh` (Linux y Raspberry); el Día 4, `instalar.sh` y `verificar.sh` del kit |
@@ -98,6 +98,37 @@ El servicio `mcp` corre `accesia mcp` con la misma imagen del servidor (`servido
      ```
 
 - Para medir otro día, se vuelve a correr: reemplaza lo suyo con las fechas de ese día.
+
+## Plan B: escenario 2
+
+Desde D-22, la demo corre en la Pi. Si la B4 no está lista, o la Pi no alcanza para la base y el servidor, se usa el escenario 2: Home Assistant OS y Ollama siguen en la Pi, y la base, el servidor y Mosquitto corren en el portátil (`specs/arquitectura.md`, «Red y despliegue»).
+
+- **Qué cambia `compose.escenario2.yaml`:** solo publica `mcp` en el 8001 de la red del portátil, para que Home Assistant OS llegue al servidor MCP.
+  - Es una excepción a D-16 y D-19, que vale solo en el hotspot o en otra red propia.
+  - `compose.yaml` no tiene el servicio `homeassistant`, así que no hay nada que quitar.
+- **Firewall:** antes de usarlo, una persona del equipo abre el firewall solo para la red del hotspot. Los cambios del firewall no los hace Claude Code:
+
+  ```powershell
+  New-NetFirewallRule -DisplayName "AccesIA plan B" -Direction Inbound -Protocol TCP -LocalPort 1883,8000,8001 -RemoteAddress 192.168.137.0/24 -Action Allow
+  ```
+
+  Con eso entran el 1883 (MQTT, para la placa y Home Assistant), el 8000 (la placa y el simulador) y el 8001 (`mcp`). El 11434 se abre solo si Ollama pasa al portátil, con el visto bueno del profesor.
+
+| Para qué | Comando |
+| --- | --- |
+| Revisar la configuración sin levantar nada | `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml config --services` |
+| Levantar el plan B | `docker compose -f infra/compose.yaml -f infra/compose.escenario2.yaml up -d --build` |
+| Volver al Compose de siempre (deja de publicar el 8001) | `docker compose -f infra/compose.yaml up -d` |
+| Quitar la regla del firewall | `Remove-NetFirewallRule -DisplayName "AccesIA plan B"` |
+
+- **Al levantarlo:**
+  - en Home Assistant OS, la integración MQTT se reconfigura hacia `192.168.137.1:1883` con el usuario `homeassistant` y su clave de `infra/.env`, y se detiene el complemento Mosquitto de la Pi;
+  - la placa se reconfigura por consola hacia `192.168.137.1`;
+  - el agente usa `http://192.168.137.1:8001/mcp`.
+
+  Los pasos están en `docs/guia-dia-de-clase.md` (paso 7).
+- **`MCP_HOSTS_PERMITIDOS`** de `infra/.env` debe tener la IP del portátil en el hotspot: `192.168.137.1:8001` por defecto.
+- **Revisado** el 2026-11-18 con `config`: `mcp` publica el 8001 y lo demás no cambia. Falta la prueba con la Pi, en clase (C2, paso 5).
 
 ## Puertos reservados por Windows
 

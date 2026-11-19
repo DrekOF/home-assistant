@@ -4,7 +4,7 @@ Descripción: Bitácora de AccesIA: qué se hizo, quién, cómo (incluido el mé
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.22
+Versión: 1.23
 -->
 
 # Bitácora
@@ -66,6 +66,74 @@ Una entrada por tarea terminada, la más reciente arriba. Aquí se cuenta el mé
   - con la B4: las integraciones Ollama y MCP, el agente, la medición de las 10 preguntas y la copia de seguridad (C2, pasos 2, 4 y 6);
   - la decisión sobre el broker del plan B;
   - la IP de la Pi en `arquitectura.md` (P-04), cuando se confirme en clase.
+
+## 2026-11-13 · Día 4 · Tareas del Día 4, con D-22
+
+- Quién: el frente B, para todo el equipo.
+- Qué: las tareas del Día 4 en `tareas/dia-4/`, con la plantilla de `tareas/README.md` y ajustadas a D-22. Cada tarea dice de qué depende.
+  - `00-todos-orden-y-listo-para-el-ensayo.md`:
+    - con qué se trabaja con D-22 y qué necesita la placa o la Pi: si el hardware solo está en clase, esos turnos se mueven al día de clase y lo demás sigue sin esperar;
+    - lo que sigue del Día 3: el Hito 1 primero, C1 y C2, y A2 si llega el módulo;
+    - el Hito 2, en clase con D-22, cuando estén la B4 y la C2 del Día 3. Si no alcanzan, MQTT y Home Assistant se prueban con el escenario 2, y el agente queda para cuando la B4 esté lista;
+    - el reparto entre tres sesiones, los acuerdos y la lista de lo que debe quedar listo para el ensayo del Día 5 (L1 a L9).
+  - `A1-julian-calibracion-del-umbral.md`: `UMBRAL_SIMILITUD` y `NITIDEZ_MIN` (RNF-07), sin crear llegadas ni alertas en la base compartida.
+    - Participan los tres integrantes y quien más quiera, cada uno con su consentimiento (Ley 1581).
+    - El dataset de impostores tiene una licencia que permite este uso, queda fuera de Git y se borra al terminar.
+  - `A2-julian-placa-con-home-assistant.md`: RF-14 · C2 a C6 con Home Assistant OS y el broker de la Pi, o el del escenario 2; la lista «Por verificar» del firmware, el tiempo de la puerta y el binario con su flasheo para el kit.
+  - `A3-julian-ip-de-la-pi.md`, nueva: los valores de fábrica del firmware y los ejemplos del simulador pasan a la IP de la Pi (D-22).
+  - `B1-cristhian-web-en-el-servidor.md`: la web dentro de la imagen y servida por el servidor (D-04). Ya está en `main` (PR #19).
+  - `B2-cristhian-modo-extraer.md`: las cámaras de respaldo (RF-10 · C4).
+  - `B3-cristhian-evaluacion-del-agente-y-cobertura.md`:
+    - la evaluación final de las 10 preguntas en la Pi, con el modelo fijado según su RAM (RF-08 · C3);
+    - una prueba de cobertura de las reglas y los requisitos (RNF-06 · C1).
+  - `B4-cristhian-complementos-de-la-base-y-del-servidor.md`, nueva: los complementos de Home Assistant OS de la base y del servidor, su empaquetado, `complementos.yml` para arm64 y amd64, y la ACL de `mqtt.md` 1.4 con su prueba.
+  - `C1-jhon-kit-del-dia-de-clase.md`: el kit con D-22 (RF-11):
+    - las carpetas de los complementos, el modelo de Ollama, la copia cifrada de Home Assistant OS y el binario del C6;
+    - las imágenes de los planes B y C;
+    - `instalar` y `verificar`, en PowerShell y en `.sh`.
+  - `C2-jhon-playwright-y-arm64.md`: Playwright sobre toda la web en la CI (RF-09 · C3) y las imágenes arm64 del plan C con emulación (RNF-04 · C1).
+- Cómo:
+  - **Dónde.** Se le pidió a Claude Code escribir las tareas sin escribir código, después de fusionar B2 del Día 3. Trabajó en un worktree aparte (`AccesIA-tareas-dia-4`), sin tocar la carpeta principal.
+  - **Qué leyó:**
+    - el plan, D-21 y su tabla de cambios;
+    - los requisitos, la evaluación de `mcp-agente.md`, el modo extraer de `api-dispositivo.md` y la guía del día de clase;
+    - los pendientes de cada entrada de esta bitácora.
+  - **Lo que encontró al comparar el plan con el estado real:**
+    - **Las reglas ya están cubiertas.** Los 64 casos de `reglas.md` ya tienen una prueba con su marca. Por eso «pruebas de las reglas completas» pasa a ser una prueba de cobertura que falle si aparece un caso o un criterio sin prueba.
+    - **La web.** El servidor todavía no servía la web, aunque D-04 y `arquitectura.md` lo decían: quedó en B1, que ya está en `main`.
+    - **El binario del C6.** `firmware.yml` compila el binario pero no lo guarda como artefacto. A2 propone de dónde sale el binario del kit.
+    - **El kit en Windows.** El portátil es Windows, así que el kit necesita sus scripts también en PowerShell.
+  - **D-22 cambió el plan.** Con la primera versión ya en el PR, el profesor pidió que Ollama corriera dentro de la Raspberry, y el equipo decidió llevar todo a la Pi (D-22, PR #20).
+    - Este PR esperó a que D-22 estuviera en `main`.
+    - Mientras tanto, Claude Code dejó los ajustes en un commit local, revisados contra una copia con las specs de D-22.
+    - Con D-22 en `main`, trajo `main` y resolvió los choques de esta bitácora y de `decisiones.md`.
+    - Antes de fusionar entró el contrato del agente 1.5 (PR #21). Se trajo `main` otra vez, y B3, B4 y el 00 citan la 1.5: que el comienzo del prompt no cambie entre preguntas ya lo logra `fecha_y_hora_GetDateTime`.
+  - **Lo que pidió el equipo para el ajuste:**
+    - el hardware: lo que necesita la placa o la Pi se mueve al día de clase si solo están allá, y lo demás sigue;
+    - A1: el consentimiento de quienes participen, que no tienen que ser solo los tres integrantes, y un dataset de impostores con licencia para este uso, fuera de Git y borrado al terminar, anotado en la bitácora;
+    - RF-11 · C1 nombra también los scripts de PowerShell;
+    - B3: el modelo final se fija midiendo en la Pi, según su RAM;
+    - el Hito 2, como quedó en el 00;
+    - la B4, con lo que D-22 dejó para ella, y su propia tarea para los valores de fábrica (A3).
+- Decisiones al escribir, para revisarlas en el PR:
+  - **Calibración sin ensuciar la base.** A1 calibra sin pasar por la base compartida, porque cada `permitido` crea una llegada y tres desconocidos crean una alerta en Home Assistant.
+  - **B4 primero en B.** Es el camino crítico: el Hito 2, la evaluación de B3, C2 del Día 3 y el kit la necesitan.
+  - **A3 antes del binario del kit.** A2 compila el binario del kit con los valores de fábrica de A3.
+  - **arm64.** B4 prueba los complementos en arm64, en `complementos.yml` y con emulación en el portátil. C2 se queda con las imágenes del plan C.
+  - **`compose.ollama-portatil.yaml`.** Con D-22, Ollama pasa al portátil solo con el visto bueno del profesor. C1 propone si el archivo se hace ahora o solo si él lo aprueba.
+  - **`verificar` contra la Pi.** El 8001 y el 11434 no se publican en la Pi (D-16), así que C1 propone cómo revisa el MCP y Ollama sin publicarlos.
+  - **Lista para el Día 5.** La lista L1 a L9 dice qué debe quedar listo para el ensayo. Lo que falte pasa al Día 5, o al corte mínimo si la clase llega antes (P-01).
+- Pruebas: no hay código. Un script revisó las referencias de las tareas: archivos, criterios RF y RNF, decisiones, reglas, pendientes, secciones citadas (también las de D-22) y enlaces. Solo señaló `infra/.env`, que Git ignora y que se genera en el portátil.
+- Cambios de contrato o de specs:
+  - Ninguno en los contratos.
+  - `specs/plan.md` 1.8: una fila por tarea del Día 4, con A3 y B4.
+  - `specs/requisitos.md` 1.7: RF-11 · C1 nombra los scripts en PowerShell y en `.sh`.
+  - `specs/decisiones.md` 1.14 lo anota en su registro.
+  - `tareas/README.md` 1.4 suma el Día 4.
+- Pendiente:
+  - el Hito 1, primero; C1 y C2 del Día 3, y el Hito 2 en clase;
+  - P-03, el módulo de cámara, y P-04, la RAM y la IP de la Pi;
+  - las tareas del Día 5 (ensayo general e Hito 3), al cerrar el Día 4.
 
 ## 2026-11-13 · Día 2 · Hito 1
 

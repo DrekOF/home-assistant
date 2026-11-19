@@ -2,9 +2,9 @@
 Nombre: guia-dia-de-clase.md
 Descripción: Guía para montar AccesIA el día de la clase con el hardware que entregue el docente.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.3
+Versión: 1.4
 -->
 
 # Guía del día de clase
@@ -19,7 +19,7 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
   - [ ] Las carpetas de los complementos `accesia_base` y `accesia_servidor`, armadas con `scripts/empaquetar-complementos.ps1`, con los modelos de cara (D-22).
   - [ ] Los archivos del modelo de Ollama, para copiarlos a `/share/ollama` sin internet: los que se vayan a usar según la RAM de la Pi.
   - [ ] La copia de seguridad cifrada de Home Assistant OS, sin inscripciones, con su clave de cifrado guardada aparte.
-  - [ ] El binario del firmware de la XIAO ESP32-C6 y esptool. Los del ESP32-S3 quedan como referencia.
+  - [ ] `kit\firmware`, armado con `firmware\scripts\armar-kit.ps1`: el binario de la XIAO ESP32-C6 y, por si llega un ESP32-S3, los binarios octal y quad del PR #7, con `flashear.ps1`. esptool viene con ESP-IDF.
   - [ ] Para el plan B, las imágenes Docker ya descargadas en el portátil: servidor, PostgreSQL + pgvector y Mosquitto.
   - [ ] Para el plan C (escenarios 1 y 3): las imágenes arm64 en archivos `.tar`, los paquetes `.deb` de Docker para arm64, `instalar.sh`, `verificar.sh` y Raspberry Pi Imager.
   - [ ] El script `verificar` del portátil y esta guía impresa.
@@ -43,7 +43,7 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
    - Plan B, escenario 2: la base, el servidor y Mosquitto en el portátil con `compose.escenario2.yaml`, abriendo el firewall para el hotspot. La integración MQTT de Home Assistant apunta al broker del portátil (`192.168.137.1:1883`, usuario `homeassistant`), y Ollama sigue en la Raspberry.
    - Plan C, escenario 1, Raspberry Pi OS: entrar por SSH con el usuario que dé el docente, copiar el kit desde el portátil y correr `instalar.sh`. El script instala Docker desde los `.deb`, carga las imágenes, copia el modelo y la configuración, crea el Wi-Fi «AccesIA» en 2,4 GHz (`band bg`; la placa no usa 5 GHz) y levanta Docker Compose.
    - Plan C, escenario 3, sin sistema: grabar Raspberry Pi OS en la memoria USB con Raspberry Pi Imager y arrancar desde ella (Pi 5 sin configurar nada; Pi 4 solo si su bootloader ya lo permite). Después, como el escenario 1.
-3. Flashear la XIAO ESP32-C6 por el USB-C, con esptool desde el portátil, y configurarla por la consola serial: Wi-Fi del hotspot, código, token, servidor y MQTT con la IP de la Pi, sensor y antena.
+3. Flashear la XIAO ESP32-C6 por el USB-C con `kit\firmware\flashear.ps1 -Placa c6 -Puerto COMx`, que dice cómo ponerla en modo de descarga. Sus valores de fábrica ya apuntan a la Pi (`192.168.137.250`, D-22). Por la consola serial faltan la clave del Wi-Fi del hotspot, el código, el token, la clave de MQTT (`mqtt mqtt://192.168.137.250:1883 camara <clave>`), el sensor y la antena. Si la Pi quedó en otra IP, también `servidor` y `mqtt` con esa IP.
 4. Correr `verificar` desde el portátil: complementos arriba, MQTT, entidades en Home Assistant (también Temperatura y Humedad), Ollama responde y placa en línea.
 5. Inscribir a los tres con la misma cámara que va a reconocer, 5 muestras cada uno. Recalibrar `NITIDEZ_MIN` con los valores de `calidad` de esas muestras y ajustar `UMBRAL_SIMILITUD` si hace falta: se cambian en las opciones de `accesia_servidor` y se reinicia el complemento (D-14 y D-22); en el plan B, en `infra/.env`.
 6. Ensayo corto de la demo y presentación.
@@ -52,7 +52,7 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
 
 | Si falla | Plan B |
 | --- | --- |
-| La cámara de la placa no está lista (D-21) | Simulador con la webcam del portátil; la placa sigue abriendo la puerta |
+| La cámara de la placa no está lista (D-21) | Simulador con la webcam del portátil, con `--servidor http://192.168.137.250:8000`; la placa sigue abriendo la puerta |
 | La XIAO ESP32-C6 no conecta | Simulador con la webcam del portátil, que también simula la puerta |
 | La cámara deja de reconocer durante la demo | Registrar las llegadas a mano en la pantalla Asistencia (RF-06 · C5) |
 | Ollama va lento en la Raspberry | Primero, en la Raspberry: las variantes Q4_0, descripciones más cortas, `qwen2.5:0.5b` si responde bien y el comienzo del prompt estable (RNF-03 · C3). Ollama en el portátil, con `infra/compose.ollama-portatil.yaml`, solo con el visto bueno del docente |

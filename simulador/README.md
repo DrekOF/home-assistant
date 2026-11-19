@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Simulador de la cámara de AccesIA con la webcam o con una carpeta de fotos (frente A): instalación, comandos, respuestas esperadas, la puerta por MQTT y pruebas.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-12
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.2
+Versión: 1.3
 -->
 
 # Simulador · frente A
@@ -58,13 +58,13 @@ uv run simulador modelo
 | Opción | Por defecto | Qué hace |
 | --- | --- | --- |
 | `--codigo` | (obligatoria) | Código de la cámara en el servidor |
-| `--servidor` | `http://localhost:8000` | Dirección del servidor |
+| `--servidor` | `http://localhost:8000` | Dirección del servidor; en la Pi, `http://192.168.137.250:8000` |
 | `--como-camara` | apagado | Antes de detectar, deja la imagen como la del ESP32-S3 (ver abajo) |
 | `--cara-min` | `80` | No envía caras de menos píxeles de alto; igual que `CARA_MIN_PX` |
 | `--puntaje-min` | `0.9` | Puntaje mínimo de YuNet, el del paso 1 de R7 |
 | `--camara` | `0` | Número de la webcam (solo en `webcam`) |
 | `--puerta` | apagado | También hace la puerta por MQTT. Sin ella no se conecta al broker |
-| `--broker` | `mqtt://127.0.0.1:1883` | Broker de la puerta; en el hotspot, `mqtt://192.168.137.1:1883`. Solo con `--puerta` |
+| `--broker` | `mqtt://127.0.0.1:1883` | Broker de la puerta; en la Pi, `mqtt://192.168.137.250:1883`. Solo con `--puerta` |
 | `--puerta-segundos` | `3` | Segundos que la puerta queda abierta con `ABRIR`, de 1 a 60. Solo con `--puerta` |
 
 ### Modo webcam
@@ -172,7 +172,7 @@ Ejemplos:
 
 ```powershell
 uv run simulador webcam --codigo entrada --como-camara --puerta
-uv run simulador carpeta datos/prueba --codigo entrada --puerta --broker mqtt://192.168.137.1:1883
+uv run simulador carpeta datos/prueba --codigo entrada --servidor http://192.168.137.250:8000 --puerta --broker mqtt://192.168.137.250:1883
 ```
 
 ### Qué publica y qué escucha

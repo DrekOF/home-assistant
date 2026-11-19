@@ -2,9 +2,9 @@
 Nombre: README.md
 Descripción: Utilidades del repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-11
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.1
+Versión: 1.2
 -->
 
 # Scripts
@@ -14,6 +14,7 @@ Utilidades del repositorio, en versión PowerShell (`.ps1`, Windows) y Bash (`.s
 | Script | Qué hace | Lo crea |
 | --- | --- | --- |
 | `preparar-skills` | Trae los skills de frontend a `.claude/skills/` en commits fijos | Tarea C del Día 1 |
+| `empaquetar-complementos.ps1` | Arma `kit/complementos/` con los dos complementos de Home Assistant OS, listos para copiar a la Pi (D-22). Solo en PowerShell; en Linux, con `pwsh`, como en la CI. Detalle en `complementos/README.md` | Tarea B4 del Día 4 |
 
 Los scripts de Docker y del kit están en `infra/scripts/`.
 

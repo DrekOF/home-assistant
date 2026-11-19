@@ -1,9 +1,9 @@
 # Nombre: acl
-# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.2).
+# Descripción: ACL de Mosquitto para AccesIA, igual a la de specs/contratos/mqtt.md (versión 1.4). Es la misma en el portátil y en la Pi, donde va en /share/mosquitto/accesscontrollist (D-22).
 # Fecha de creación: 2026-11-11
-# Actualización: 2026-11-12
+# Actualización: 2026-11-18
 # Autor: Equipo AccesIA
-# Versión: 1.1
+# Versión: 1.2
 #
 # La comprueba la prueba «contrato MQTT · acl» (servidor/pruebas/test_mqtt_acl.py).
 
@@ -11,10 +11,13 @@ user servidor
 topic readwrite accesia/#
 topic readwrite homeassistant/#
 
+# Home Assistant y sus complementos (D-22): Home Assistant espera que estos dos
+# usuarios lean y escriban sin restricciones en todos los temas.
 user homeassistant
-topic readwrite homeassistant/#
-topic read accesia/#
-topic write accesia/+/puerta/set
+topic readwrite #
+
+user addons
+topic readwrite #
 
 user camara
 topic deny accesia/servidor/#

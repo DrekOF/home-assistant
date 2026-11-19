@@ -4,7 +4,7 @@ Descripción: Reglas e instrucciones para Claude Code en el repositorio de Acces
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.11
+Versión: 1.12
 -->
 
 # AccesIA — instrucciones para Claude Code
@@ -94,6 +94,7 @@ AccesIA/
 ├── servidor/              API, reconocimiento, reglas, MQTT y MCP     frente B
 ├── web/                   web de administración (React + Vite)        frente C
 ├── homeassistant/         configuración de Home Assistant             frente C
+├── complementos/          complementos de Home Assistant OS (D-22)    frente B
 ├── infra/                 Docker Compose, .env y scripts del kit      frentes B y C
 └── scripts/               utilidades del repositorio
 ```
@@ -115,6 +116,8 @@ docker compose -f infra/compose.yaml exec servidor accesia semilla agente --borr
                                                       borra solo los datos de la semilla
 curl.exe http://localhost:8000/api/v1/salud           prueba el servidor
 start http://localhost:8000                           abre la web de administración, que sirve el servidor (sin Node)
+.\scripts\empaquetar-complementos.ps1                arma kit\complementos para copiar a \\<IP de la Pi>\addons (D-22)
+bash complementos/probar.sh                           arranca los complementos de amd64 como en la Pi (Git Bash)
 docker compose -f infra/compose.yaml down             baja todo y conserva los datos
 ```
 

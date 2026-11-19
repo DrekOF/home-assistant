@@ -4,7 +4,7 @@ Descripción: Guía para montar AccesIA el día de la clase con el hardware que 
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.4
+Versión: 1.5
 -->
 
 # Guía del día de clase
@@ -36,7 +36,7 @@ El hardware ya se conoce (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry 
 2. Montar el sistema:
    - La demo (D-22), con Home Assistant OS:
      1. Encender el hotspot del portátil, conectar la Raspberry y ponerle su IP fija en la configuración de red de Home Assistant OS.
-     2. Si no trae los complementos, instalarlos como dice `specs/arquitectura.md` («Complementos de Home Assistant OS»): los dos nuestros, el Mosquitto oficial y el de Ollama. Construirlos necesita internet: el del celular.
+     2. Si no trae los complementos, instalarlos como dice `complementos/README.md`: los dos nuestros, armados con `scripts\empaquetar-complementos.ps1`, el Mosquitto oficial y el de Ollama. Construirlos necesita internet: el del celular.
      3. Copiar el modelo de Ollama a `/share/ollama` por Samba, sin internet.
      4. Restaurar nuestra copia de seguridad de Home Assistant, o poner a mano las opciones de cada complemento: claves, reglas, los `logins` de Mosquitto y su ACL.
      5. Arrancar la base y después el servidor.

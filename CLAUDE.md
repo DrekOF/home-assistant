@@ -2,16 +2,16 @@
 Nombre: CLAUDE.md
 Descripción: Reglas e instrucciones para Claude Code en el repositorio de AccesIA.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-18
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.13
+Versión: 1.14
 -->
 
 # AccesIA — instrucciones para Claude Code
 
 AccesIA es un control de acceso y asistencia con reconocimiento facial para la materia de Inteligencia Artificial (USCO).
 
-- La cámara detecta la cara con un modelo TinyML y envía solo el recorte. Hoy la cámara es el simulador: la placa entregada, una XIAO ESP32-C6, todavía no tiene cámara y maneja la puerta y un sensor de temperatura y humedad (D-21).
+- La cámara detecta con un modelo TinyML en la placa y envía. Con D-24 es una ESP32-CAM, que también maneja la puerta; hasta tener su firmware, la cámara es el simulador. La XIAO ESP32-C6 y su sensor de temperatura y humedad ya no se usan.
 - El servidor saca la huella de la cara (YuNet + SFace, 128 números) y la compara en PostgreSQL con pgvector.
 - Home Assistant muestra lo que pasa, abre la puerta y avisa de desconocidos.
 - Un agente con Ollama responde preguntas con herramientas de solo lectura.
@@ -59,9 +59,11 @@ SQL               líneas que empiezan con --
 
 ## Hardware
 
-- Entregado el 12/11/2026 (D-21): una Seeed Studio XIAO ESP32-C6 (4 MB de flash, sin PSRAM ni interfaz de cámara) y una Raspberry Pi 5 con Home Assistant OS. El módulo de cámara llega la próxima clase (P-03).
-- Hasta entonces, la cámara es el simulador (`simulador/`), que cumple el mismo contrato. Todo se sigue probando con él.
-- Los pines de la XIAO ESP32-C6 están en `specs/arquitectura.md`; no asumas otros. El firmware del ESP32-S3, con sus perfiles de placa, queda como referencia en el PR #7.
+- Entregado el 12/11/2026 (D-21): una Seeed Studio XIAO ESP32-C6 y una Raspberry Pi 5 con Home Assistant OS.
+- Desde el 19/11/2026 (D-24), la cámara de la demo es una ESP32-CAM, con todo en esa placa: el modelo de visión, que pone el equipo, la puerta y MQTT. La placa detecta y envía; el reconocimiento sigue en el servidor. Qué modelo va en la placa (caras con ESP-DL o personas con TensorFlow Lite Micro) lo decide una prueba de factibilidad (P-05). Si la ESP32-CAM se queda corta, el respaldo es una ESP32-S3 con el firmware del PR #7.
+- La XIAO ESP32-C6 y su sensor DHT dejan de usarse, y RF-14 queda fuera de alcance.
+- Hasta que el firmware de la ESP32-CAM esté listo, la cámara es el simulador (`simulador/`), que cumple el mismo contrato. Todo se sigue probando con él.
+- Los pines de la ESP32-CAM los fija la sesión del firmware en `specs/arquitectura.md`; no asumas otros. Los de la XIAO ESP32-C6 quedan allí como referencia.
 - La demo corre todo en la Pi (D-22): la base, el servidor (con la web y el MCP), Mosquitto y Ollama son complementos de Home Assistant OS, en el hotspot de Windows del portátil. Docker Compose en el portátil queda para desarrollar y como plan B (escenario 2). Las imágenes se siguen construyendo para arm64 y amd64.
 
 ## Web

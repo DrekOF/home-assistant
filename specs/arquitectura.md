@@ -4,7 +4,7 @@ Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, fir
 Fecha de creación: 2026-11-11
 Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.14
+Versión: 1.15
 -->
 
 # Arquitectura
@@ -17,8 +17,8 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 
 | Pieza | Qué hace | Tecnología | Frente | Carpeta |
 | --- | --- | --- | --- | --- |
-| Cámara | Detecta la cara y envía el recorte. Hasta que llegue el módulo de cámara (D-21) la hace el simulador; el firmware del ESP32-S3 queda como referencia (PR #7) | ESP-IDF 5.4 (C++), `espressif/esp32-camera`, `espressif/human_face_detect` (MSR + MNP, int8), esp-mqtt | A | `firmware/` |
-| Placa del punto de acceso | Abre la puerta (un LED), publica su estado y un sensor de temperatura y humedad; la cámara, cuando llegue el módulo (D-21) | Seeed Studio XIAO ESP32-C6, ESP-IDF 5.4 (C++), esp-mqtt, `esp-idf-lib/dht` | A | `firmware/` |
+| Cámara | Detecta con un modelo TinyML y envía. Con D-24 es una ESP32-CAM, con el modelo en la placa (cuál, P-05); hasta tener su firmware la hace el simulador, y el firmware del ESP32-S3 del PR #7 es el respaldo | ESP-IDF 5.4 (C++), `espressif/esp32-camera`, `espressif/human_face_detect` (MSR + MNP, int8), esp-mqtt | A | `firmware/` |
+| Placa del punto de acceso | Con D-24, la misma ESP32-CAM: abre la puerta y publica su estado y su presencia. La XIAO ESP32-C6 de D-21, que abría la puerta con un LED y leía un sensor de temperatura y humedad, queda sin uso | Seeed Studio XIAO ESP32-C6, ESP-IDF 5.4 (C++), esp-mqtt, `esp-idf-lib/dht` | A | `firmware/` |
 | Simulador | Hace lo mismo que la cámara con la webcam o con una carpeta de fotos | Python 3.13, OpenCV (YuNet), httpx, paho-mqtt | A | `simulador/` |
 | Servidor | Huella, reglas, inscripción, asistencia, eventos MQTT, API y web | Python 3.13, FastAPI, OpenCV (YuNet + SFace), SQLAlchemy 2, psycopg 3, pgvector, Alembic, paho-mqtt | B | `servidor/` |
 | Servidor MCP | Herramientas de solo lectura del agente | SDK oficial `mcp` 2.x de Python (`MCPServer`, que en la 1.x se llamaba FastMCP), mismo paquete del servidor | B | `servidor/` |
@@ -78,7 +78,13 @@ Si la persona no dio consentimiento, o si la cámara falla, un administrador reg
 - B. Home Assistant le pasa la pregunta y las herramientas de AccesIA a Ollama; el modelo pide `asistencia_del_dia`.
 - C. Home Assistant llama al servidor MCP, que consulta las vistas con el usuario `agente`. El modelo responde con esos datos.
 
-### Temperatura y humedad (D-21)
+### Presencia (D-24)
+
+1. La placa corre su modelo sobre los cuadros de su cámara.
+2. Cuando el resultado cambia, y cada vez que se conecta al broker, publica `accesia/{codigo}/presencia`, retenido (`contratos/mqtt.md` 1.6).
+3. Home Assistant lo muestra en el sensor Presencia del dispositivo de la cámara. Su descubrimiento lo publica la placa, así que no depende del servidor.
+
+### Temperatura y humedad (D-21, sin uso desde D-24)
 
 1. Cada 30 s la placa lee su sensor (DHT22 o DHT11) y publica la temperatura y la humedad en `accesia/{codigo}/ambiente`.
 2. Home Assistant las muestra en el dispositivo de la cámara. El descubrimiento de esos dos sensores lo publica la placa al conectarse, así que no depende del servidor.
@@ -232,7 +238,9 @@ Direcciones dentro de la red de Docker: `http://servidor:8000`, `http://mcp:8001
 
 ## Firmware
 
-### Placa de la demo: XIAO ESP32-C6 (D-21)
+### Placa de la demo: XIAO ESP32-C6 (D-21, sin uso desde D-24)
+
+Con D-24, la placa de la demo es una ESP32-CAM. Sus pines y su firmware los fija la sesión del firmware; hasta entonces no se asumen. Lo de esta sección queda como referencia.
 
 Un solo binario para la Seeed Studio XIAO ESP32-C6: 4 MB de flash, 512 KB de SRAM y sin PSRAM. La tabla de particiones de 4 MB no cambia. Todavía no tiene cámara: maneja la puerta, publica su estado y lee un sensor de temperatura y humedad.
 
@@ -285,6 +293,8 @@ Así se comporta cualquier cámara que envíe recortes (hoy el simulador; el ESP
 - Si el servidor no responde (tiempo de espera 5 s), reintenta con espera creciente de 1, 2, 4 y hasta 10 s, y lo muestra por el monitor serial.
 
 #### Cuando llegue el módulo de cámara
+
+Ya se decidió (D-24): es una ESP32-CAM, con todo en esa placa, y el modelo lo decide P-05. Lo que sigue era el plan para el C6 y queda como referencia.
 
 El firmware del C6 deja un punto de extensión, sin código de cámara ni de TinyML: una fuente de cuadros y un detector. Lo que se haga depende del módulo:
 

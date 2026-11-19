@@ -2,9 +2,9 @@
 Nombre: requisitos.md
 Descripción: Requisitos funcionales y no funcionales de AccesIA con sus criterios de aceptación.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-13
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.7
+Versión: 1.8
 -->
 
 # Requisitos
@@ -15,7 +15,7 @@ Cada requisito tiene criterios de aceptación (C1, C2…). Una prueba cita el re
 
 ### RF-01 Detección en la cámara (TinyML) · frente A
 
-Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendiente del módulo que llega la próxima clase. Mientras tanto lo cumplen el simulador (C6) y, como referencia, el firmware del ESP32-S3 del PR #7.
+Con D-24, la cámara de la demo es una ESP32-CAM, con el modelo en la placa; cuál modelo lo decide P-05. Mientras su firmware no esté listo, RF-01 lo cumplen el simulador (C6) y, como referencia, el firmware del ESP32-S3 del PR #7.
 
 - C1 Detecta caras dentro del ESP32-S3 con `espressif/human_face_detect` (MSR + MNP, int8).
 - C2 Envía solo el recorte en JPEG, con la fórmula del recorte de `contratos/api-dispositivo.md`, y espera al menos 1 s desde cada respuesta antes de enviar otro.
@@ -114,6 +114,8 @@ Con el hardware de D-21, la placa todavía no tiene cámara y RF-01 queda pendie
 - C5 La web tiene la pantalla Horarios: la lista y un formulario con un renglón por día (activo, hora y tolerancia).
 
 ### RF-14 Placa del punto de acceso (XIAO ESP32-C6) · frente A
+
+Fuera de alcance desde D-24: la XIAO ESP32-C6 y su sensor DHT ya no se usan, y la ESP32-CAM hace de cámara y de placa del punto de acceso. Los criterios quedan como referencia de lo que se hizo.
 
 - C1 Un solo binario para la XIAO ESP32-C6, que compila en GitHub Actions con `firmware.yml` (D-21).
 - C2 Al arrancar enciende el conmutador de antena (GPIO3 en bajo) y elige la antena configurada: GPIO14 en bajo para la interna y en alto para la externa. El comando `antena` la cambia.

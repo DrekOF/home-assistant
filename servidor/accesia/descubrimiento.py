@@ -2,18 +2,19 @@
 Nombre: descubrimiento.py
 Descripción: Descubrimiento de Home Assistant que publica el servidor (mqtt.md 1.3, Entidades): los seis config de cada cámara y los cuatro del servidor, y cómo reconocer en un tema un config del servidor para la limpieza de las cámaras que ya no existen.
 Fecha de creación: 2026-11-12
-Actualización: 2026-11-12
+Actualización: 2026-11-19
 Autor: Equipo AccesIA
-Versión: 1.0
+Versión: 1.1
 """
 
 import re
 
 FABRICANTE = "Equipo AccesIA"
-# D-21: la placa de la demo. Va en todas las cámaras, también en las de tipo simulador: en la demo, entrada se crea
-# como simulador porque es quien envía los recortes, pero su dispositivo en Home Assistant es la placa, con su puerta
-# y sus sensores (decisión de B2 del Día 3).
-MODELO = "XIAO ESP32-C6"
+# La placa de la demo: con D-24, una ESP32-CAM, que también es la placa del punto de acceso (mqtt.md 1.6); antes, la
+# XIAO ESP32-C6 (D-21). Va en todas las cámaras, también en las de tipo simulador: en la demo, entrada se crea como
+# simulador porque es quien envía los recortes, pero su dispositivo en Home Assistant es la placa, con su puerta y su
+# sensor (decisión de B2 del Día 3).
+MODELO = "ESP32-CAM"
 ORIGEN = "AccesIA servidor"
 DISPONIBLE_SERVIDOR = "accesia/servidor/disponible"
 NODO_SERVIDOR = "accesia_servidor"

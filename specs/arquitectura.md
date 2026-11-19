@@ -2,9 +2,9 @@
 Nombre: arquitectura.md
 Descripción: Piezas de AccesIA, flujos, servicios, puertos, configuración, firmware y despliegue.
 Fecha de creación: 2026-11-11
-Actualización: 2026-11-13
+Actualización: 2026-11-18
 Autor: Equipo AccesIA
-Versión: 1.11
+Versión: 1.12
 -->
 
 # Arquitectura
@@ -27,7 +27,7 @@ Los diagramas están en `docs/diagramas/`: `arquitectura-explicada.html` (quién
 | Home Assistant | Panel, automatizaciones (puerta y avisos) y Assist | Home Assistant OS en la Raspberry Pi 5 (D-21); Home Assistant Container en el escenario 1 | C | `homeassistant/` |
 | Ollama | Modelo del agente | Ollama con `qwen2.5`, del tamaño que permita la RAM (D-06); en la demo, el complemento de SirUli en la Pi (D-22) | C | `infra/` |
 | Web | Administración: personas, inscripción, accesos, asistencia, cámaras y horarios | React + Vite + TypeScript, servida por el servidor | C | `web/` |
-| Complementos | Empaquetan la base y el servidor para Home Assistant OS (D-22) | `config.yaml` y `Dockerfile` de cada uno, que Supervisor construye en la Pi | B | `complementos/` (B4 del Día 4) |
+| Complementos | Empaquetan la base y el servidor para Home Assistant OS (D-22) | `config.yaml` y `Dockerfile` de cada uno, que Supervisor construye en la Pi | B | `complementos/` |
 
 Modelos fijos, los mismos en el simulador y en el servidor. Se descargan de un commit fijo de `opencv/opencv_zoo` y se comprueban con su SHA-256; en el PC quedan en `datos/modelos/`, que Git y Docker ignoran:
 
@@ -104,10 +104,11 @@ En la demo, todo menos la cámara y la placa corre en la Raspberry Pi 5 como com
 - **La web** va en la raíz del puerto 8000 (`http://<IP de la Pi>:8000/`), sin Ingress, igual que en el portátil.
 - **`accesia_base`.** Su `Dockerfile` parte de `pgvector/pgvector:pg18` y suma `jq`. Un `run.sh` lee las claves de `/data/options.json` y arranca PostgreSQL con `PGDATA=/data/postgres`.
 - **`accesia_servidor`.** Es la imagen del servidor, adaptada. Su `run.sh`:
-  - lee las opciones;
-  - corre la migración;
-  - arranca Uvicorn en el 8000 y `accesia mcp` en el 8001, con `MCP_HOSTS_PERMITIDOS=local-accesia-servidor:8001`;
-  - termina si uno de los dos falla, para que Supervisor lo reinicie.
+  - lee las opciones y deja `/data/options.json` legible solo para root;
+  - espera la base y corre la migración;
+  - arranca Uvicorn en el 8000 con el usuario `accesia`, y `accesia mcp` en el 8001 con el usuario `agente` y un entorno limpio: solo la `DATABASE_URL` del usuario `agente` y `MCP_HOSTS_PERMITIDOS=local-accesia-servidor:8001`. Así el MCP nunca tiene las claves del dueño de la base, como en el Compose (D-15);
+  - termina si uno de los dos falla, para que Supervisor lo reinicie con el Watchdog.
+- **Comandos en la Pi.** Las cámaras se crean en la web (RF-10 · C1). `semilla agente`, con `--con-datos-reales` o `--borrar`, entra por la entrada estándar del complemento, con la acción `hassio.app_stdin`; `run.sh` solo acepta esos tres textos.
 - **Mosquitto.** `servidor` y `camara` van en sus `logins`. Con `customize` activo y la carpeta `mosquitto`, lee `/share/mosquitto/acl.conf`, que tiene una sola línea: `acl_file /share/mosquitto/accesscontrollist`. Ese archivo es la ACL de `contratos/mqtt.md`, la misma de `infra/mosquitto/acl`.
 - **Ollama.** El complemento de SirUli usa la imagen oficial `ollama/ollama` (la 0.40.16 en noviembre de 2026), para aarch64 y amd64. Trae `OLLAMA_KEEP_ALIVE=-1`, así que el modelo queda cargado en memoria, y `OLLAMA_NUM_PARALLEL=1`: un solo espacio de caché, el que reutiliza el comienzo del prompt. Con sus valores por defecto, `OLLAMA_KV_CACHE_TYPE=q8_0` y `OLLAMA_FLASH_ATTENTION=0`, Ollama 0.40.16 no carga el modelo («quantized V cache requires flash_attn to be enabled»): se cambia `OLLAMA_FLASH_ATTENTION` a 1 en las opciones del complemento. Así se comprobó en el portátil, solo con CPU. Como el complemento es «legacy», Supervisor le pasa sus opciones como variables de entorno.
 - **Construcción.** Sin `image` en su `config.yaml`, la Pi construye cada complemento local desde su `Dockerfile`. Desde Supervisor 2026.04 ya no llega `BUILD_FROM`, así que cada `Dockerfile` lleva su `FROM` explícito; `build.yaml` está obsoleto.
@@ -123,7 +124,7 @@ En la demo, todo menos la cámara y la placa corre en la Raspberry Pi 5 como com
   4. Arrancar primero la base y después el servidor.
 
   Construir necesita internet una vez: las imágenes base y los paquetes de Python. Si la Pi solo está disponible en clase, se instala allá con el internet del celular. Los archivos del modelo de Ollama van en el kit y se copian por Samba a `/share/ollama`, sin internet.
-- **Configuración.** En la Pi, las variables de `infra/.env` pasan a las opciones de los complementos (D-14): se cambian en la interfaz de Home Assistant y se reinicia el complemento. `infra/.env` sigue para el portátil.
+- **Configuración.** En la Pi, las variables de `infra/.env` pasan a las opciones de los complementos (D-14): se cambian en la interfaz de Home Assistant y se reinicia el complemento. Las claves son del tipo `password`, que la interfaz muestra oculto. La lista está en `complementos/accesia_servidor/DOCS.md`. `infra/.env` sigue para el portátil.
 - **Copias de seguridad.** Incluyen `/data` de `accesia_base`, es decir, las huellas: van siempre cifradas y nunca al repositorio, y la del kit se toma sin inscripciones (`modelo-datos.md`, Retención).
 
 ### Presupuesto de RAM
@@ -171,7 +172,7 @@ Son estimaciones. Las del servidor y el MCP se midieron en el portátil, con los
 
 ### Cómo se prueban sin la Pi
 
-1. **CI**, con un workflow nuevo `complementos.yml` (B4 del Día 4): construye los dos complementos para arm64, con QEMU, y para amd64; en amd64 los arranca con un `options.json` de prueba y revisa `/api/v1/salud` y un `initialize` del MCP.
+1. **CI**, con `complementos.yml`: construye los dos complementos para arm64, con QEMU, y para amd64; en amd64 los arranca con un `options.json` de prueba y revisa `/api/v1/salud` y un `initialize` del MCP.
 2. **Portátil:** `docker buildx build --platform linux/arm64` y `docker run --platform linux/arm64`, con `/data` montada. Es emulado y lento, pero comprueba que arranca.
 3. **Ensayo completo:** el devcontainer oficial de Home Assistant, que corre Supervisor y Home Assistant en Docker en el portátil (`http://localhost:7123`). Ahí se instalan nuestros complementos locales, Mosquitto y Ollama, y se prueban los archivos de Home Assistant de la C2.
 4. **En la Pi:** la RAM de cada complemento, las 10 preguntas con sus tiempos y que la puerta abra en menos de 2 s.

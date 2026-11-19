@@ -1,0 +1,55 @@
+# Nombre: config.yaml
+# Descripción: Complemento accesia_servidor de Home Assistant OS: la API, la web, MQTT y el servidor MCP de AccesIA (D-22).
+# Fecha de creación: 2026-11-18
+# Actualización: 2026-11-18
+# Autor: Equipo AccesIA
+# Versión: 1.0
+#
+# Sin «image», la Pi construye el complemento desde su Dockerfile, con lo que arma scripts/empaquetar-complementos.ps1.
+# Publica solo el 8000 (API y web). El MCP, en el 8001, queda en la red interna: Home Assistant llega a él en
+# http://local-accesia-servidor:8001/mcp (D-16, mcp-agente.md). Las reglas de D-14 son opciones: se cambian aquí y se
+# reinicia el complemento.
+name: "AccesIA · servidor"
+version: "1.0.0"
+slug: accesia_servidor
+description: "La API, la web, MQTT y el servidor MCP del agente de AccesIA."
+arch:
+  - aarch64
+  - amd64
+startup: application
+boot: auto
+# Recibe comandos con la acción hassio.app_stdin, como «semilla agente» (DOCS.md).
+stdin: true
+ports:
+  8000/tcp: 8000
+watchdog: "http://[HOST]:[PORT:8000]/api/v1/salud"
+options:
+  clave_base: null
+  clave_agente: null
+  clave_mqtt_servidor: null
+  sesion_secreto: null
+  admin_correo: null
+  admin_clave_inicial: null
+  umbral_similitud: 0.363
+  ventana_repetido_s: 60
+  alerta_desconocidos: 3
+  alerta_ventana_s: 60
+  inscripcion_muestras: 5
+  inscripcion_vence_s: 120
+  cara_min_px: 80
+  nitidez_min: 60
+schema:
+  clave_base: password
+  clave_agente: password
+  clave_mqtt_servidor: password
+  sesion_secreto: password
+  admin_correo: email
+  admin_clave_inicial: password
+  umbral_similitud: "float(-1,1)"
+  ventana_repetido_s: "int(0,)"
+  alerta_desconocidos: "int(1,)"
+  alerta_ventana_s: "int(1,)"
+  inscripcion_muestras: "int(1,20)"
+  inscripcion_vence_s: "int(1,)"
+  cara_min_px: "int(1,)"
+  nitidez_min: "float(0,)"
